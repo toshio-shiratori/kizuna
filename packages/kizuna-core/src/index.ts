@@ -1,3 +1,5 @@
+export { Database } from "./storage/database.js";
+
 // ─── Storage Types ────────────────────────────────────────
 
 export interface Session {
