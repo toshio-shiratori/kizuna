@@ -1,4 +1,9 @@
 export { Database } from "./storage/database.js";
+export { captureTranscript } from "./pipelines/capture.js";
+export type { CaptureResult, CaptureOptions } from "./pipelines/capture.js";
+export { parseTranscriptFile, parseTranscriptContent } from "./pipelines/transcript-parser.js";
+export type { ParsedTurn } from "./pipelines/transcript-parser.js";
+export { chunkifyTurns } from "./pipelines/chunker.js";
 
 // ─── Storage Types ────────────────────────────────────────
 
