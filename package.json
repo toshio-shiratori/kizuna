@@ -20,5 +20,8 @@
     "tsc": "pnpm -r exec tsc --noEmit",
     "clean": "pnpm -r exec rm -rf dist .tsbuildinfo"
   },
-  "packageManager": "pnpm@11.0.3"
+  "packageManager": "pnpm@11.0.3",
+  "devDependencies": {
+    "typescript": "^5.9.3"
+  }
 }

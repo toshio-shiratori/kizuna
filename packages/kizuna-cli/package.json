@@ -1,27 +1,22 @@
 {
-  "name": "@kizuna/core",
+  "name": "@kizuna/cli",
   "version": "0.0.0",
-  "description": "Core memory engine for Kizuna - storage, search, and pipeline processing",
+  "description": "Command-line interface for Kizuna memory system",
   "license": "MIT",
   "author": "Toshio Shiratori (@toshio-shiratori)",
   "repository": {
     "type": "git",
     "url": "https://github.com/toshio-shiratori/kizuna.git",
-    "directory": "packages/kizuna-core"
+    "directory": "packages/kizuna-cli"
   },
   "type": "module",
+  "bin": {
+    "kizuna": "dist/cli.js"
+  },
   "exports": {
     ".": {
-      "types": "./src/index.ts",
-      "import": "./src/index.ts"
-    }
-  },
-  "publishConfig": {
-    "exports": {
-      ".": {
-        "types": "./dist/index.d.ts",
-        "import": "./dist/index.js"
-      }
+      "types": "./dist/cli.d.ts",
+      "import": "./dist/cli.js"
     }
   },
   "files": [
@@ -32,10 +27,12 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "better-sqlite3": "^11.0.0"
+    "@kizuna/core": "workspace:*",
+    "commander": "^13.0.0"
   },
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.0",
+    "tsx": "^4.21.0",
     "typescript": "^5.8.0",
     "vitest": "^3.1.0"
   },
