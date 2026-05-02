@@ -4,6 +4,9 @@ export type { CaptureResult, CaptureOptions } from "./pipelines/capture.js";
 export { parseTranscriptFile, parseTranscriptContent } from "./pipelines/transcript-parser.js";
 export type { ParsedTurn } from "./pipelines/transcript-parser.js";
 export { chunkifyTurns } from "./pipelines/chunker.js";
+export { searchMemory } from "./pipelines/search.js";
+export type { SearchOptions } from "./pipelines/search.js";
+export { preprocessQuery, isCJKChar, splitByCJK } from "./pipelines/cjk-preprocessing.js";
 
 // ─── Storage Types ────────────────────────────────────────
 
