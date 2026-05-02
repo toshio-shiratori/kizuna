@@ -18,7 +18,7 @@ export function chunkifyTurns(
   }));
 }
 
-function estimateTokens(text: string): number {
+export function estimateTokens(text: string): number {
   let count = 0;
   for (const char of text) {
     const code = char.codePointAt(0)!;

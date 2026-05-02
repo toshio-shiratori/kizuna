@@ -7,6 +7,9 @@ export { chunkifyTurns } from "./pipelines/chunker.js";
 export { searchMemory } from "./pipelines/search.js";
 export type { SearchOptions } from "./pipelines/search.js";
 export { preprocessQuery, isCJKChar, splitByCJK } from "./pipelines/cjk-preprocessing.js";
+export { injectMemory, formatContext } from "./pipelines/inject.js";
+export type { InjectOptions, InjectResult } from "./pipelines/inject.js";
+export { estimateTokens } from "./pipelines/chunker.js";
 
 // ─── Storage Types ────────────────────────────────────────
 

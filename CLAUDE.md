@@ -132,3 +132,18 @@ All work is done in Issue/PR pairs:
 6. User reviews and merges; agents do not merge
 
 For Issue creation, use `gh issue create` with the appropriate template.
+
+### Implementation Checklist (MANDATORY)
+
+Phase タスクの実装を開始する際、以下の順序を厳守すること。
+ステップを飛ばして実装に着手してはならない。
+
+1. **Issue 作成** — `gh issue create` (テンプレート: phase-task)
+2. **ブランチ作成** — `feat/issue-N-description` を main から切る
+3. **実装** — コーディングとテスト
+4. **検証** — `pnpm tsc --noEmit && pnpm test`
+5. **コミット** — Conventional Commits + `(#N)` 参照
+6. **PR 作成** — `Closes #N` を含める
+
+「実装を開始して」「作業開始」等の指示を受けた場合、
+Issue が未作成であれば **まず Issue 作成を行い確認を取る**。
