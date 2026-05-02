@@ -1,0 +1,36 @@
+name: Refactor
+description: 既存コードのリファクタリング
+title: "refactor: <Short description>"
+labels: ["refactor"]
+body:
+  - type: textarea
+    id: current-state
+    attributes:
+      label: Current State
+      description: 現状の問題点
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposed-change
+    attributes:
+      label: Proposed Change
+      description: どう変更するか
+    validations:
+      required: true
+
+  - type: textarea
+    id: scope
+    attributes:
+      label: Scope
+      description: 影響範囲 (ファイル、パッケージ)
+    validations:
+      required: true
+
+  - type: textarea
+    id: risk
+    attributes:
+      label: Risk Assessment
+      description: 既存機能への影響、テストカバレッジで検出可能か
+    validations:
+      required: true

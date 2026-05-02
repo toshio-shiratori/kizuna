@@ -1,0 +1,42 @@
+name: ADR Proposal
+description: 新しい Architecture Decision Record の提案
+title: "ADR Proposal: <Decision title>"
+labels: ["adr-proposal"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        新しい設計判断を ADR として記録するための Issue。
+        実装に着手する前に、ここで決定の根拠と影響範囲を議論します。
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Context
+      description: どのような状況・制約のもとでこの決定が必要か
+    validations:
+      required: true
+
+  - type: textarea
+    id: options
+    attributes:
+      label: Options Considered
+      description: 検討した選択肢を列挙
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposed-decision
+    attributes:
+      label: Proposed Decision
+      description: 提案する決定とその理由
+    validations:
+      required: true
+
+  - type: textarea
+    id: consequences
+    attributes:
+      label: Consequences
+      description: この決定によって何が容易になり、何が困難になるか
+    validations:
+      required: true
