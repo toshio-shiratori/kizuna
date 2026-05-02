@@ -1,0 +1,45 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build output
+dist/
+build/
+*.tsbuildinfo
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editors
+.vscode/*
+!.vscode/extensions.json
+.idea/
+*.swp
+*.swo
+
+# Test coverage
+coverage/
+*.lcov
+
+# Kizuna runtime data
+.kizuna/
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+
+# Claude Code CLI - personal local settings
+.claude/settings.local.json

@@ -1,0 +1,10 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Documentation
+    url: https://github.com/toshio-shiratori/kizuna#readme
+    about: Please read the README first.
+  - name: Discussions
+    url: https://github.com/toshio-shiratori/kizuna/discussions
+    about: |
+      Questions and ideas are welcome in Discussions.
+      Note: Responses are best-effort and not guaranteed.
