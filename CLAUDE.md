@@ -102,3 +102,33 @@ current phase. Stick to what's specified in the current task.
 - Do not add new packages or dependencies without explicit confirmation.
 - Do not write business-specific or company-specific code.
 - Do not auto-commit or auto-push to git.
+
+## Agent Usage
+
+This project has three custom agents in `.claude/agents/`:
+
+- **kizuna-implementer**: For implementing features from Issues
+- **kizuna-reviewer**: For reviewing implementations
+- **kizuna-test-writer**: For writing tests
+
+When working on an Issue, the typical flow is:
+
+1. Use `kizuna-implementer` to implement the feature
+2. Use `kizuna-test-writer` to add tests (if not already written)
+3. Use `kizuna-reviewer` to review the implementation before PR creation
+
+Each agent reads relevant docs before starting. Trust their pre-flight
+reading and validation.
+
+## Issue/PR Workflow
+
+All work is done in Issue/PR pairs:
+
+1. Issue describes the work (created by user or via templates)
+2. Branch named `feat/issue-N-description`, `fix/issue-N-description`, etc.
+3. Commits include `(#N)` referencing the Issue
+4. PR uses the PULL_REQUEST_TEMPLATE.md
+5. PR includes `Closes #N` to auto-close the Issue on merge
+6. User reviews and merges; agents do not merge
+
+For Issue creation, use `gh issue create` with the appropriate template.

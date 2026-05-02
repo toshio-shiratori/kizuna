@@ -1,0 +1,58 @@
+name: Phase Task
+description: ロードマップのフェーズタスクを実装するための Issue
+title: "Phase X.Y: <Short description>"
+labels: ["phase-task"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ロードマップ (`docs/06-roadmap.md`) の各タスクに対応する Issue を作成します。
+        実装着手前に、Validation 条件を確認してください。
+
+  - type: input
+    id: phase
+    attributes:
+      label: Phase
+      description: 該当するロードマップのフェーズ番号
+      placeholder: "2.1"
+    validations:
+      required: true
+
+  - type: textarea
+    id: deliverables
+    attributes:
+      label: Deliverables
+      description: 何を作るか (ロードマップから抜粋)
+      placeholder: |
+        - packages/kizuna-core/ ディレクトリ作成
+        - package.json, tsconfig.json, vitest.config の配置
+        - src/index.ts のプレースホルダ
+    validations:
+      required: true
+
+  - type: textarea
+    id: validation
+    attributes:
+      label: Validation
+      description: 完了の定義 (Exit Criteria)
+      placeholder: |
+        - `pnpm tsc --noEmit` がリポジトリルートから成功
+        - `pnpm test` が成功 (テストがある場合)
+    validations:
+      required: true
+
+  - type: textarea
+    id: design-references
+    attributes:
+      label: Design References
+      description: 参照すべき設計ドキュメント
+      placeholder: |
+        - docs/03-architecture.md
+        - docs/adr/0002-use-typescript.md
+        - docs/adr/0003-use-monorepo.md
+
+  - type: textarea
+    id: notes
+    attributes:
+      label: Implementation Notes
+      description: 実装上の留意点 (任意)
