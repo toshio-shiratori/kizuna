@@ -264,9 +264,10 @@ The exact ranking formula is configurable per project via the global config.
 The maintenance pipeline performs (in order):
 
 1. **Delete old chunks**: `DELETE FROM chunks WHERE created_at < datetime('now', '-90 days')` (threshold configurable)
-2. **Cap database size**: If size exceeds limit, delete oldest 10% of chunks
+2. **Cap database size**: If used size exceeds limit, delete oldest 10% of chunks. Used size is calculated as `(page_count - freelist_count) * page_size` to exclude free pages from the count.
 3. **Delete empty sessions**: `DELETE FROM sessions WHERE id NOT IN (SELECT DISTINCT session_id FROM chunks)`
-4. **Vacuum WAL**: `PRAGMA wal_checkpoint(TRUNCATE)` to reclaim disk space
+4. **Vacuum WAL**: `PRAGMA wal_checkpoint(TRUNCATE)` to flush WAL
+5. **VACUUM**: `VACUUM` to reclaim disk space (only if chunks or sessions were deleted in steps 1-3). See ADR-0010 for rationale.
 
 Recorded in `maintenance_runs` with metrics for observability.
 

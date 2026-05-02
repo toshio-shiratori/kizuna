@@ -203,14 +203,14 @@ export class Database {
 
   // ─── Maintenance ──────────────────────────────────────
 
-  insertMaintenanceRun(result: MaintenanceResult): void {
+  insertMaintenanceRun(result: MaintenanceResult, ranAt?: string): void {
     this.db
       .prepare(
         `INSERT INTO maintenance_runs (ran_at, chunks_deleted, sessions_deleted, bytes_reclaimed, duration_ms)
          VALUES (?, ?, ?, ?, ?)`,
       )
       .run(
-        new Date().toISOString(),
+        ranAt ?? new Date().toISOString(),
         result.chunksDeleted,
         result.sessionsDeleted,
         result.bytesReclaimed,
@@ -237,10 +237,22 @@ export class Database {
     return result.changes;
   }
 
+  deleteOldestChunksPercent(percent: number): number {
+    const result = this.db
+      .prepare(
+        `DELETE FROM chunks WHERE id IN (
+           SELECT id FROM chunks ORDER BY created_at ASC
+           LIMIT (SELECT MAX(1, COUNT(*) * ? / 100) FROM chunks)
+         )`,
+      )
+      .run(percent);
+    return result.changes;
+  }
+
   getDatabaseSizeBytes(): number {
     const row = this.db
       .prepare(
-        "SELECT page_count * page_size AS size FROM pragma_page_count(), pragma_page_size()",
+        "SELECT (page_count - freelist_count) * page_size AS size FROM pragma_page_count(), pragma_page_size(), pragma_freelist_count()",
       )
       .get() as { size: number };
     return row.size;
@@ -248,5 +260,9 @@ export class Database {
 
   walCheckpoint(): void {
     this.db.pragma("wal_checkpoint(TRUNCATE)");
+  }
+
+  vacuum(): void {
+    this.db.exec("VACUUM");
   }
 }
