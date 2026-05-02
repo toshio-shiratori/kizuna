@@ -16,8 +16,8 @@ When working on Kizuna with Claude Code CLI, refer to the current phase. Do NOT 
 | Phase | Goal | Status |
 |-------|------|--------|
 | Phase 0 | Project initialization | ✅ Complete |
-| Phase 1 | Documentation | 🚧 In progress |
-| Phase 2 | Core implementation | ⏳ Pending |
+| Phase 1 | Documentation | ✅ Complete |
+| Phase 2 | Core implementation | 🚧 In progress |
 | Phase 3 | Plugin system | ⏳ Pending |
 | Phase 4 | Public release preparation | ⏳ Pending |
 | Phase 5 | Extensions and ecosystem | ⏳ Future |
@@ -46,7 +46,7 @@ Establish a clean repository with development environment, monorepo structure, a
 
 ## Phase 1: Documentation
 
-**Status: In progress**
+**Status: Complete**
 
 ### Goal
 
@@ -54,15 +54,15 @@ Document the project's vision, design principles, architecture, and decisions cl
 
 ### Deliverables
 
-- 📝 `docs/01-vision.md` — Project vision and use cases
-- 📝 `docs/02-design-principles.md` — The eight design principles
-- 📝 `docs/03-architecture.md` — High-level architecture
-- 📝 `docs/04-schema.md` — SQLite schema specification
-- 📝 `docs/05-plugin-api.md` — Plugin API specification
-- 📝 `docs/06-roadmap.md` — This document
-- 📝 `docs/07-references.md` — External references and acknowledgments
-- 📝 `docs/adr/` — Architecture Decision Records (multiple files)
-- 📝 `docs/README.md` — Documentation reading guide
+- ✅ `docs/01-vision.md` — Project vision and use cases
+- ✅ `docs/02-design-principles.md` — The eight design principles
+- ✅ `docs/03-architecture.md` — High-level architecture
+- ✅ `docs/04-schema.md` — SQLite schema specification
+- ✅ `docs/05-plugin-api.md` — Plugin API specification
+- ✅ `docs/06-roadmap.md` — This document
+- ✅ `docs/07-references.md` — External references and acknowledgments
+- ✅ `docs/adr/` — Architecture Decision Records (9 ADRs)
+- ✅ `docs/README.md` — Documentation reading guide
 
 ### Exit Criteria
 
@@ -74,7 +74,7 @@ Document the project's vision, design principles, architecture, and decisions cl
 
 ## Phase 2: Core Implementation
 
-**Status: Pending**
+**Status: In progress**
 
 ### Goal
 
