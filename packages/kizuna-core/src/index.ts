@@ -10,6 +10,8 @@ export { preprocessQuery, isCJKChar, splitByCJK } from "./pipelines/cjk-preproce
 export { injectMemory, formatContext } from "./pipelines/inject.js";
 export type { InjectOptions, InjectResult } from "./pipelines/inject.js";
 export { estimateTokens } from "./pipelines/chunker.js";
+export { runMaintenance } from "./pipelines/maintenance.js";
+export type { MaintenanceOptions } from "./pipelines/maintenance.js";
 
 // ─── Storage Types ────────────────────────────────────────
 
