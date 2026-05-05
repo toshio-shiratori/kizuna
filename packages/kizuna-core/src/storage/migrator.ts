@@ -1,13 +1,5 @@
 import type BetterSqlite3 from "better-sqlite3";
-import { readFileSync, readdirSync } from "node:fs";
-import { join } from "node:path";
-import { fileURLToPath } from "node:url";
-
-const MIGRATIONS_DIR = join(
-  fileURLToPath(import.meta.url),
-  "..",
-  "migrations",
-);
+import { coreMigrations } from "./migrations/index.js";
 
 export function runCoreMigrations(db: BetterSqlite3.Database): void {
   db.exec(`
@@ -28,21 +20,14 @@ export function runCoreMigrations(db: BetterSqlite3.Database): void {
       .map((row) => (row as { version: number }).version),
   );
 
-  const files = readdirSync(MIGRATIONS_DIR)
-    .filter((f) => f.endsWith(".sql"))
-    .sort();
-
-  for (const file of files) {
-    const version = parseInt(file.split("-")[0]!, 10);
-    if (applied.has(version)) continue;
-
-    const sql = readFileSync(join(MIGRATIONS_DIR, file), "utf-8");
+  for (const migration of coreMigrations) {
+    if (applied.has(migration.version)) continue;
 
     db.transaction(() => {
-      db.exec(sql);
+      db.exec(migration.sql);
       db.prepare(
         "INSERT INTO schema_versions (component, version, applied_at) VALUES (?, ?, ?)",
-      ).run("core", version, new Date().toISOString());
+      ).run("core", migration.version, new Date().toISOString());
     })();
   }
 }

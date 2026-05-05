@@ -16,7 +16,7 @@
   },
   "scripts": {
     "build": "pnpm -r build",
-    "test": "pnpm -r test",
+    "test": "pnpm build && pnpm -r test",
     "tsc": "pnpm -r exec tsc --noEmit",
     "clean": "pnpm -r exec rm -rf dist .tsbuildinfo"
   },
