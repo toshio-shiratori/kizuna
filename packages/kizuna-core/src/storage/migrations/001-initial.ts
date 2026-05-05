@@ -1,3 +1,4 @@
+export const sql = `
 -- Core schema: initial tables
 -- Per docs/04-schema.md
 
@@ -74,3 +75,4 @@ CREATE TABLE maintenance_runs (
 
 CREATE INDEX idx_maintenance_runs_ran_at
   ON maintenance_runs(ran_at DESC);
+`;
