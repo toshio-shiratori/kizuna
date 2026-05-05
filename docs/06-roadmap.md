@@ -17,7 +17,7 @@ When working on Kizuna with Claude Code CLI, refer to the current phase. Do NOT 
 |-------|------|--------|
 | Phase 0 | Project initialization | ✅ Complete |
 | Phase 1 | Documentation | ✅ Complete |
-| Phase 2 | Core implementation | 🚧 In progress |
+| Phase 2 | Core implementation | 🔄 Validation (実運用テスト中) |
 | Phase 3 | Plugin system | ⏳ Pending |
 | Phase 4 | Public release preparation | ⏳ Pending |
 | Phase 5 | Extensions and ecosystem | ⏳ Future |
@@ -61,7 +61,7 @@ Document the project's vision, design principles, architecture, and decisions cl
 - ✅ `docs/05-plugin-api.md` — Plugin API specification
 - ✅ `docs/06-roadmap.md` — This document
 - ✅ `docs/07-references.md` — External references and acknowledgments
-- ✅ `docs/adr/` — Architecture Decision Records (9 ADRs)
+- ✅ `docs/adr/` — Architecture Decision Records (10 ADRs)
 - ✅ `docs/README.md` — Documentation reading guide
 
 ### Exit Criteria
@@ -74,7 +74,7 @@ Document the project's vision, design principles, architecture, and decisions cl
 
 ## Phase 2: Core Implementation
 
-**Status: In progress**
+**Status: Validation (全 deliverables 実装完了、実運用テスト中)**
 
 ### Goal
 
@@ -87,7 +87,7 @@ Implement the minimum viable Kizuna: a working memory system that captures and r
 
 ### Deliverables (in implementation order)
 
-#### 2.1 Package skeleton
+#### 2.1 Package skeleton ✅
 
 - Create `packages/kizuna-core/` with package.json, tsconfig.json, vitest.config
 - Establish the package's directory structure: `src/storage/`, `src/pipelines/`, `src/config/`
@@ -95,7 +95,7 @@ Implement the minimum viable Kizuna: a working memory system that captures and r
 
 **Validation**: `pnpm tsc --noEmit` passes from the repo root
 
-#### 2.2 Storage layer
+#### 2.2 Storage layer ✅
 
 - Implement SQLite connection with WAL mode and pragmas
 - Implement core schema migrations (the tables defined in `04-schema.md`, except `plugin_kv` which comes in Phase 3)
@@ -104,7 +104,7 @@ Implement the minimum viable Kizuna: a working memory system that captures and r
 
 **Validation**: All storage unit tests pass
 
-#### 2.3 Capture pipeline
+#### 2.3 Capture pipeline ✅
 
 - Implement transcript JSONL parser (Claude Code's transcript format)
 - Implement rule-based chunker (one chunk per turn, with metadata extraction)
@@ -113,7 +113,7 @@ Implement the minimum viable Kizuna: a working memory system that captures and r
 
 **Validation**: Given a sample transcript, chunks are correctly stored
 
-#### 2.4 Search pipeline
+#### 2.4 Search pipeline ✅
 
 - Implement FTS5 search wrapper (with CJK n-gram pre-processing for Japanese)
 - Implement BM25 + time decay ranking
@@ -122,7 +122,7 @@ Implement the minimum viable Kizuna: a working memory system that captures and r
 
 **Validation**: Search returns relevant results for both English and Japanese queries
 
-#### 2.5 Inject pipeline
+#### 2.5 Inject pipeline ✅
 
 - Implement context formatting (Markdown, with budget control)
 - Implement the inject pipeline: `search → format → output`
@@ -130,7 +130,7 @@ Implement the minimum viable Kizuna: a working memory system that captures and r
 
 **Validation**: Output respects token budget
 
-#### 2.6 Maintenance
+#### 2.6 Maintenance ✅
 
 - Implement the maintenance operations from `04-schema.md`
 - Implement the 24-hour throttle
@@ -138,7 +138,7 @@ Implement the minimum viable Kizuna: a working memory system that captures and r
 
 **Validation**: Maintenance runs only when due
 
-#### 2.7 CLI package
+#### 2.7 CLI package ✅
 
 - Create `packages/kizuna-cli/` with package.json, bin entry
 - Implement `kizuna setup` (configures Claude Code hooks for the current project)
@@ -150,7 +150,7 @@ Implement the minimum viable Kizuna: a working memory system that captures and r
 
 **Validation**: All CLI commands work end-to-end against a real SQLite file
 
-#### 2.8 Hook handlers
+#### 2.8 Hook handlers ✅
 
 - Implement the SessionEnd hook handler (runs the capture pipeline)
 - Implement the UserPromptSubmit hook handler (runs the search and inject pipelines)
@@ -162,12 +162,12 @@ Implement the minimum viable Kizuna: a working memory system that captures and r
 
 ### Exit Criteria
 
-- Running `kizuna setup` configures Claude Code hooks for a project
-- Running a Claude Code session and exiting saves chunks to SQLite
-- A subsequent session injects relevant memories into prompts
-- All unit and integration tests pass
-- `pnpm tsc --noEmit` passes
-- The project owner has used the tool in their own daily work for at least one week without major issues
+- ✅ Running `kizuna setup` configures Claude Code hooks for a project
+- ✅ Running a Claude Code session and exiting saves chunks to SQLite
+- ✅ A subsequent session injects relevant memories into prompts
+- ✅ All unit and integration tests pass (125 tests)
+- ✅ `pnpm tsc --noEmit` passes
+- ⏳ The project owner has used the tool in their own daily work for at least one week without major issues
 
 ### Out of Scope (Phase 2)
 
