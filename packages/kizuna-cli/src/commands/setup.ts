@@ -55,6 +55,13 @@ export function registerSetup(program: Command): void {
       const hooks = settings.hooks;
 
       const kizunaHooks = {
+        SessionStart: {
+          matcher: "",
+          hook: {
+            type: "command",
+            command: `${bin} hook session-start`,
+          },
+        },
         SessionEnd: {
           matcher: "",
           hook: {
@@ -95,6 +102,7 @@ export function registerSetup(program: Command): void {
       console.log(`  Database: ${resolve(kizunaDir, "memory.db")}`);
       console.log("");
       console.log("Hooks registered:");
+      console.log("  SessionStart     → show memory stats");
       console.log("  SessionEnd       → capture transcript");
       console.log("  UserPromptSubmit → inject relevant memories");
     });
