@@ -1,6 +1,8 @@
 import type { Command } from "commander";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
+import { execSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
 
 interface HookEntry {
   type: string;
@@ -18,6 +20,16 @@ interface ClaudeSettings {
 }
 
 function findKizunaBin(): string {
+  try {
+    const result = execSync("which kizuna", { encoding: "utf-8" }).trim();
+    if (result) return "kizuna";
+  } catch {
+    // not in PATH — fall through to dev path
+  }
+  const cliJs = resolve(fileURLToPath(import.meta.url), "..", "..", "cli.js");
+  if (existsSync(cliJs)) {
+    return `node ${cliJs}`;
+  }
   return "kizuna";
 }
 
@@ -83,11 +95,16 @@ export function registerSetup(program: Command): void {
           hooks[event] = [];
         }
 
-        const existing = hooks[event]!.find((m) =>
-          m.hooks.some((h) => h.command.startsWith(`${bin} hook`)),
+        const existingIdx = hooks[event]!.findIndex((m) =>
+          m.hooks.some((h) => h.command.includes("kizuna hook") || h.command.includes("cli.js hook")),
         );
 
-        if (!existing) {
+        if (existingIdx !== -1) {
+          hooks[event]![existingIdx] = {
+            matcher: config.matcher,
+            hooks: [config.hook],
+          };
+        } else {
           hooks[event]!.push({
             matcher: config.matcher,
             hooks: [config.hook],

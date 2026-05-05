@@ -68,6 +68,39 @@
           }
         ]
       }
+    ],
+    "SessionStart": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node /Users/toshio/github/kizuna/packages/kizuna-cli/dist/cli.js hook session-start"
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node /Users/toshio/github/kizuna/packages/kizuna-cli/dist/cli.js hook session-end"
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node /Users/toshio/github/kizuna/packages/kizuna-cli/dist/cli.js hook prompt-submit"
+          }
+        ]
+      }
     ]
   }
 }
