@@ -11,7 +11,12 @@ import { formatContext, injectMemory } from "./inject.js";
 describe("formatContext", () => {
   function makeResult(
     content: string,
-    overrides: Partial<{ role: "user" | "assistant"; createdAt: string; importance: number; score: number }> = {},
+    overrides: Partial<{
+      role: "user" | "assistant";
+      createdAt: string;
+      importance: number;
+      score: number;
+    }> = {},
   ): SearchResult {
     return {
       chunk: {
@@ -62,11 +67,7 @@ describe("formatContext", () => {
 
   it("respects token budget by truncating results", () => {
     const longContent = "x".repeat(500);
-    const results = [
-      makeResult(longContent),
-      makeResult(longContent),
-      makeResult(longContent),
-    ];
+    const results = [makeResult(longContent), makeResult(longContent), makeResult(longContent)];
 
     const smallBudget = 200;
     const result = formatContext(results, smallBudget);

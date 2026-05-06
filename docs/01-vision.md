@@ -17,7 +17,7 @@ This isolation creates several pain points:
 - **Lost knowledge**: Insights gained in one session are forgotten by the time another session starts
 - **Human as middleware**: A human developer must constantly relay information between agent sessions
 
-Existing solutions like Engram, sui-memory, and claude-mem solve the *intra-agent* memory problem (a single agent remembering across its own sessions). Kizuna addresses the *inter-agent* collaboration problem.
+Existing solutions like Engram, sui-memory, and claude-mem solve the _intra-agent_ memory problem (a single agent remembering across its own sessions). Kizuna addresses the _inter-agent_ collaboration problem.
 
 ## The Vision
 
@@ -34,11 +34,11 @@ The result is a **bond between agents** that grows stronger with use:
 
 Kizuna is not another memory tool competing in a crowded space. Its position is distinct:
 
-| Tool | Primary Focus |
-|------|---------------|
-| Engram | Single-agent memory across sessions |
-| sui-memory | Single-agent memory across sessions |
-| claude-mem | Single-agent memory with AI compression |
+| Tool       | Primary Focus                                   |
+| ---------- | ----------------------------------------------- |
+| Engram     | Single-agent memory across sessions             |
+| sui-memory | Single-agent memory across sessions             |
+| claude-mem | Single-agent memory with AI compression         |
 | **Kizuna** | **Multi-agent collaboration via shared memory** |
 
 While Kizuna inherits the design principles of single-agent memory tools (especially from Engram and sui-memory), its architecture is built from the ground up for cross-repository, multi-agent scenarios.
@@ -63,6 +63,7 @@ While Kizuna inherits the design principles of single-agent memory tools (especi
 Kizuna is a personal open-source project published under the MIT license. It is maintained on a best-effort basis only. There is no SLA, no roadmap commitment, no support guarantee.
 
 The project is shared publicly so that:
+
 - Other developers facing similar problems can use it
 - The design ideas can contribute to the broader Claude Code ecosystem
 - Forks and derivatives are welcomed

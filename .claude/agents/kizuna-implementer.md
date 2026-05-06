@@ -22,6 +22,7 @@ Before any implementation work, read these files:
 5. Design references mentioned in the Issue
 
 After reading, summarize:
+
 - What the Issue asks you to build
 - Which design principles apply
 - The Validation criteria
@@ -51,6 +52,7 @@ Wait for confirmation before writing code.
 ## Reporting
 
 After each substantial change, report:
+
 - What you changed
 - Why
 - Test results

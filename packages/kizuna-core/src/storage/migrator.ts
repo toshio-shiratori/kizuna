@@ -13,9 +13,7 @@ export function runCoreMigrations(db: BetterSqlite3.Database): void {
 
   const applied = new Set(
     db
-      .prepare(
-        "SELECT version FROM schema_versions WHERE component = 'core'",
-      )
+      .prepare("SELECT version FROM schema_versions WHERE component = 'core'")
       .all()
       .map((row) => (row as { version: number }).version),
   );

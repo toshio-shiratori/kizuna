@@ -94,17 +94,11 @@ describe("Database", () => {
 
       const chunks = db.getChunksBySession("sess-1");
       expect(chunks).toHaveLength(3);
-      expect(chunks.map((c) => c.content)).toEqual([
-        "first",
-        "second",
-        "third",
-      ]);
+      expect(chunks.map((c) => c.content)).toEqual(["first", "second", "third"]);
     });
 
     it("respects custom tokenCount and importance", () => {
-      const stored = db.insertChunk(
-        makeChunk({ content: "important" }),
-      );
+      const stored = db.insertChunk(makeChunk({ content: "important" }));
       expect(stored.tokenCount).toBe(0);
       expect(stored.importance).toBe(5);
 
@@ -160,9 +154,7 @@ describe("Database", () => {
       db.insertChunk(
         makeChunk({ turnIndex: 1, content: "Python is a dynamic programming language" }),
       );
-      db.insertChunk(
-        makeChunk({ turnIndex: 2, content: "日本語のテキストも検索できます" }),
-      );
+      db.insertChunk(makeChunk({ turnIndex: 2, content: "日本語のテキストも検索できます" }));
     });
 
     it("finds chunks matching a query", () => {
@@ -199,12 +191,8 @@ describe("Database", () => {
       });
 
       const results = db.searchChunks("TypeScript");
-      const importantResult = results.find((r) =>
-        r.chunk.content.includes("important"),
-      );
-      const lowResult = results.find((r) =>
-        r.chunk.content.includes("low priority"),
-      );
+      const importantResult = results.find((r) => r.chunk.content.includes("important"));
+      const lowResult = results.find((r) => r.chunk.content.includes("low priority"));
       if (importantResult && lowResult) {
         expect(importantResult.score).toBeGreaterThan(lowResult.score);
       }

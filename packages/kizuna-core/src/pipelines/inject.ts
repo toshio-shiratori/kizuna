@@ -24,10 +24,7 @@ function formatChunkBlock(result: SearchResult): string {
   return `### [${date}] ${chunk.role}\n\n${chunk.content}\n`;
 }
 
-export function formatContext(
-  results: SearchResult[],
-  tokenBudget: number,
-): InjectResult {
+export function formatContext(results: SearchResult[], tokenBudget: number): InjectResult {
   if (results.length === 0) {
     return { context: "", chunksUsed: 0, tokensUsed: 0 };
   }
@@ -43,8 +40,7 @@ export function formatContext(
 
   for (const result of results) {
     const block = formatChunkBlock(result);
-    const separatorCost =
-      chunksUsed > 0 ? estimateTokens(SEPARATOR) : 0;
+    const separatorCost = chunksUsed > 0 ? estimateTokens(SEPARATOR) : 0;
     const blockTokens = estimateTokens(block) + separatorCost;
 
     if (tokensUsed + blockTokens > tokenBudget) {

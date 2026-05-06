@@ -12,15 +12,18 @@ description: GitHub Issue を作成しブランチを切って実装準備を整
 ## Steps
 
 1. **Issue 作成**
+
    ```bash
    gh issue create --title "<type>: <description>" --body "..."
    ```
+
    - テンプレートがある場合は `--template phase-task.yml` を使用
    - Conventional Commits の prefix を title に使う（feat, fix, docs, refactor 等）
 
 2. **ユーザー確認** — Issue URL を提示し、内容の確認を取る
 
 3. **ブランチ作成**
+
    ```bash
    git switch -c <type>/issue-<N>-<short-description> main
    ```

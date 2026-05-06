@@ -23,17 +23,20 @@ Before writing tests:
 ## Testing Approach
 
 ### Unit Tests
+
 - Each public function has tests
 - Test happy path, edge cases, and error cases
 - Mock external dependencies; do NOT make real network or filesystem calls
   in unit tests (use in-memory SQLite for storage unit tests)
 
 ### Integration Tests
+
 - Test pipelines end-to-end with real SQLite (temporary file)
 - Test hook handlers with mock transcripts
 - Verify cross-component interactions
 
 ### Japanese Language Coverage
+
 This is critical: include Japanese test cases for any text-handling code.
 
 - FTS5 search must be tested with Japanese queries
@@ -41,7 +44,9 @@ This is critical: include Japanese test cases for any text-handling code.
 - CJK n-gram preprocessing must produce correct queries
 
 ### Test Naming
+
 Use descriptive names:
+
 ```
 describe('Database', () => {
   describe('insertChunk', () => {
@@ -61,6 +66,7 @@ describe('Database', () => {
 ## Reporting
 
 After writing tests, report:
+
 - Number of tests added
 - What scenarios are covered
 - What scenarios are NOT covered (and why)

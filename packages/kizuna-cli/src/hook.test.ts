@@ -1,24 +1,11 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import {
-  mkdtempSync,
-  rmSync,
-  mkdirSync,
-  writeFileSync,
-  existsSync,
-  readFileSync,
-} from "node:fs";
+import { mkdtempSync, rmSync, mkdirSync, writeFileSync, existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { spawnSync, execSync } from "node:child_process";
 import { Database, captureTranscript } from "@kizuna/core";
 
-const TSX_BIN = join(
-  import.meta.dirname,
-  "..",
-  "node_modules",
-  ".bin",
-  "tsx",
-);
+const TSX_BIN = join(import.meta.dirname, "..", "node_modules", ".bin", "tsx");
 const CLI_PATH = join(import.meta.dirname, "cli.ts");
 
 function runHook(
@@ -54,8 +41,7 @@ function createTranscript(dir: string): string {
     JSON.stringify({
       type: "assistant",
       message: {
-        content:
-          "WALモードはWrite-Ahead Loggingの略で、SQLiteの並行読み取り性能を向上させます。",
+        content: "WALモードはWrite-Ahead Loggingの略で、SQLiteの並行読み取り性能を向上させます。",
       },
       timestamp: "2025-01-20T10:02:00Z",
     }),
@@ -262,10 +248,10 @@ describe("Hook handlers", () => {
 
   describe("setup integration", () => {
     it("should register all three hooks via setup command", () => {
-      execSync(
-        `${TSX_BIN} ${CLI_PATH} setup --cwd ${tempDir}`,
-        { encoding: "utf-8", env: { ...process.env, NODE_NO_WARNINGS: "1" } },
-      );
+      execSync(`${TSX_BIN} ${CLI_PATH} setup --cwd ${tempDir}`, {
+        encoding: "utf-8",
+        env: { ...process.env, NODE_NO_WARNINGS: "1" },
+      });
 
       const settingsPath = join(tempDir, ".claude", "settings.json");
       const settings = JSON.parse(readFileSync(settingsPath, "utf-8")) as Record<string, unknown>;

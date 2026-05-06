@@ -159,19 +159,10 @@ export interface Plugin {
   init?(ctx: PluginContext): Promise<void> | void;
   shutdown?(ctx: PluginContext): Promise<void> | void;
 
-  beforeCapture?(
-    chunk: RawChunk,
-    ctx: PluginContext,
-  ): Promise<RawChunk | null> | RawChunk | null;
-  afterCapture?(
-    chunk: StoredChunk,
-    ctx: PluginContext,
-  ): Promise<void> | void;
+  beforeCapture?(chunk: RawChunk, ctx: PluginContext): Promise<RawChunk | null> | RawChunk | null;
+  afterCapture?(chunk: StoredChunk, ctx: PluginContext): Promise<void> | void;
 
-  beforeSearch?(
-    query: SearchQuery,
-    ctx: PluginContext,
-  ): Promise<SearchQuery> | SearchQuery;
+  beforeSearch?(query: SearchQuery, ctx: PluginContext): Promise<SearchQuery> | SearchQuery;
   afterSearch?(
     results: SearchResult[],
     ctx: PluginContext,

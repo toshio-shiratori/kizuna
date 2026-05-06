@@ -86,9 +86,7 @@ describe("parseTranscriptContent", () => {
       uuid: "u1",
       message: {
         role: "user",
-        content: [
-          { type: "tool_result", tool_use_id: "tool-1", content: "file contents" },
-        ],
+        content: [{ type: "tool_result", tool_use_id: "tool-1", content: "file contents" }],
       },
     });
 

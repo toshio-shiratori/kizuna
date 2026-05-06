@@ -15,6 +15,7 @@ designed for cross-repository agent collaboration.
 ## Inspiration
 
 This project is inspired by:
+
 - [Engram](https://github.com/okamyuji/engram) by okamyuji
 - [sui-memory](https://github.com/noprogllama/sui-memory) by noprogllama
 

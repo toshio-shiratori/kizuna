@@ -1,30 +1,14 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import {
-  mkdtempSync,
-  rmSync,
-  existsSync,
-  readFileSync,
-  mkdirSync,
-  writeFileSync,
-} from "node:fs";
+import { mkdtempSync, rmSync, existsSync, readFileSync, mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { execSync } from "node:child_process";
 import { Database, captureTranscript } from "@kizuna/core";
 
-const TSX_BIN = join(
-  import.meta.dirname,
-  "..",
-  "node_modules",
-  ".bin",
-  "tsx",
-);
+const TSX_BIN = join(import.meta.dirname, "..", "node_modules", ".bin", "tsx");
 const CLI_PATH = join(import.meta.dirname, "cli.ts");
 
-function runCli(
-  args: string,
-  cwd: string,
-): { stdout: string; exitCode: number } {
+function runCli(args: string, cwd: string): { stdout: string; exitCode: number } {
   try {
     const stdout = execSync(`${TSX_BIN} ${CLI_PATH} ${args}`, {
       cwd,
@@ -139,10 +123,7 @@ describe("CLI", () => {
       const db = seedDatabase(tempDir);
       db.close();
 
-      const result = runCli(
-        `search "データベース" --cwd ${tempDir}`,
-        tempDir,
-      );
+      const result = runCli(`search "データベース" --cwd ${tempDir}`, tempDir);
       expect(result.exitCode).toBe(0);
       expect(result.stdout).toContain("result(s) found");
     });
@@ -157,10 +138,7 @@ describe("CLI", () => {
       const db = seedDatabase(tempDir);
       db.close();
 
-      const result = runCli(
-        `search "xyznonexistentquery" --cwd ${tempDir}`,
-        tempDir,
-      );
+      const result = runCli(`search "xyznonexistentquery" --cwd ${tempDir}`, tempDir);
       expect(result.exitCode).toBe(0);
       expect(result.stdout).toContain("No results found");
     });
@@ -180,10 +158,7 @@ describe("CLI", () => {
       const db = seedDatabase(tempDir);
       db.close();
 
-      const result = runCli(
-        `list --session test-session-001 --cwd ${tempDir}`,
-        tempDir,
-      );
+      const result = runCli(`list --session test-session-001 --cwd ${tempDir}`, tempDir);
       expect(result.exitCode).toBe(0);
       expect(result.stdout).toContain("chunk(s) in session");
     });
@@ -217,10 +192,7 @@ describe("CLI", () => {
       const db = seedDatabase(tempDir);
       db.close();
 
-      const result = runCli(
-        `prune --older-than 0 --cwd ${tempDir}`,
-        tempDir,
-      );
+      const result = runCli(`prune --older-than 0 --cwd ${tempDir}`, tempDir);
       expect(result.exitCode).toBe(0);
       expect(result.stdout).toContain("Prune completed");
     });
@@ -229,19 +201,13 @@ describe("CLI", () => {
       const db = seedDatabase(tempDir);
       db.close();
 
-      const result = runCli(
-        `prune --older-than -1 --cwd ${tempDir}`,
-        tempDir,
-      );
+      const result = runCli(`prune --older-than -1 --cwd ${tempDir}`, tempDir);
       expect(result.exitCode).toBe(1);
       expect(result.stdout).toContain("non-negative integer");
     });
 
     it("should report when no database exists", () => {
-      const result = runCli(
-        `prune --older-than 30 --cwd ${tempDir}`,
-        tempDir,
-      );
+      const result = runCli(`prune --older-than 30 --cwd ${tempDir}`, tempDir);
       expect(result.exitCode).toBe(1);
     });
   });

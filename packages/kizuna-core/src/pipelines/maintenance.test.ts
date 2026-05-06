@@ -25,7 +25,9 @@ function makeSession(overrides: Partial<Session> = {}): Session {
 }
 
 function makeChunk(
-  overrides: Partial<RawChunk & { tokenCount?: number; importance?: number; createdAt?: string }> = {},
+  overrides: Partial<
+    RawChunk & { tokenCount?: number; importance?: number; createdAt?: string }
+  > = {},
 ): RawChunk & { tokenCount?: number; importance?: number; createdAt?: string } {
   return {
     sessionId: "sess-1",

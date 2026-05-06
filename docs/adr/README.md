@@ -17,9 +17,9 @@ ADRs are immutable. Once accepted, they are not modified. If a decision changes,
 
 Software projects accumulate decisions that seem obvious at the time but are mysterious months or years later:
 
-- *Why did we choose SQLite instead of PostgreSQL?*
-- *Why is the plugin API based on object methods rather than functions?*
-- *Why don't we use vector embeddings in the core?*
+- _Why did we choose SQLite instead of PostgreSQL?_
+- _Why is the plugin API based on object methods rather than functions?_
+- _Why don't we use vector embeddings in the core?_
 
 Without ADRs, these questions are answered by guesswork or rediscovery. With ADRs, the original reasoning is preserved.
 
@@ -72,17 +72,17 @@ What becomes easier? What becomes harder? What new constraints are introduced?
 
 ## Index of ADRs
 
-| ID | Title | Status |
-|----|-------|--------|
-| [0001](./0001-use-sqlite.md) | Use SQLite as the storage backend | Accepted |
-| [0002](./0002-use-typescript.md) | Use TypeScript as the implementation language | Accepted |
-| [0003](./0003-use-monorepo.md) | Use pnpm workspaces monorepo structure | Accepted |
-| [0004](./0004-use-mise.md) | Use mise for development environment management | Accepted |
-| [0005](./0005-plugin-architecture.md) | Adopt a plugin architecture for extensibility | Accepted |
-| [0006](./0006-mit-license.md) | Use MIT license | Accepted |
-| [0007](./0007-no-llm-in-core.md) | No LLM dependency in the core | Accepted |
-| [0008](./0008-hook-based-capture.md) | Use Claude Code hooks for capture and recall | Accepted |
-| [0009](./0009-fts5-with-cjk-ngram.md) | Use FTS5 trigram tokenizer with CJK n-gram | Accepted |
+| ID                                    | Title                                           | Status   |
+| ------------------------------------- | ----------------------------------------------- | -------- |
+| [0001](./0001-use-sqlite.md)          | Use SQLite as the storage backend               | Accepted |
+| [0002](./0002-use-typescript.md)      | Use TypeScript as the implementation language   | Accepted |
+| [0003](./0003-use-monorepo.md)        | Use pnpm workspaces monorepo structure          | Accepted |
+| [0004](./0004-use-mise.md)            | Use mise for development environment management | Accepted |
+| [0005](./0005-plugin-architecture.md) | Adopt a plugin architecture for extensibility   | Accepted |
+| [0006](./0006-mit-license.md)         | Use MIT license                                 | Accepted |
+| [0007](./0007-no-llm-in-core.md)      | No LLM dependency in the core                   | Accepted |
+| [0008](./0008-hook-based-capture.md)  | Use Claude Code hooks for capture and recall    | Accepted |
+| [0009](./0009-fts5-with-cjk-ngram.md) | Use FTS5 trigram tokenizer with CJK n-gram      | Accepted |
 
 ## How to Add a New ADR
 

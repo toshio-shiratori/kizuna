@@ -16,10 +16,7 @@ export interface CaptureOptions {
   transcriptContent?: string;
 }
 
-export function captureTranscript(
-  db: Database,
-  options: CaptureOptions,
-): CaptureResult {
+export function captureTranscript(db: Database, options: CaptureOptions): CaptureResult {
   const { sessionId, projectId, transcriptPath, transcriptContent } = options;
 
   const turns = transcriptPath
