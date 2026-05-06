@@ -69,16 +69,16 @@ docs/
 
 These documents have different stability characteristics:
 
-| Document | Stability | Update Frequency |
-|----------|-----------|-------------------|
-| 01-vision.md | High | Rarely (major project shifts only) |
-| 02-design-principles.md | Very high | Almost never |
-| 03-architecture.md | Medium | When architecture evolves |
-| 04-schema.md | Medium | When schema changes (with migrations) |
-| 05-plugin-api.md | Medium | Until Phase 3 stabilization, then high |
-| 06-roadmap.md | Living | Updated as phases progress |
-| 07-references.md | Low | When new references are worth noting |
-| adr/* | Immutable | Never modified after acceptance (only superseded) |
+| Document                | Stability | Update Frequency                                  |
+| ----------------------- | --------- | ------------------------------------------------- |
+| 01-vision.md            | High      | Rarely (major project shifts only)                |
+| 02-design-principles.md | Very high | Almost never                                      |
+| 03-architecture.md      | Medium    | When architecture evolves                         |
+| 04-schema.md            | Medium    | When schema changes (with migrations)             |
+| 05-plugin-api.md        | Medium    | Until Phase 3 stabilization, then high            |
+| 06-roadmap.md           | Living    | Updated as phases progress                        |
+| 07-references.md        | Low       | When new references are worth noting              |
+| adr/\*                  | Immutable | Never modified after acceptance (only superseded) |
 
 ## Conventions
 

@@ -152,7 +152,7 @@ These ranges cover Japanese, Chinese, and Korean.
 function preprocessQuery(query: string): string {
   // 1. Split query into segments of consecutive CJK or non-CJK characters
   const segments = splitByCJK(query);
-  
+
   // 2. For each segment:
   //    - If non-CJK: use as-is (FTS5 handles word tokenization)
   //    - If CJK: generate 3-grams and join with OR
@@ -165,7 +165,7 @@ function preprocessQuery(query: string): string {
     }
     return segment;
   });
-  
+
   return processed.join(' ');
 }
 ```

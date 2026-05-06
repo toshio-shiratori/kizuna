@@ -7,6 +7,7 @@ Kizuna inherits its core design principles from [Engram](https://github.com/okam
 ### 1. No External Dependencies
 
 All data is stored in a single SQLite file. The core does not require:
+
 - External APIs (cloud services, hosted databases)
 - Large model downloads (embedding models, LLMs)
 - Background services or daemons
@@ -20,7 +21,8 @@ All data is stored in a single SQLite file. The core does not require:
 
 Memory capture uses rule-based chunking only. The core does NOT use LLM calls during the save path.
 
-**Rationale**: 
+**Rationale**:
+
 - Saving must be free and instant
 - API token costs accumulate quickly when saving runs after every session
 - Engram's experience showed that AI-based compression (as used by claude-mem) creates ongoing cost concerns
@@ -30,6 +32,7 @@ Memory capture uses rule-based chunking only. The core does NOT use LLM calls du
 ### 3. Auto Save
 
 Memory capture is fully automatic via Claude Code hooks. Users never need to:
+
 - Manually invoke a save command
 - Tag content for retention
 - Run periodic flush operations
@@ -44,7 +47,8 @@ Memory retrieval is fully automatic via Claude Code hooks. Relevant memories are
 
 **Implementation**: UserPromptSubmit hook performs search and prepends relevant memories to the user's prompt.
 
-**Rationale**: 
+**Rationale**:
+
 - MCP-based search (as used by claude-mem) depends on the model deciding to call the search tool — which is unreliable
 - Hook-based injection is deterministic: relevant memories are ALWAYS available
 - This is sui-memory's signature contribution to the design space
@@ -52,6 +56,7 @@ Memory retrieval is fully automatic via Claude Code hooks. Relevant memories are
 ### 5. Edit and Delete
 
 Users can inspect, modify, and delete stored memories via CLI commands. This includes:
+
 - Searching memories by content
 - Listing memories by session, time, or tag
 - Editing individual memory chunks
@@ -65,6 +70,7 @@ Users can inspect, modify, and delete stored memories via CLI commands. This inc
 The core package depends ONLY on `better-sqlite3`. Other packages may have their own dependencies, but the dependency tree is intentionally shallow.
 
 **Implementation guideline**:
+
 - Each new dependency must be justified
 - Heavy dependencies (web frameworks, ORMs, large utility libraries) are forbidden in the core
 - Build-time dependencies (TypeScript, vitest) are acceptable but the published package must be lean
@@ -74,6 +80,7 @@ The core package depends ONLY on `better-sqlite3`. Other packages may have their
 ### 7. DB Bloat Prevention
 
 Database maintenance is built-in from day one, not bolted on later. The system automatically:
+
 - Removes chunks older than a configurable threshold (default: 90 days)
 - Limits total database size (default: 100 MB)
 - Removes empty sessions
@@ -92,18 +99,21 @@ In addition to the seven inherited principles, Kizuna adds one principle specifi
 The core is generic. Project-specific or use-case-specific functionality is implemented as plugins.
 
 **Examples of what belongs in plugins, NOT the core**:
+
 - OpenAPI/contract awareness
 - Project-specific entity extraction
 - Custom chunking strategies for specific languages or frameworks
 - Integration with non-MCP tools
 
 **Examples of what belongs in the core**:
+
 - Storage and retrieval
 - Hook handling
 - Plugin lifecycle management
 - Configuration loading
 
-**Rationale**: 
+**Rationale**:
+
 - Kizuna is intended to be useful across many projects with different characteristics
 - A monolithic design with all features built in would either be bloated or limited
 - Plugins allow each project to opt into exactly the functionality they need

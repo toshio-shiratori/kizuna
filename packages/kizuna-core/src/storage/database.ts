@@ -1,11 +1,5 @@
 import BetterSqlite3 from "better-sqlite3";
-import type {
-  Session,
-  RawChunk,
-  StoredChunk,
-  SearchResult,
-  MaintenanceResult,
-} from "../index.js";
+import type { Session, RawChunk, StoredChunk, SearchResult, MaintenanceResult } from "../index.js";
 import { runCoreMigrations } from "./migrator.js";
 
 interface ChunkRow {
@@ -103,15 +97,17 @@ export class Database {
   }
 
   getSession(id: string): Session | null {
-    const row = this.db
-      .prepare("SELECT * FROM sessions WHERE id = ?")
-      .get(id) as SessionRow | undefined;
+    const row = this.db.prepare("SELECT * FROM sessions WHERE id = ?").get(id) as
+      | SessionRow
+      | undefined;
     return row ? sessionRowToSession(row) : null;
   }
 
   // ─── Chunks ───────────────────────────────────────────
 
-  insertChunk(chunk: RawChunk & { tokenCount?: number; importance?: number; createdAt?: string }): StoredChunk {
+  insertChunk(
+    chunk: RawChunk & { tokenCount?: number; importance?: number; createdAt?: string },
+  ): StoredChunk {
     const now = chunk.createdAt ?? new Date().toISOString();
     const result = this.db
       .prepare(
@@ -143,17 +139,15 @@ export class Database {
   }
 
   getChunk(id: number): StoredChunk | null {
-    const row = this.db
-      .prepare("SELECT * FROM chunks WHERE id = ?")
-      .get(id) as ChunkRow | undefined;
+    const row = this.db.prepare("SELECT * FROM chunks WHERE id = ?").get(id) as
+      | ChunkRow
+      | undefined;
     return row ? chunkRowToStoredChunk(row) : null;
   }
 
   getChunksBySession(sessionId: string): StoredChunk[] {
     const rows = this.db
-      .prepare(
-        "SELECT * FROM chunks WHERE session_id = ? ORDER BY turn_index",
-      )
+      .prepare("SELECT * FROM chunks WHERE session_id = ? ORDER BY turn_index")
       .all(sessionId) as ChunkRow[];
     return rows.map(chunkRowToStoredChunk);
   }
@@ -161,26 +155,18 @@ export class Database {
   deleteChunks(ids: number[]): number {
     if (ids.length === 0) return 0;
     const placeholders = ids.map(() => "?").join(",");
-    const result = this.db
-      .prepare(`DELETE FROM chunks WHERE id IN (${placeholders})`)
-      .run(...ids);
+    const result = this.db.prepare(`DELETE FROM chunks WHERE id IN (${placeholders})`).run(...ids);
     return result.changes;
   }
 
   deleteChunksBefore(date: string): number {
-    const result = this.db
-      .prepare("DELETE FROM chunks WHERE created_at < ?")
-      .run(date);
+    const result = this.db.prepare("DELETE FROM chunks WHERE created_at < ?").run(date);
     return result.changes;
   }
 
   // ─── Search ───────────────────────────────────────────
 
-  searchChunks(
-    query: string,
-    limit: number = 10,
-    halfLifeDays: number = 30,
-  ): SearchResult[] {
+  searchChunks(query: string, limit: number = 10, halfLifeDays: number = 30): SearchResult[] {
     const rows = this.db
       .prepare(
         `SELECT
@@ -220,19 +206,15 @@ export class Database {
 
   getLastMaintenanceRun(): MaintenanceRow | null {
     return (
-      (this.db
-        .prepare(
-          "SELECT * FROM maintenance_runs ORDER BY ran_at DESC LIMIT 1",
-        )
-        .get() as MaintenanceRow | undefined) ?? null
+      (this.db.prepare("SELECT * FROM maintenance_runs ORDER BY ran_at DESC LIMIT 1").get() as
+        | MaintenanceRow
+        | undefined) ?? null
     );
   }
 
   deleteEmptySessions(): number {
     const result = this.db
-      .prepare(
-        "DELETE FROM sessions WHERE id NOT IN (SELECT DISTINCT session_id FROM chunks)",
-      )
+      .prepare("DELETE FROM sessions WHERE id NOT IN (SELECT DISTINCT session_id FROM chunks)")
       .run();
     return result.changes;
   }

@@ -9,10 +9,7 @@ import { registerHook } from "./commands/hook.js";
 
 const program = new Command();
 
-program
-  .name("kizuna")
-  .description("Local long-term memory for Claude Code")
-  .version("0.0.0");
+program.name("kizuna").description("Local long-term memory for Claude Code").version("0.0.0");
 
 registerSetup(program);
 registerSearch(program);

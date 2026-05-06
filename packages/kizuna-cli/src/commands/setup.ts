@@ -55,9 +55,7 @@ export function registerSetup(program: Command): void {
 
       let settings: ClaudeSettings = {};
       if (existsSync(settingsPath)) {
-        settings = JSON.parse(
-          readFileSync(settingsPath, "utf-8"),
-        ) as ClaudeSettings;
+        settings = JSON.parse(readFileSync(settingsPath, "utf-8")) as ClaudeSettings;
       }
 
       if (!settings.hooks) {
@@ -96,7 +94,9 @@ export function registerSetup(program: Command): void {
         }
 
         const existingIdx = hooks[event]!.findIndex((m) =>
-          m.hooks.some((h) => h.command.includes("kizuna hook") || h.command.includes("cli.js hook")),
+          m.hooks.some(
+            (h) => h.command.includes("kizuna hook") || h.command.includes("cli.js hook"),
+          ),
         );
 
         if (existingIdx !== -1) {

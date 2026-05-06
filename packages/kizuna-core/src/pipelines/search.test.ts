@@ -4,11 +4,7 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { Database } from "../storage/database.js";
 import { searchMemory } from "./search.js";
-import {
-  preprocessQuery,
-  isCJKChar,
-  splitByCJK,
-} from "./cjk-preprocessing.js";
+import { preprocessQuery, isCJKChar, splitByCJK } from "./cjk-preprocessing.js";
 
 // ─── CJK Preprocessing Tests ────────────────────────────
 
@@ -264,9 +260,7 @@ describe("searchMemory", () => {
     });
     if (results.length >= 2) {
       const topContent = results[0]!.chunk.content.toLowerCase();
-      expect(
-        topContent.includes("database") || topContent.includes("connection"),
-      ).toBe(true);
+      expect(topContent.includes("database") || topContent.includes("connection")).toBe(true);
     }
   });
 

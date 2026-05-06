@@ -7,6 +7,7 @@ designed for cross-repository agent collaboration. It is a personal
 open-source project published under the MIT license.
 
 This project is inspired by:
+
 - Engram (https://github.com/okamyuji/engram)
 - sui-memory (https://github.com/noprogllama/sui-memory)
 

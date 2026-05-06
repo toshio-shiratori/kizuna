@@ -41,12 +41,12 @@ The `package.json` should declare `kizuna-core` as a peer dependency:
 Every plugin exports a default object conforming to the `Plugin` interface:
 
 ```typescript
-import type { Plugin } from '@kizuna/core';
+import type { Plugin } from "@kizuna/core";
 
 export default {
-  name: '@your-scope/plugin-name',
-  version: '1.0.0',
-  
+  name: "@your-scope/plugin-name",
+  version: "1.0.0",
+
   // ... lifecycle, hooks, tools, etc.
 } satisfies Plugin;
 ```
@@ -57,65 +57,56 @@ export default {
 export interface Plugin {
   /** Plugin identifier, typically the npm package name */
   readonly name: string;
-  
+
   /** Plugin version, used for migration tracking */
   readonly version: string;
-  
+
   /** Optional description shown in CLI listings */
   readonly description?: string;
 
   // ─── Lifecycle ──────────────────────────────────────
-  
+
   /** Called once when the plugin is loaded */
   init?(ctx: PluginContext): Promise<void> | void;
-  
+
   /** Called once when the plugin is unloaded */
   shutdown?(ctx: PluginContext): Promise<void> | void;
 
   // ─── Capture Pipeline Hooks ─────────────────────────
-  
+
   /** Modify or filter chunks before they are stored */
-  beforeCapture?(
-    chunk: RawChunk,
-    ctx: PluginContext
-  ): Promise<RawChunk | null> | RawChunk | null;
-  
+  beforeCapture?(chunk: RawChunk, ctx: PluginContext): Promise<RawChunk | null> | RawChunk | null;
+
   /** React to chunks after they have been stored */
-  afterCapture?(
-    chunk: StoredChunk,
-    ctx: PluginContext
-  ): Promise<void> | void;
+  afterCapture?(chunk: StoredChunk, ctx: PluginContext): Promise<void> | void;
 
   // ─── Search Pipeline Hooks ──────────────────────────
-  
+
   /** Modify the search query before execution */
-  beforeSearch?(
-    query: SearchQuery,
-    ctx: PluginContext
-  ): Promise<SearchQuery> | SearchQuery;
-  
+  beforeSearch?(query: SearchQuery, ctx: PluginContext): Promise<SearchQuery> | SearchQuery;
+
   /** Modify or filter search results */
   afterSearch?(
     results: SearchResult[],
-    ctx: PluginContext
+    ctx: PluginContext,
   ): Promise<SearchResult[]> | SearchResult[];
 
   // ─── Inject Pipeline Hooks ──────────────────────────
-  
+
   /** Add additional context to be injected into the prompt */
   enrichContext?(
     injection: ContextInjection,
-    ctx: PluginContext
+    ctx: PluginContext,
   ): Promise<ContextInjection> | ContextInjection;
 
   // ─── Extensions ─────────────────────────────────────
-  
+
   /** Schema migrations for plugin-specific tables */
   migrations?(): Migration[];
-  
+
   /** Custom MCP tools provided by this plugin */
   mcpTools?(): MCPToolDefinition[];
-  
+
   /** Custom CLI commands provided by this plugin */
   cliCommands?(): CLICommandDefinition[];
 }
@@ -131,16 +122,16 @@ Passed to every plugin method. Provides access to scoped resources.
 export interface PluginContext {
   /** SQLite database handle (for direct queries) */
   readonly db: Database;
-  
+
   /** The plugin's configuration from .kizuna/config.json */
   readonly config: PluginConfig;
-  
+
   /** The active project's configuration */
   readonly projectConfig: ProjectConfig;
-  
+
   /** Logger scoped to this plugin */
   readonly logger: Logger;
-  
+
   /** Per-plugin key-value store */
   readonly storage: PluginStorage;
 }
@@ -177,7 +168,7 @@ export interface Logger {
 export interface RawChunk {
   sessionId: string;
   turnIndex: number;
-  role: 'user' | 'assistant';
+  role: "user" | "assistant";
   content: string;
   metadata: Record<string, unknown>;
 }
@@ -196,13 +187,13 @@ export interface StoredChunk extends RawChunk {
 export interface SearchQuery {
   /** The text to search for */
   text: string;
-  
+
   /** Maximum number of results */
   limit: number;
-  
+
   /** Optional filters */
   filters?: SearchFilters;
-  
+
   /** Plugin-specific extensions */
   extensions?: Record<string, unknown>;
 }
@@ -218,10 +209,10 @@ export interface SearchFilters {
 
 export interface SearchResult {
   chunk: StoredChunk;
-  
+
   /** Combined relevance score (higher = more relevant) */
   score: number;
-  
+
   /** Optional plugin-specific annotations */
   annotations?: Record<string, unknown>;
 }
@@ -233,10 +224,10 @@ export interface SearchResult {
 export interface ContextInjection {
   /** The user's original prompt */
   readonly userPrompt: string;
-  
+
   /** Search results to be injected */
   chunks: SearchResult[];
-  
+
   /** Additional context blocks added by plugins */
   contextBlocks: ContextBlock[];
 }
@@ -244,10 +235,10 @@ export interface ContextInjection {
 export interface ContextBlock {
   /** Identifier for the source of this block */
   source: string;
-  
+
   /** Display priority (higher = shown first) */
   priority: number;
-  
+
   /** Markdown-formatted content */
   content: string;
 }
@@ -259,13 +250,13 @@ export interface ContextBlock {
 export interface Migration {
   /** Version number (must be unique within the plugin) */
   version: number;
-  
+
   /** Human-readable description */
   description: string;
-  
+
   /** SQL to apply this migration */
   up: string;
-  
+
   /** Optional SQL to roll back (best-effort) */
   down?: string;
 }
@@ -304,9 +295,9 @@ For each chunk:
   for plugin in plugins:
     chunk = await plugin.beforeCapture(chunk, ctx)
     if chunk is null: skip this chunk
-  
+
   storedChunk = await storage.insert(chunk)
-  
+
   for plugin in plugins:
     await plugin.afterCapture(storedChunk, ctx)
 ```
@@ -349,12 +340,12 @@ Plugins SHOULD handle their own errors gracefully and only throw for truly unrec
 
 Plugins must respect the latency budgets of their hook points:
 
-| Hook | Budget per plugin |
-|------|-------------------|
-| beforeCapture / afterCapture | < 50ms |
-| beforeSearch / afterSearch | < 30ms |
-| enrichContext | < 50ms |
-| init / shutdown | < 1s |
+| Hook                         | Budget per plugin |
+| ---------------------------- | ----------------- |
+| beforeCapture / afterCapture | < 50ms            |
+| beforeSearch / afterSearch   | < 30ms            |
+| enrichContext                | < 50ms            |
+| init / shutdown              | < 1s              |
 
 Slow plugins degrade the user experience. Plugins doing expensive operations (e.g., LLM calls) should be opt-in and clearly documented.
 
@@ -363,24 +354,24 @@ Slow plugins degrade the user experience. Plugins doing expensive operations (e.
 A minimal plugin that redacts API keys before storage:
 
 ```typescript
-import type { Plugin } from '@kizuna/core';
+import type { Plugin } from "@kizuna/core";
 
 const PATTERNS = [
-  { name: 'anthropic_key', regex: /sk-ant-[A-Za-z0-9_-]{20,}/g },
-  { name: 'openai_key', regex: /sk-[A-Za-z0-9]{32,}/g },
-  { name: 'github_token', regex: /ghp_[A-Za-z0-9]{36}/g },
+  { name: "anthropic_key", regex: /sk-ant-[A-Za-z0-9_-]{20,}/g },
+  { name: "openai_key", regex: /sk-[A-Za-z0-9]{32,}/g },
+  { name: "github_token", regex: /ghp_[A-Za-z0-9]{36}/g },
 ];
 
 export default {
-  name: '@kizuna/plugin-pii-sanitizer',
-  version: '1.0.0',
-  description: 'Redacts API keys and tokens before storage',
-  
+  name: "@kizuna/plugin-pii-sanitizer",
+  version: "1.0.0",
+  description: "Redacts API keys and tokens before storage",
+
   beforeCapture(chunk, ctx) {
     let content = chunk.content;
     const redactedTypes: string[] = [];
     let redactedCount = 0;
-    
+
     for (const pattern of PATTERNS) {
       const matches = content.match(pattern.regex);
       if (matches) {
@@ -389,9 +380,9 @@ export default {
         redactedCount += matches.length;
       }
     }
-    
+
     if (redactedCount > 0) {
-      ctx.logger.info('Redacted PII', { redactedCount, redactedTypes });
+      ctx.logger.info("Redacted PII", { redactedCount, redactedTypes });
       return {
         ...chunk,
         content,
@@ -401,7 +392,7 @@ export default {
         },
       };
     }
-    
+
     return chunk;
   },
 } satisfies Plugin;
@@ -412,22 +403,22 @@ export default {
 A plugin that scopes memories by project ID and shared namespace:
 
 ```typescript
-import type { Plugin } from '@kizuna/core';
+import type { Plugin } from "@kizuna/core";
 
 interface Options {
   namespace?: string;
 }
 
 export default {
-  name: '@kizuna/plugin-multi-repo-sharing',
-  version: '1.0.0',
-  description: 'Enables memory sharing across repositories via namespaces',
-  
+  name: "@kizuna/plugin-multi-repo-sharing",
+  version: "1.0.0",
+  description: "Enables memory sharing across repositories via namespaces",
+
   migrations() {
     return [
       {
         version: 1,
-        description: 'Add indexes for namespace queries',
+        description: "Add indexes for namespace queries",
         up: `
           CREATE INDEX IF NOT EXISTS idx_chunks_metadata_namespace
             ON chunks(json_extract(metadata, '$."@kizuna/plugin-multi-repo-sharing".namespace'));
@@ -435,7 +426,7 @@ export default {
       },
     ];
   },
-  
+
   beforeCapture(chunk, ctx) {
     const options = ctx.config.options as Options;
     return {
@@ -449,7 +440,7 @@ export default {
       },
     };
   },
-  
+
   beforeSearch(query, ctx) {
     const options = ctx.config.options as Options;
     const namespaces = [ctx.projectConfig.id];
@@ -464,16 +455,12 @@ export default {
       },
     };
   },
-  
+
   afterSearch(results, ctx) {
-    return results.map(result => {
+    return results.map((result) => {
       const ns = (result.chunk.metadata as Record<string, unknown>)[this.name];
-      const isShared =
-        ns &&
-        typeof ns === 'object' &&
-        'namespace' in ns &&
-        ns.namespace !== null;
-      
+      const isShared = ns && typeof ns === "object" && "namespace" in ns && ns.namespace !== null;
+
       return {
         ...result,
         annotations: {
@@ -495,22 +482,22 @@ A project enabling both plugins:
 {
   "project": {
     "id": "my-frontend-app",
-    "sharedNamespace": "my-org-shared"
+    "sharedNamespace": "my-org-shared",
   },
   "plugins": [
     {
       "name": "@kizuna/plugin-pii-sanitizer",
       "enabled": true,
-      "options": {}
+      "options": {},
     },
     {
       "name": "@kizuna/plugin-multi-repo-sharing",
       "enabled": true,
       "options": {
-        "namespace": "my-org-shared"
-      }
-    }
-  ]
+        "namespace": "my-org-shared",
+      },
+    },
+  ],
 }
 ```
 
@@ -529,12 +516,12 @@ Plugins declare their compatible core version via `peerDependencies`. The CLI wa
 The `@kizuna/core` package exports test utilities:
 
 ```typescript
-import { createTestContext, runPluginHook } from '@kizuna/core/testing';
+import { createTestContext, runPluginHook } from "@kizuna/core/testing";
 
-const ctx = createTestContext({ projectId: 'test', options: {} });
-const result = await runPluginHook(myPlugin, 'beforeCapture', testChunk, ctx);
+const ctx = createTestContext({ projectId: "test", options: {} });
+const result = await runPluginHook(myPlugin, "beforeCapture", testChunk, ctx);
 
-expect(result.metadata['my-plugin']).toBeDefined();
+expect(result.metadata["my-plugin"]).toBeDefined();
 ```
 
 Plugins should include unit tests using these utilities and integration tests against a real SQLite database.

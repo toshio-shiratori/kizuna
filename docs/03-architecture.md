@@ -181,11 +181,11 @@ Kizuna registers as Claude Code hooks via the `claude` CLI's settings. The setup
 
 Hook registration is per-project by default but can be made global. Three hooks are registered:
 
-| Hook | Purpose | Latency budget |
-|------|---------|----------------|
-| SessionStart | Inject baseline context (recent decisions, important memories) | < 200ms |
-| UserPromptSubmit | Inject memories relevant to the current prompt | < 100ms |
-| SessionEnd | Capture transcript and run maintenance | < 5s (background) |
+| Hook             | Purpose                                                        | Latency budget    |
+| ---------------- | -------------------------------------------------------------- | ----------------- |
+| SessionStart     | Inject baseline context (recent decisions, important memories) | < 200ms           |
+| UserPromptSubmit | Inject memories relevant to the current prompt                 | < 100ms           |
+| SessionEnd       | Capture transcript and run maintenance                         | < 5s (background) |
 
 ## Storage Strategy
 
@@ -210,6 +210,7 @@ The plugin system exposes hook points at each pipeline stage:
 - `enrichContext(injection)`
 
 Plugins can also:
+
 - Add custom MCP tools
 - Add custom CLI commands
 - Define schema migrations for plugin-specific tables

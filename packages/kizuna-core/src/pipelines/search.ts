@@ -6,10 +6,7 @@ export interface SearchOptions {
   halfLifeDays?: number;
 }
 
-function applyKeywordReranking(
-  results: SearchResult[],
-  originalQuery: string,
-): SearchResult[] {
+function applyKeywordReranking(results: SearchResult[], originalQuery: string): SearchResult[] {
   if (results.length === 0) return results;
 
   const keywords = originalQuery
@@ -115,10 +112,7 @@ function buildFilteredQuery(
       createdAt: row.created_at,
       metadata: JSON.parse(row.metadata) as Record<string, unknown>,
     },
-    score:
-      Math.abs(row.bm25_score) *
-      row.time_decay *
-      (1.0 + row.importance / 10.0),
+    score: Math.abs(row.bm25_score) * row.time_decay * (1.0 + row.importance / 10.0),
   }));
 }
 
