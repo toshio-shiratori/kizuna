@@ -2,7 +2,7 @@ import type { Database } from "../storage/database.js";
 import type { StoredChunk } from "../index.js";
 import type { PluginManager } from "../plugin/plugin-manager.js";
 import { parseTranscriptFile, parseTranscriptContent } from "./transcript-parser.js";
-import { chunkifyTurns } from "./chunker.js";
+import { chunkifyTurns, isLowQualityContent } from "./chunker.js";
 
 export interface CaptureResult {
   sessionId: string;
@@ -54,6 +54,11 @@ export async function captureTranscript(
 
     for (const chunk of rawChunks) {
       if (maxTurnIndex !== null && chunk.turnIndex <= maxTurnIndex) {
+        continue;
+      }
+
+      if (isLowQualityContent(chunk.content)) {
+        chunksSkipped++;
         continue;
       }
 

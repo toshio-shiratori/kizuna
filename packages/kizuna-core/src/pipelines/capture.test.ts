@@ -4,8 +4,8 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { Database } from "../storage/database.js";
 import { PluginManager } from "../plugin/plugin-manager.js";
-import { parseTranscriptContent } from "./transcript-parser.js";
-import { chunkifyTurns } from "./chunker.js";
+import { parseTranscriptContent, sanitizeContent } from "./transcript-parser.js";
+import { chunkifyTurns, isLowQualityContent, MIN_CONTENT_LENGTH } from "./chunker.js";
 import { captureTranscript } from "./capture.js";
 import type { Plugin } from "../index.js";
 
@@ -441,13 +441,13 @@ describe("captureTranscript", () => {
         type: "user",
         uuid: "u1",
         timestamp: "2025-01-01T00:00:00.000Z",
-        message: { role: "user", content: "msg1" },
+        message: { role: "user", content: "first user message here" },
       }),
       makeTranscriptLine({
         type: "assistant",
         uuid: "a1",
         timestamp: "2025-01-01T00:00:01.000Z",
-        message: { role: "assistant", content: "msg2" },
+        message: { role: "assistant", content: "first assistant reply" },
       }),
     ].join("\n");
 
@@ -459,8 +459,8 @@ describe("captureTranscript", () => {
     });
 
     expect(afterCaptureFn).toHaveBeenCalledTimes(2);
-    expect(afterCaptureFn.mock.calls[0]![0].content).toBe("msg1");
-    expect(afterCaptureFn.mock.calls[1]![0].content).toBe("msg2");
+    expect(afterCaptureFn.mock.calls[0]![0].content).toBe("first user message here");
+    expect(afterCaptureFn.mock.calls[1]![0].content).toBe("first assistant reply");
   });
 
   it("captures incrementally on repeated calls with same session", async () => {
@@ -619,5 +619,162 @@ describe("captureTranscript", () => {
     });
 
     expect(result.chunksStored).toBe(1);
+  });
+
+  it("skips low-quality chunks (short content)", async () => {
+    const content = [
+      makeTranscriptLine({
+        type: "user",
+        uuid: "u1",
+        timestamp: "2025-01-01T00:00:00.000Z",
+        message: { role: "user", content: "YES" },
+      }),
+      makeTranscriptLine({
+        type: "assistant",
+        uuid: "a1",
+        timestamp: "2025-01-01T00:00:01.000Z",
+        message: { role: "assistant", content: "understood, proceeding with the task" },
+      }),
+      makeTranscriptLine({
+        type: "user",
+        uuid: "u2",
+        timestamp: "2025-01-01T00:00:02.000Z",
+        message: { role: "user", content: "OK" },
+      }),
+    ].join("\n");
+
+    const result = await captureTranscript(db, {
+      sessionId: "sess-quality",
+      projectId: "proj-1",
+      transcriptContent: content,
+    });
+
+    expect(result.chunksStored).toBe(1);
+    expect(result.chunksSkipped).toBe(2);
+    const chunks = db.getChunksBySession("sess-quality");
+    expect(chunks).toHaveLength(1);
+    expect(chunks[0]!.content).toBe("understood, proceeding with the task");
+  });
+
+  it("strips system-reminder tags before capturing", async () => {
+    const userMessage =
+      "<system-reminder>UserPromptSubmit hook success: ## Relevant Memories\n### old memory\n</system-reminder>\nWhat should I work on next?";
+    const content = makeTranscriptLine({
+      type: "user",
+      uuid: "u1",
+      timestamp: "2025-01-01T00:00:00.000Z",
+      message: { role: "user", content: userMessage },
+    });
+
+    const result = await captureTranscript(db, {
+      sessionId: "sess-sanitize",
+      projectId: "proj-1",
+      transcriptContent: content,
+    });
+
+    expect(result.chunksStored).toBe(1);
+    const chunks = db.getChunksBySession("sess-sanitize");
+    expect(chunks[0]!.content).toBe("What should I work on next?");
+    expect(chunks[0]!.content).not.toContain("system-reminder");
+  });
+
+  it("skips command invocation turns entirely", async () => {
+    const commandContent =
+      "<command-message>session-start</command-message>\n<command-name>/session-start</command-name>\n## When to Use\n- template content here";
+    const content = [
+      makeTranscriptLine({
+        type: "user",
+        uuid: "u1",
+        timestamp: "2025-01-01T00:00:00.000Z",
+        message: { role: "user", content: commandContent },
+      }),
+      makeTranscriptLine({
+        type: "assistant",
+        uuid: "a1",
+        timestamp: "2025-01-01T00:00:01.000Z",
+        message: {
+          role: "assistant",
+          content: "Session started. Here is the status report.",
+        },
+      }),
+    ].join("\n");
+
+    const result = await captureTranscript(db, {
+      sessionId: "sess-command",
+      projectId: "proj-1",
+      transcriptContent: content,
+    });
+
+    expect(result.chunksStored).toBe(1);
+    const chunks = db.getChunksBySession("sess-command");
+    expect(chunks).toHaveLength(1);
+    expect(chunks[0]!.role).toBe("assistant");
+  });
+});
+
+describe("sanitizeContent", () => {
+  it("strips system-reminder tags and their content", () => {
+    const input = "<system-reminder>hook output here</system-reminder>\nActual user message";
+    expect(sanitizeContent(input)).toBe("Actual user message");
+  });
+
+  it("strips multiple system-reminder blocks", () => {
+    const input =
+      "<system-reminder>block1</system-reminder>\nMiddle\n<system-reminder>block2</system-reminder>";
+    expect(sanitizeContent(input)).toBe("Middle");
+  });
+
+  it("returns empty string for command invocations", () => {
+    const input =
+      "<command-message>test</command-message>\n<command-name>/test</command-name>\n## Template";
+    expect(sanitizeContent(input)).toBe("");
+  });
+
+  it("strips local-command-caveat tags", () => {
+    const input =
+      "<local-command-caveat>Caveat: generated messages</local-command-caveat>\nReal content";
+    expect(sanitizeContent(input)).toBe("Real content");
+  });
+
+  it("strips command-message tags without command-name", () => {
+    const input = "<command-message>clear</command-message>\nSome actual text after";
+    expect(sanitizeContent(input)).toBe("Some actual text after");
+  });
+
+  it("returns text unchanged when no system tags present", () => {
+    expect(sanitizeContent("normal user message")).toBe("normal user message");
+    expect(sanitizeContent("日本語のメッセージ")).toBe("日本語のメッセージ");
+  });
+
+  it("handles multiline system-reminder content", () => {
+    const input = "<system-reminder>\nLine 1\nLine 2\nLine 3\n</system-reminder>\nUser text";
+    expect(sanitizeContent(input)).toBe("User text");
+  });
+
+  it("returns empty string for empty input", () => {
+    expect(sanitizeContent("")).toBe("");
+    expect(sanitizeContent("   ")).toBe("");
+  });
+});
+
+describe("isLowQualityContent", () => {
+  it("detects short content as low quality", () => {
+    expect(isLowQualityContent("YES")).toBe(true);
+    expect(isLowQualityContent("OK")).toBe(true);
+    expect(isLowQualityContent("はい")).toBe(true);
+    expect(isLowQualityContent("")).toBe(true);
+    expect(isLowQualityContent("  ")).toBe(true);
+  });
+
+  it("accepts content at or above minimum length", () => {
+    expect(isLowQualityContent("a".repeat(MIN_CONTENT_LENGTH))).toBe(false);
+    expect(isLowQualityContent("implement the auth module")).toBe(false);
+    expect(isLowQualityContent("認証フローを実装してください")).toBe(false);
+  });
+
+  it("trims whitespace before checking length", () => {
+    expect(isLowQualityContent("   YES   ")).toBe(true);
+    const padded = "   " + "a".repeat(MIN_CONTENT_LENGTH) + "   ";
+    expect(isLowQualityContent(padded)).toBe(false);
   });
 });

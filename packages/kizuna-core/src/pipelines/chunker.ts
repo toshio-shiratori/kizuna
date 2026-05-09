@@ -1,6 +1,12 @@
 import type { RawChunk } from "../index.js";
 import type { ParsedTurn } from "./transcript-parser.js";
 
+export const MIN_CONTENT_LENGTH = 10;
+
+export function isLowQualityContent(content: string): boolean {
+  return content.trim().length < MIN_CONTENT_LENGTH;
+}
+
 export function chunkifyTurns(
   sessionId: string,
   turns: ParsedTurn[],
@@ -22,7 +28,6 @@ export function estimateTokens(text: string): number {
   let count = 0;
   for (const char of text) {
     const code = char.codePointAt(0)!;
-    // CJK characters count as ~2 tokens; ASCII words average ~0.75 tokens per 4 chars
     count += code > 0x2e80 ? 2 : 0.25;
   }
   return Math.max(1, Math.ceil(count));
