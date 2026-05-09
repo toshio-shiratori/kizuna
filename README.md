@@ -1,5 +1,7 @@
 # Kizuna 絆
 
+[![CI](https://github.com/toshio-shiratori/kizuna/actions/workflows/ci.yml/badge.svg)](https://github.com/toshio-shiratori/kizuna/actions/workflows/ci.yml)
+
 > A bond between AI agents.
 
 A plugin-based local long-term memory MCP server for Claude Code,
