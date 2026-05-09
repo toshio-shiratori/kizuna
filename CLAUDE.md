@@ -110,6 +110,10 @@ current phase. Stick to what's specified in the current task.
 
 ## What NOT to do
 
+- **NEVER commit with warnings or errors.** All checks (`pnpm tsc --noEmit`,
+  `pnpm test`, `pnpm lint`, `pnpm format:check`) must pass with
+  0 warnings and 0 errors before committing. Fix pre-existing violations
+  in a separate commit if needed.
 - Do not generate marketing copy, taglines, or vision statements
   unless explicitly asked.
 - Do not refactor existing code without being asked.
