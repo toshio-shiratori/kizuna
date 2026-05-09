@@ -3,6 +3,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { basename, join } from "node:path";
 import { Database, captureTranscript, injectMemory, runMaintenance } from "@kizuna/core";
 import { resolveDbPath } from "../db-path.js";
+import { loadPluginManager } from "../plugin-loader.js";
 
 interface HookInput {
   session_id: string;
@@ -50,11 +51,13 @@ export function registerHook(program: Command): void {
       }
 
       const db = new Database(resolveDbPath(input.cwd));
+      const pluginManager = await loadPluginManager(db, input.cwd);
       try {
         const result = await captureTranscript(db, {
           sessionId: input.session_id,
           projectId: getProjectId(input.cwd),
           transcriptPath: input.transcript_path,
+          pluginManager,
         });
 
         if (result.chunksStored > 0) {
@@ -65,6 +68,7 @@ export function registerHook(program: Command): void {
 
         runMaintenance(db);
       } finally {
+        await pluginManager?.shutdownAll();
         db.close();
       }
     });
@@ -86,12 +90,14 @@ export function registerHook(program: Command): void {
       }
 
       const db = new Database(dbPath);
+      const pluginManager = await loadPluginManager(db, input.cwd);
       try {
-        const result = await injectMemory(db, prompt);
+        const result = await injectMemory(db, prompt, { pluginManager });
         if (result.context.length > 0) {
           process.stdout.write(result.context);
         }
       } finally {
+        await pluginManager?.shutdownAll();
         db.close();
       }
     });
@@ -112,11 +118,13 @@ export function registerHook(program: Command): void {
       }
 
       const db = new Database(resolveDbPath(input.cwd));
+      const pluginManager = await loadPluginManager(db, input.cwd);
       try {
         const result = await captureTranscript(db, {
           sessionId: input.session_id,
           projectId: getProjectId(input.cwd),
           transcriptPath: input.transcript_path,
+          pluginManager,
         });
 
         if (result.chunksStored > 0) {
@@ -125,6 +133,7 @@ export function registerHook(program: Command): void {
           );
         }
       } finally {
+        await pluginManager?.shutdownAll();
         db.close();
       }
     });
