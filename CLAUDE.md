@@ -76,14 +76,14 @@ current phase. Stick to what's specified in the current task.
 
 ## Key Commands
 
-| Command | Description |
-| --- | --- |
-| `pnpm build` | Build all packages |
-| `pnpm test` | Build + run all tests |
-| `pnpm tsc` | Type check all packages |
-| `pnpm lint` | ESLint |
-| `pnpm format` | Prettier (auto-fix) |
-| `pnpm format:check` | Prettier (check only) |
+| Command             | Description             |
+| ------------------- | ----------------------- |
+| `pnpm build`        | Build all packages      |
+| `pnpm test`         | Build + run all tests   |
+| `pnpm tsc`          | Type check all packages |
+| `pnpm lint`         | ESLint                  |
+| `pnpm format`       | Prettier (auto-fix)     |
+| `pnpm format:check` | Prettier (check only)   |
 
 ## Coding Style
 

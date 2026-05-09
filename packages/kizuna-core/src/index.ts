@@ -1,4 +1,8 @@
 export { Database } from "./storage/database.js";
+export { PluginManager } from "./plugin/index.js";
+export type { PluginManagerOptions, PluginEntry } from "./plugin/index.js";
+export { SqlitePluginStorage } from "./plugin/index.js";
+export { runPluginMigrations } from "./plugin/index.js";
 export { captureTranscript } from "./pipelines/capture.js";
 export type { CaptureResult, CaptureOptions } from "./pipelines/capture.js";
 export { parseTranscriptFile, parseTranscriptContent } from "./pipelines/transcript-parser.js";
