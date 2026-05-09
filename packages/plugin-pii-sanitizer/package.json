@@ -1,6 +1,6 @@
 {
   "name": "@kizuna/plugin-pii-sanitizer",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "Kizuna plugin that redacts API keys, tokens, and secrets before storage",
   "license": "MIT",
   "author": "Toshio Shiratori (@toshio-shiratori)",

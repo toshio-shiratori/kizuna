@@ -1,6 +1,6 @@
 {
   "name": "@kizuna/mcp",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "MCP server for Kizuna - bidirectional memory access for Claude Code",
   "license": "MIT",
   "author": "Toshio Shiratori (@toshio-shiratori)",

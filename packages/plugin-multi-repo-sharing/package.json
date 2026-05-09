@@ -1,6 +1,6 @@
 {
   "name": "@kizuna/plugin-multi-repo-sharing",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "Kizuna plugin that enables memory sharing across repositories via namespaces",
   "license": "MIT",
   "author": "Toshio Shiratori (@toshio-shiratori)",
