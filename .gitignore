@@ -41,5 +41,14 @@ coverage/
 *.db-wal
 *.db-shm
 
+# Secrets and credentials
+*.pem
+*.key
+*.p12
+*.pfx
+.npmrc
+credentials.json
+service-account.json
+
 # Claude Code CLI - personal local settings
 .claude/settings.local.json
