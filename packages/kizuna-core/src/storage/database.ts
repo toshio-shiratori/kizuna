@@ -78,6 +78,18 @@ export class Database {
     this.db.close();
   }
 
+  beginTransaction(): void {
+    this.db.exec("BEGIN");
+  }
+
+  commit(): void {
+    this.db.exec("COMMIT");
+  }
+
+  rollback(): void {
+    this.db.exec("ROLLBACK");
+  }
+
   // ─── Sessions ─────────────────────────────────────────
 
   insertSession(session: Session): void {

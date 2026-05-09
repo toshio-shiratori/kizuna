@@ -36,46 +36,54 @@ export async function captureTranscript(
   const startedAt = turns[0]!.timestamp;
   const endedAt = turns[turns.length - 1]!.timestamp;
 
-  db.upsertSession({
-    id: sessionId,
-    projectId,
-    startedAt,
-    endedAt,
-    transcriptPath: transcriptPath ?? null,
-    metadata: {},
-  });
+  db.beginTransaction();
+  try {
+    db.upsertSession({
+      id: sessionId,
+      projectId,
+      startedAt,
+      endedAt,
+      transcriptPath: transcriptPath ?? null,
+      metadata: {},
+    });
 
-  const maxTurnIndex = db.getMaxTurnIndex(sessionId);
-  const rawChunks = chunkifyTurns(sessionId, turns);
-  const storedChunks: StoredChunk[] = [];
-  let chunksSkipped = 0;
+    const maxTurnIndex = db.getMaxTurnIndex(sessionId);
+    const rawChunks = chunkifyTurns(sessionId, turns);
+    const storedChunks: StoredChunk[] = [];
+    let chunksSkipped = 0;
 
-  for (const chunk of rawChunks) {
-    if (maxTurnIndex !== null && chunk.turnIndex <= maxTurnIndex) {
-      continue;
+    for (const chunk of rawChunks) {
+      if (maxTurnIndex !== null && chunk.turnIndex <= maxTurnIndex) {
+        continue;
+      }
+
+      const processed = pluginManager ? await pluginManager.runBeforeCapture(chunk) : chunk;
+
+      if (processed === null) {
+        chunksSkipped++;
+        continue;
+      }
+
+      const stored = db.insertChunk(processed);
+      storedChunks.push(stored);
+
+      if (pluginManager) {
+        await pluginManager.runAfterCapture(stored);
+      }
     }
 
-    const processed = pluginManager ? await pluginManager.runBeforeCapture(chunk) : chunk;
+    db.commit();
 
-    if (processed === null) {
-      chunksSkipped++;
-      continue;
-    }
+    const totalTokens = storedChunks.reduce((sum, c) => sum + c.tokenCount, 0);
 
-    const stored = db.insertChunk(processed);
-    storedChunks.push(stored);
-
-    if (pluginManager) {
-      await pluginManager.runAfterCapture(stored);
-    }
+    return {
+      sessionId,
+      chunksStored: storedChunks.length,
+      chunksSkipped,
+      totalTokens,
+    };
+  } catch (e) {
+    db.rollback();
+    throw e;
   }
-
-  const totalTokens = storedChunks.reduce((sum, c) => sum + c.tokenCount, 0);
-
-  return {
-    sessionId,
-    chunksStored: storedChunks.length,
-    chunksSkipped,
-    totalTokens,
-  };
 }
