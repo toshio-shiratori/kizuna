@@ -3,8 +3,10 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { Database } from "../storage/database.js";
+import { PluginManager } from "../plugin/plugin-manager.js";
 import { searchMemory } from "./search.js";
 import { preprocessQuery, isCJKChar, splitByCJK } from "./cjk-preprocessing.js";
+import type { Plugin } from "../index.js";
 
 // ─── CJK Preprocessing Tests ────────────────────────────
 
@@ -191,8 +193,8 @@ describe("searchMemory", () => {
     rmSync(tmpDir, { recursive: true, force: true });
   });
 
-  it("searches English content", () => {
-    const results = searchMemory(db, {
+  it("searches English content", async () => {
+    const results = await searchMemory(db, {
       text: "authentication",
       limit: 10,
     });
@@ -201,8 +203,8 @@ describe("searchMemory", () => {
     expect(contents.some((c) => c.includes("authentication"))).toBe(true);
   });
 
-  it("searches Japanese content", () => {
-    const results = searchMemory(db, {
+  it("searches Japanese content", async () => {
+    const results = await searchMemory(db, {
       text: "データベース接続",
       limit: 10,
     });
@@ -211,16 +213,16 @@ describe("searchMemory", () => {
     expect(contents.some((c) => c.includes("データベース"))).toBe(true);
   });
 
-  it("searches mixed English and Japanese", () => {
-    const results = searchMemory(db, {
+  it("searches mixed English and Japanese", async () => {
+    const results = await searchMemory(db, {
       text: "TypeScript認証",
       limit: 10,
     });
     expect(results.length).toBeGreaterThan(0);
   });
 
-  it("returns results with scores", () => {
-    const results = searchMemory(db, {
+  it("returns results with scores", async () => {
+    const results = await searchMemory(db, {
       text: "authentication JWT",
       limit: 10,
     });
@@ -232,29 +234,29 @@ describe("searchMemory", () => {
     }
   });
 
-  it("respects limit", () => {
-    const results = searchMemory(db, {
+  it("respects limit", async () => {
+    const results = await searchMemory(db, {
       text: "TypeScript",
       limit: 1,
     });
     expect(results.length).toBeLessThanOrEqual(1);
   });
 
-  it("returns empty for no matches", () => {
-    const results = searchMemory(db, {
+  it("returns empty for no matches", async () => {
+    const results = await searchMemory(db, {
       text: "xyznonexistent",
       limit: 10,
     });
     expect(results).toEqual([]);
   });
 
-  it("returns empty for empty query", () => {
-    const results = searchMemory(db, { text: "", limit: 10 });
+  it("returns empty for empty query", async () => {
+    const results = await searchMemory(db, { text: "", limit: 10 });
     expect(results).toEqual([]);
   });
 
-  it("applies keyword reranking boost", () => {
-    const results = searchMemory(db, {
+  it("applies keyword reranking boost", async () => {
+    const results = await searchMemory(db, {
       text: "database connection",
       limit: 10,
     });
@@ -267,8 +269,8 @@ describe("searchMemory", () => {
   // ─── Filter Tests ──────────────────────────────────────
 
   describe("with filters", () => {
-    it("filters by sessionId", () => {
-      const results = searchMemory(db, {
+    it("filters by sessionId", async () => {
+      const results = await searchMemory(db, {
         text: "TypeScript",
         limit: 10,
         filters: { sessionIds: ["session-1"] },
@@ -278,8 +280,8 @@ describe("searchMemory", () => {
       }
     });
 
-    it("filters by projectId", () => {
-      const results = searchMemory(db, {
+    it("filters by projectId", async () => {
+      const results = await searchMemory(db, {
         text: "データベース",
         limit: 10,
         filters: { projectIds: ["project-b"] },
@@ -289,8 +291,8 @@ describe("searchMemory", () => {
       }
     });
 
-    it("filters by minImportance", () => {
-      const results = searchMemory(db, {
+    it("filters by minImportance", async () => {
+      const results = await searchMemory(db, {
         text: "TypeScript",
         limit: 10,
         filters: { minImportance: 7 },
@@ -300,8 +302,8 @@ describe("searchMemory", () => {
       }
     });
 
-    it("filters by date range", () => {
-      const results = searchMemory(db, {
+    it("filters by date range", async () => {
+      const results = await searchMemory(db, {
         text: "TypeScript",
         limit: 10,
         filters: {
@@ -313,8 +315,8 @@ describe("searchMemory", () => {
       }
     });
 
-    it("combines multiple filters", () => {
-      const results = searchMemory(db, {
+    it("combines multiple filters", async () => {
+      const results = await searchMemory(db, {
         text: "authentication",
         limit: 10,
         filters: {
@@ -332,27 +334,93 @@ describe("searchMemory", () => {
   // ─── Japanese-Specific Tests (per ADR-0009) ────────────
 
   describe("Japanese query patterns", () => {
-    it("handles Japanese with particles", () => {
-      const results = searchMemory(db, {
+    it("handles Japanese with particles", async () => {
+      const results = await searchMemory(db, {
         text: "データベースの接続",
         limit: 10,
       });
       expect(results.length).toBeGreaterThan(0);
     });
 
-    it("handles short Japanese queries (2 chars)", () => {
-      const results = searchMemory(db, {
+    it("handles short Japanese queries (2 chars)", async () => {
+      const results = await searchMemory(db, {
         text: "実装",
         limit: 10,
       });
       expect(results.length).toBeGreaterThanOrEqual(0);
     });
 
-    it("handles Katakana queries", () => {
-      const results = searchMemory(db, {
+    it("handles Katakana queries", async () => {
+      const results = await searchMemory(db, {
         text: "ライブラリ",
         limit: 10,
       });
+      expect(results.length).toBeGreaterThan(0);
+    });
+  });
+
+  // ─── Plugin Integration Tests ──────────────────────────
+
+  describe("with plugins", () => {
+    it("runs beforeSearch to modify query", async () => {
+      const pm = new PluginManager({ db: db.db, projectConfig: { id: "test" } });
+      const plugin: Plugin = {
+        name: "query-rewriter",
+        version: "1.0.0",
+        beforeSearch(query) {
+          return { ...query, text: "authentication" };
+        },
+      };
+      pm.register(plugin);
+      await pm.initAll();
+
+      const results = await searchMemory(
+        db,
+        { text: "something unrelated", limit: 10 },
+        { pluginManager: pm },
+      );
+      expect(results.length).toBeGreaterThan(0);
+      expect(results.some((r) => r.chunk.content.includes("authentication"))).toBe(true);
+    });
+
+    it("runs afterSearch to filter results", async () => {
+      const pm = new PluginManager({ db: db.db, projectConfig: { id: "test" } });
+      const plugin: Plugin = {
+        name: "result-filter",
+        version: "1.0.0",
+        afterSearch(results) {
+          return results.filter((r) => r.chunk.role === "assistant");
+        },
+      };
+      pm.register(plugin);
+      await pm.initAll();
+
+      const results = await searchMemory(
+        db,
+        { text: "TypeScript", limit: 10 },
+        { pluginManager: pm },
+      );
+      for (const r of results) {
+        expect(r.chunk.role).toBe("assistant");
+      }
+    });
+
+    it("continues search when plugin throws in beforeSearch", async () => {
+      const pm = new PluginManager({ db: db.db, projectConfig: { id: "test" } });
+      pm.register({
+        name: "error-plugin",
+        version: "1.0.0",
+        beforeSearch() {
+          throw new Error("plugin error");
+        },
+      });
+      await pm.initAll();
+
+      const results = await searchMemory(
+        db,
+        { text: "authentication", limit: 10 },
+        { pluginManager: pm },
+      );
       expect(results.length).toBeGreaterThan(0);
     });
   });

@@ -1,9 +1,11 @@
 import type { Database } from "../storage/database.js";
 import type { SearchQuery, SearchResult } from "../index.js";
+import type { PluginManager } from "../plugin/plugin-manager.js";
 import { preprocessQuery } from "./cjk-preprocessing.js";
 
 export interface SearchOptions {
   halfLifeDays?: number;
+  pluginManager?: PluginManager;
 }
 
 function applyKeywordReranking(results: SearchResult[], originalQuery: string): SearchResult[] {
@@ -116,32 +118,41 @@ function buildFilteredQuery(
   }));
 }
 
-export function searchMemory(
+export async function searchMemory(
   db: Database,
   query: SearchQuery,
   options: SearchOptions = {},
-): SearchResult[] {
+): Promise<SearchResult[]> {
   const halfLifeDays = options.halfLifeDays ?? 30;
+  const { pluginManager } = options;
 
-  if (query.text.trim().length === 0) return [];
+  const processedQuery = pluginManager ? await pluginManager.runBeforeSearch(query) : query;
 
-  const ftsQuery = preprocessQuery(query.text);
+  if (processedQuery.text.trim().length === 0) return [];
+
+  const ftsQuery = preprocessQuery(processedQuery.text);
   if (ftsQuery.length === 0) return [];
 
   const hasFilters =
-    query.filters &&
-    (query.filters.sessionIds?.length ||
-      query.filters.projectIds?.length ||
-      query.filters.minImportance !== undefined ||
-      query.filters.createdAfter ||
-      query.filters.createdBefore);
+    processedQuery.filters &&
+    (processedQuery.filters.sessionIds?.length ||
+      processedQuery.filters.projectIds?.length ||
+      processedQuery.filters.minImportance !== undefined ||
+      processedQuery.filters.createdAfter ||
+      processedQuery.filters.createdBefore);
 
   let results: SearchResult[];
   if (hasFilters) {
-    results = buildFilteredQuery(db, ftsQuery, query, halfLifeDays);
+    results = buildFilteredQuery(db, ftsQuery, processedQuery, halfLifeDays);
   } else {
-    results = db.searchChunks(ftsQuery, query.limit, halfLifeDays);
+    results = db.searchChunks(ftsQuery, processedQuery.limit, halfLifeDays);
   }
 
-  return applyKeywordReranking(results, query.text);
+  results = applyKeywordReranking(results, processedQuery.text);
+
+  if (pluginManager) {
+    results = await pluginManager.runAfterSearch(results);
+  }
+
+  return results;
 }

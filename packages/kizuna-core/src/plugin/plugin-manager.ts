@@ -1,5 +1,16 @@
 import type BetterSqlite3 from "better-sqlite3";
-import type { Plugin, PluginConfig, PluginContext, ProjectConfig, Logger } from "../index.js";
+import type {
+  Plugin,
+  PluginConfig,
+  PluginContext,
+  ProjectConfig,
+  Logger,
+  RawChunk,
+  StoredChunk,
+  SearchQuery,
+  SearchResult,
+  ContextInjection,
+} from "../index.js";
 import { SqlitePluginStorage } from "./plugin-storage.js";
 import { runPluginMigrations } from "./plugin-migrator.js";
 
@@ -149,5 +160,82 @@ export class PluginManager {
 
   getPlugin(name: string): PluginEntry | undefined {
     return this.plugins.find((e) => e.plugin.name === name);
+  }
+
+  private activePlugins(): PluginEntry[] {
+    return this.plugins.filter((e) => e.initialized && !e.initFailed);
+  }
+
+  async runBeforeCapture(chunk: RawChunk): Promise<RawChunk | null> {
+    let current: RawChunk | null = chunk;
+    for (const entry of this.activePlugins()) {
+      if (!entry.plugin.beforeCapture || current === null) continue;
+      try {
+        current = await entry.plugin.beforeCapture(current, entry.context);
+      } catch (err) {
+        entry.context.logger.error(
+          `beforeCapture failed: ${err instanceof Error ? err.message : String(err)}`,
+        );
+      }
+    }
+    return current;
+  }
+
+  async runAfterCapture(chunk: StoredChunk): Promise<void> {
+    for (const entry of this.activePlugins()) {
+      if (!entry.plugin.afterCapture) continue;
+      try {
+        await entry.plugin.afterCapture(chunk, entry.context);
+      } catch (err) {
+        entry.context.logger.error(
+          `afterCapture failed: ${err instanceof Error ? err.message : String(err)}`,
+        );
+      }
+    }
+  }
+
+  async runBeforeSearch(query: SearchQuery): Promise<SearchQuery> {
+    let current = query;
+    for (const entry of this.activePlugins()) {
+      if (!entry.plugin.beforeSearch) continue;
+      try {
+        current = await entry.plugin.beforeSearch(current, entry.context);
+      } catch (err) {
+        entry.context.logger.error(
+          `beforeSearch failed: ${err instanceof Error ? err.message : String(err)}`,
+        );
+      }
+    }
+    return current;
+  }
+
+  async runAfterSearch(results: SearchResult[]): Promise<SearchResult[]> {
+    let current = results;
+    for (const entry of this.activePlugins()) {
+      if (!entry.plugin.afterSearch) continue;
+      try {
+        current = await entry.plugin.afterSearch(current, entry.context);
+      } catch (err) {
+        entry.context.logger.error(
+          `afterSearch failed: ${err instanceof Error ? err.message : String(err)}`,
+        );
+      }
+    }
+    return current;
+  }
+
+  async runEnrichContext(injection: ContextInjection): Promise<ContextInjection> {
+    let current = injection;
+    for (const entry of this.activePlugins()) {
+      if (!entry.plugin.enrichContext) continue;
+      try {
+        current = await entry.plugin.enrichContext(current, entry.context);
+      } catch (err) {
+        entry.context.logger.error(
+          `enrichContext failed: ${err instanceof Error ? err.message : String(err)}`,
+        );
+      }
+    }
+    return current;
   }
 }

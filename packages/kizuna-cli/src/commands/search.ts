@@ -8,7 +8,7 @@ export function registerSearch(program: Command): void {
     .description("Search stored memories")
     .option("-n, --limit <number>", "Maximum results", "10")
     .option("--cwd <path>", "Project directory", process.cwd())
-    .action((query: string, opts: { limit: string; cwd: string }) => {
+    .action(async (query: string, opts: { limit: string; cwd: string }) => {
       if (!dbExists(opts.cwd)) {
         console.error("No Kizuna database found. Run 'kizuna setup' first.");
         process.exitCode = 1;
@@ -17,7 +17,7 @@ export function registerSearch(program: Command): void {
 
       const db = new Database(resolveDbPath(opts.cwd));
       try {
-        const results = searchMemory(db, {
+        const results = await searchMemory(db, {
           text: query,
           limit: parseInt(opts.limit, 10),
         });

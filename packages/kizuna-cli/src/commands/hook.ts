@@ -34,7 +34,7 @@ export function registerHook(program: Command): void {
   hook
     .command("session-end")
     .description("Capture transcript on session end")
-    .action(() => {
+    .action(async () => {
       const input = parseInput();
       const kizunaDir = join(input.cwd, ".kizuna");
 
@@ -51,7 +51,7 @@ export function registerHook(program: Command): void {
 
       const db = new Database(resolveDbPath(input.cwd));
       try {
-        const result = captureTranscript(db, {
+        const result = await captureTranscript(db, {
           sessionId: input.session_id,
           projectId: getProjectId(input.cwd),
           transcriptPath: input.transcript_path,
@@ -72,7 +72,7 @@ export function registerHook(program: Command): void {
   hook
     .command("prompt-submit")
     .description("Inject relevant memories into prompt context")
-    .action(() => {
+    .action(async () => {
       const input = parseInput();
       const dbPath = resolveDbPath(input.cwd);
 
@@ -87,7 +87,7 @@ export function registerHook(program: Command): void {
 
       const db = new Database(dbPath);
       try {
-        const result = injectMemory(db, prompt);
+        const result = await injectMemory(db, prompt);
         if (result.context.length > 0) {
           process.stdout.write(result.context);
         }

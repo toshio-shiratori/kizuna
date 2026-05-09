@@ -1,5 +1,6 @@
 import type { Database } from "../storage/database.js";
-import type { SearchQuery, SearchResult } from "../index.js";
+import type { SearchQuery, SearchResult, ContextInjection, ContextBlock } from "../index.js";
+import type { PluginManager } from "../plugin/plugin-manager.js";
 import { searchMemory } from "./search.js";
 import { estimateTokens } from "./chunker.js";
 
@@ -7,6 +8,7 @@ export interface InjectOptions {
   tokenBudget?: number;
   maxResults?: number;
   halfLifeDays?: number;
+  pluginManager?: PluginManager;
 }
 
 export interface InjectResult {
@@ -60,12 +62,19 @@ export function formatContext(results: SearchResult[], tokenBudget: number): Inj
   return { context, chunksUsed, tokensUsed };
 }
 
-export function injectMemory(
+function formatContextBlocks(blocks: ContextBlock[]): string {
+  if (blocks.length === 0) return "";
+
+  const sorted = [...blocks].sort((a, b) => b.priority - a.priority);
+  return sorted.map((b) => b.content).join("\n\n");
+}
+
+export async function injectMemory(
   db: Database,
   userPrompt: string,
   options: InjectOptions = {},
-): InjectResult {
-  const { tokenBudget = 2000, maxResults = 10, halfLifeDays = 30 } = options;
+): Promise<InjectResult> {
+  const { tokenBudget = 2000, maxResults = 10, halfLifeDays = 30, pluginManager } = options;
 
   if (userPrompt.trim().length === 0) {
     return { context: "", chunksUsed: 0, tokensUsed: 0 };
@@ -76,6 +85,30 @@ export function injectMemory(
     limit: maxResults,
   };
 
-  const results = searchMemory(db, query, { halfLifeDays });
-  return formatContext(results, tokenBudget);
+  const results = await searchMemory(db, query, { halfLifeDays, pluginManager });
+  const formatted = formatContext(results, tokenBudget);
+
+  if (pluginManager) {
+    const injection: ContextInjection = {
+      userPrompt,
+      chunks: results,
+      contextBlocks: [],
+    };
+
+    const enriched = await pluginManager.runEnrichContext(injection);
+
+    if (enriched.contextBlocks.length > 0) {
+      const extraContent = formatContextBlocks(enriched.contextBlocks);
+      const extraTokens = estimateTokens(extraContent);
+      if (formatted.tokensUsed + extraTokens <= tokenBudget) {
+        return {
+          context: formatted.context ? `${formatted.context}\n\n${extraContent}` : extraContent,
+          chunksUsed: formatted.chunksUsed,
+          tokensUsed: formatted.tokensUsed + extraTokens,
+        };
+      }
+    }
+  }
+
+  return formatted;
 }
