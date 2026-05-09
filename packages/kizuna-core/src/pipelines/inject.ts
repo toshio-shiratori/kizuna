@@ -91,13 +91,17 @@ export async function injectMemory(
     return { context: "", chunksUsed: 0, tokensUsed: 0 };
   }
 
+  const reservedTokens = pluginManager ? pluginManager.scaleTokenBudgets(tokenBudget) : 0;
+
+  const chunkBudget = tokenBudget - reservedTokens;
+
   const query: SearchQuery = {
     text: userPrompt,
     limit: maxResults,
   };
 
   const results = await searchMemory(db, query, { halfLifeDays, pluginManager });
-  const formatted = formatContext(results, tokenBudget);
+  const formatted = formatContext(results, chunkBudget);
 
   if (pluginManager) {
     const injection: ContextInjection = {
@@ -111,7 +115,8 @@ export async function injectMemory(
     if (enriched.contextBlocks.length > 0) {
       const extraContent = formatContextBlocks(enriched.contextBlocks);
       const extraTokens = estimateTokens(extraContent);
-      if (formatted.tokensUsed + extraTokens <= tokenBudget) {
+      const pluginBudget = tokenBudget - formatted.tokensUsed;
+      if (extraTokens <= pluginBudget) {
         return {
           context: formatted.context ? `${formatted.context}\n\n${extraContent}` : extraContent,
           chunksUsed: formatted.chunksUsed,

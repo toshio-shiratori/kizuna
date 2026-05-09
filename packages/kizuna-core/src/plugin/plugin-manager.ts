@@ -224,6 +224,43 @@ export class PluginManager {
     return current;
   }
 
+  getReservedTokenBudgets(): Map<string, number> {
+    const budgets = new Map<string, number>();
+    for (const entry of this.activePlugins()) {
+      if (entry.plugin.tokenBudget != null && entry.plugin.tokenBudget > 0) {
+        budgets.set(entry.plugin.name, entry.plugin.tokenBudget);
+      }
+    }
+    return budgets;
+  }
+
+  getTotalReservedTokens(): number {
+    let total = 0;
+    for (const entry of this.activePlugins()) {
+      if (entry.plugin.tokenBudget != null && entry.plugin.tokenBudget > 0) {
+        total += entry.plugin.tokenBudget;
+      }
+    }
+    return total;
+  }
+
+  scaleTokenBudgets(totalBudget: number): number {
+    const totalReserved = this.getTotalReservedTokens();
+    if (totalReserved <= 0 || totalReserved < totalBudget) {
+      return totalReserved;
+    }
+    const cap = Math.floor(totalBudget * 0.8);
+    const scale = cap / totalReserved;
+    const budgets = this.getReservedTokenBudgets();
+    const entries = [...budgets.entries()]
+      .map(([name, b]) => `${name}=${Math.floor(b * scale)}`)
+      .join(", ");
+    this.logger.warn(
+      `Plugin token budgets (${totalReserved}) exceed total budget (${totalBudget}). Scaled to 80%: ${entries}`,
+    );
+    return cap;
+  }
+
   async runEnrichContext(injection: ContextInjection): Promise<ContextInjection> {
     let current = injection;
     for (const entry of this.activePlugins()) {

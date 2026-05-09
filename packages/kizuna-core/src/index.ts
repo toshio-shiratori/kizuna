@@ -165,6 +165,7 @@ export interface Plugin {
   readonly name: string;
   readonly version: string;
   readonly description?: string;
+  readonly tokenBudget?: number;
 
   init?(ctx: PluginContext): Promise<void> | void;
   shutdown?(ctx: PluginContext): Promise<void> | void;

@@ -55,6 +55,7 @@ export function createOpenAPIAwareness(): Plugin {
     name: PLUGIN_NAME,
     version: "0.0.0",
     description: "Injects relevant OpenAPI endpoint information into context based on user queries",
+    tokenBudget: 600,
 
     init(ctx: PluginContext): void {
       const options = ctx.config.options as OpenAPIAwarenessOptions;
