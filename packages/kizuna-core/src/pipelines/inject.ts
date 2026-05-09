@@ -20,7 +20,7 @@ export interface InjectResult {
 const HEADER = "## Relevant Memories\n";
 const SEPARATOR = "\n---\n\n";
 const ATTRIBUTION_INSTRUCTION =
-  "\n---\nIf any of the above memories informed your response, briefly note which memory was relevant at the end of your reply.\n";
+  "\n---\nIf any of the above memories are relevant to your current task, verify whether they indicate cross-repo dependencies, deployment constraints, or past design decisions that should inform your approach. Briefly note which memories you considered at the end of your reply.\n";
 
 function formatChunkBlock(result: SearchResult): string {
   const { chunk } = result;
