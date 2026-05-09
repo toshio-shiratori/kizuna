@@ -85,6 +85,16 @@ export function registerSetup(program: Command): void {
         mkdirSync(kizunaDir, { recursive: true });
       }
 
+      const pluginsJsonPath = resolve(kizunaDir, "plugins.json");
+      let pluginsJsonCreated = false;
+      if (!existsSync(pluginsJsonPath)) {
+        const template = {
+          plugins: {},
+        };
+        writeFileSync(pluginsJsonPath, JSON.stringify(template, null, 2) + "\n");
+        pluginsJsonCreated = true;
+      }
+
       let settings: ClaudeSettings = {};
       if (existsSync(settingsPath)) {
         settings = JSON.parse(readFileSync(settingsPath, "utf-8")) as ClaudeSettings;
@@ -165,6 +175,12 @@ export function registerSetup(program: Command): void {
       console.log("  SessionEnd       → capture transcript");
       console.log("  UserPromptSubmit → inject relevant memories");
       console.log("  Stop             → incremental capture");
+      console.log("");
+      if (pluginsJsonCreated) {
+        console.log(`Plugins config: ${pluginsJsonPath} (created)`);
+      } else {
+        console.log(`Plugins config: ${pluginsJsonPath} (already exists)`);
+      }
       console.log("");
       if (injected) {
         console.log(`CLAUDE.md updated: ${claudeMdPath}`);
