@@ -13,14 +13,14 @@ When working on Kizuna with Claude Code CLI, refer to the current phase. Do NOT 
 
 ## Phase Overview
 
-| Phase   | Goal                       | Status      |
-| ------- | -------------------------- | ----------- |
-| Phase 0 | Project initialization     | ✅ Complete |
-| Phase 1 | Documentation              | ✅ Complete |
-| Phase 2 | Core implementation        | ✅ Complete |
-| Phase 3 | Plugin system              | ✅ Complete |
-| Phase 4 | Public release preparation | ⏳ Pending  |
-| Phase 5 | Extensions and ecosystem   | ⏳ Future   |
+| Phase   | Goal                       | Status         |
+| ------- | -------------------------- | -------------- |
+| Phase 0 | Project initialization     | ✅ Complete    |
+| Phase 1 | Documentation              | ✅ Complete    |
+| Phase 2 | Core implementation        | ✅ Complete    |
+| Phase 3 | Plugin system              | ✅ Complete    |
+| Phase 4 | Public release preparation | 🔄 In Progress |
+| Phase 5 | Extensions and ecosystem   | ⏳ Future      |
 
 ---
 
@@ -250,7 +250,7 @@ Add the plugin system so that project-specific or use-case-specific functionalit
 
 ## Phase 4: Public Release Preparation
 
-**Status: Pending**
+**Status: In Progress (4.1〜4.4 完了、4.5 はオーナー判断待ち)**
 
 ### Goal
 
@@ -263,7 +263,7 @@ Make the repository ready for public release. Polish documentation, add CI, addr
 
 ### Deliverables
 
-#### 4.1 Documentation polish
+#### 4.1 Documentation polish ✅
 
 - Comprehensive README.md with usage examples
 - CONTRIBUTING.md (clearly stating no support guarantee)
@@ -271,22 +271,22 @@ Make the repository ready for public release. Polish documentation, add CI, addr
 - Per-package READMEs
 - Migration guide from Engram (optional, if it makes sense)
 
-#### 4.2 CI/CD
+#### 4.2 CI/CD ✅
 
 - GitHub Actions workflow for: lint, type check, test on Node.js v22 and v24
 - No publish automation (manual control)
 - Status badges in README
 
-#### 4.3 Code quality
+#### 4.3 Code quality ✅
 
 - ESLint configuration
 - Prettier configuration
 - Pre-commit hooks (optional: husky + lint-staged)
 
-#### 4.4 Release artifacts
+#### 4.4 Release artifacts ✅
 
-- Per-package version bump (probably v0.1.0 for initial public release)
-- Changelog (CHANGELOG.md per package)
+- Per-package version bump (v0.1.0)
+- Changelog (CHANGELOG.md)
 - npm publish dry run (do not actually publish until ready)
 
 #### 4.5 Visibility
@@ -297,10 +297,10 @@ Make the repository ready for public release. Polish documentation, add CI, addr
 
 ### Exit Criteria
 
-- Repository is public on GitHub
-- A new user can read the README and have Kizuna working in 5 minutes
-- CI passes on every PR
-- Project owner has shared the tool externally (or made the conscious decision not to)
+- ⏳ Repository is public on GitHub
+- ✅ A new user can read the README and have Kizuna working in 5 minutes
+- ✅ CI passes on every PR
+- ⏳ Project owner has shared the tool externally (or made the conscious decision not to)
 
 ---
 
