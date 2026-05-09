@@ -51,7 +51,7 @@ export function registerHook(program: Command): void {
       }
 
       const db = new Database(resolveDbPath(input.cwd));
-      const pluginManager = await loadPluginManager(db, input.cwd);
+      const pluginManager = await loadPluginManager(db, input.cwd, "capture");
       try {
         const result = await captureTranscript(db, {
           sessionId: input.session_id,
@@ -90,7 +90,7 @@ export function registerHook(program: Command): void {
       }
 
       const db = new Database(dbPath);
-      const pluginManager = await loadPluginManager(db, input.cwd);
+      const pluginManager = await loadPluginManager(db, input.cwd, "search");
       try {
         const result = await injectMemory(db, prompt, { pluginManager });
         if (result.context.length > 0) {
@@ -118,7 +118,7 @@ export function registerHook(program: Command): void {
       }
 
       const db = new Database(resolveDbPath(input.cwd));
-      const pluginManager = await loadPluginManager(db, input.cwd);
+      const pluginManager = await loadPluginManager(db, input.cwd, "capture");
       try {
         const result = await captureTranscript(db, {
           sessionId: input.session_id,
