@@ -1,0 +1,117 @@
+openapi: 3.0.3
+info:
+  title: Test API
+  version: 1.0.0
+
+paths:
+  /api/v1/users:
+    get:
+      operationId: getUsers
+      summary: List all users
+      tags:
+        - Users
+      parameters:
+        - name: page
+          in: query
+          required: false
+          description: Page number
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: OK
+    post:
+      operationId: createUser
+      summary: Create a new user
+      tags:
+        - Users
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  description: User name
+                email:
+                  type: string
+                  description: Email address
+              required:
+                - name
+                - email
+      responses:
+        "201":
+          description: Created
+        "400":
+          description: Bad Request
+
+  /api/v1/transactions:
+    get:
+      operationId: getTransactions
+      summary: List transactions
+      description: Retrieve transaction history with pagination
+      tags:
+        - Transactions
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: OK
+    post:
+      operationId: createTransaction
+      summary: Create a new transaction
+      tags:
+        - Transactions
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                amount:
+                  type: number
+                  description: Transaction amount
+                toUserId:
+                  type: string
+                  description: Recipient user ID
+              required:
+                - amount
+                - toUserId
+      responses:
+        "201":
+          description: Created
+
+  /api/v1/transactions/{id}:
+    get:
+      operationId: getTransaction
+      summary: Get transaction by ID
+      tags:
+        - Transactions
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: OK
+        "404":
+          description: Not Found
+
+  /api/v1/health:
+    get:
+      operationId: healthCheck
+      summary: Health check
+      tags:
+        - Health
+      responses:
+        "200":
+          description: OK
