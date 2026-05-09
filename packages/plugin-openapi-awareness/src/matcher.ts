@@ -1,4 +1,6 @@
 import type { EndpointInfo } from "./parser.js";
+import type { SynonymMap } from "./synonyms.js";
+import { expandTerms } from "./synonyms.js";
 
 export interface MatchResult {
   endpoint: EndpointInfo;
@@ -9,8 +11,12 @@ export function matchEndpoints(
   query: string,
   endpoints: readonly EndpointInfo[],
   maxResults: number,
+  synonyms?: SynonymMap,
 ): MatchResult[] {
-  const terms = tokenize(query);
+  let terms = tokenize(query);
+  if (synonyms) {
+    terms = expandTerms(terms, synonyms);
+  }
   if (terms.length === 0) return [];
 
   const results: MatchResult[] = [];

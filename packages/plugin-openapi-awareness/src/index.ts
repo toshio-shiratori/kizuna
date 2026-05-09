@@ -2,6 +2,7 @@ import type { Plugin, ContextInjection, PluginContext } from "@kizuna/core";
 import { loadSpec, parseEndpoints, type EndpointInfo } from "./parser.js";
 import { matchEndpoints } from "./matcher.js";
 import { formatEndpoints } from "./formatter.js";
+import { BUILTIN_SYNONYMS, mergeSynonyms, type SynonymMap } from "./synonyms.js";
 
 export type {
   EndpointInfo,
@@ -11,14 +12,18 @@ export type {
   PropertyInfo,
 } from "./parser.js";
 export type { MatchResult } from "./matcher.js";
+export type { SynonymMap } from "./synonyms.js";
 export { loadSpec, parseEndpoints } from "./parser.js";
 export { matchEndpoints } from "./matcher.js";
 export { formatEndpoints } from "./formatter.js";
+export { BUILTIN_SYNONYMS, mergeSynonyms, expandTerms } from "./synonyms.js";
 
 export interface OpenAPIAwarenessOptions {
   specPath?: string;
   specPaths?: string[];
   maxResults?: number;
+  synonyms?: Record<string, string[]>;
+  disableBuiltinSynonyms?: boolean;
 }
 
 const PLUGIN_NAME = "@kizuna/plugin-openapi-awareness";
@@ -33,6 +38,14 @@ function resolveSpecPaths(options: OpenAPIAwarenessOptions): string[] {
     paths.push(options.specPath);
   }
   return paths;
+}
+
+function buildSynonymMap(options: OpenAPIAwarenessOptions): SynonymMap | undefined {
+  const base = options.disableBuiltinSynonyms ? {} : BUILTIN_SYNONYMS;
+  const custom = options.synonyms;
+  if (!custom && options.disableBuiltinSynonyms) return undefined;
+  if (!custom) return base;
+  return mergeSynonyms(base, custom);
 }
 
 export function createOpenAPIAwareness(): Plugin {
@@ -84,8 +97,9 @@ export function createOpenAPIAwareness(): Plugin {
 
       const options = ctx.config.options as OpenAPIAwarenessOptions;
       const maxResults = options.maxResults ?? DEFAULT_MAX_RESULTS;
+      const synonymMap = buildSynonymMap(options);
 
-      const matches = matchEndpoints(injection.userPrompt, cachedEndpoints, maxResults);
+      const matches = matchEndpoints(injection.userPrompt, cachedEndpoints, maxResults, synonymMap);
 
       if (matches.length === 0) {
         return injection;
