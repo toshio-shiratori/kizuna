@@ -1,6 +1,6 @@
 {
   "name": "@kizuna/core",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "Core memory engine for Kizuna - storage, search, and pipeline processing",
   "license": "MIT",
   "author": "Toshio Shiratori (@toshio-shiratori)",
