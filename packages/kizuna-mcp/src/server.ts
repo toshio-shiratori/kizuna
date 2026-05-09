@@ -196,7 +196,3 @@ export function createServer(options: KizunaMcpServerOptions): McpServer {
 
   return mcp;
 }
-
-export function createDatabase(dbPath: string): Database {
-  return new Database(dbPath);
-}

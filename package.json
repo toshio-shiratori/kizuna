@@ -21,6 +21,7 @@
     "lint": "eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
+    "knip": "knip",
     "clean": "pnpm -r exec rm -rf dist .tsbuildinfo"
   },
   "packageManager": "pnpm@11.0.3",
@@ -28,6 +29,7 @@
     "@eslint/js": "^10.0.1",
     "eslint": "^10.3.0",
     "eslint-config-prettier": "^10.1.8",
+    "knip": "^6.12.1",
     "prettier": "^3.8.3",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.59.2"

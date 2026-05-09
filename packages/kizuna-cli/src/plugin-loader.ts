@@ -4,7 +4,7 @@ import { pathToFileURL } from "node:url";
 import type { Database, Plugin, PluginConfig, Logger } from "@kizuna/core";
 import { PluginManager } from "@kizuna/core";
 
-export interface PluginEntryConfig {
+interface PluginEntryConfig {
   enabled: boolean;
   options?: Record<string, unknown>;
 }
