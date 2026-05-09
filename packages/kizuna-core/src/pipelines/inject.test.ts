@@ -49,7 +49,7 @@ describe("formatContext", () => {
     expect(result.context).toContain("## Relevant Memories");
     expect(result.context).toContain("[2025-06-01] assistant");
     expect(result.context).toContain("Authentication uses JWT tokens.");
-    expect(result.context).toContain("briefly note which memory was relevant");
+    expect(result.context).toContain("which memories you considered");
     expect(result.chunksUsed).toBe(1);
     expect(result.tokensUsed).toBeGreaterThan(0);
   });
@@ -120,11 +120,11 @@ describe("formatContext", () => {
   it("omits attribution instruction when budget is tight", () => {
     const results = [makeResult("short")];
     const withAttribution = formatContext(results, 2000);
-    expect(withAttribution.context).toContain("briefly note which memory was relevant");
+    expect(withAttribution.context).toContain("which memories you considered");
 
     const tightBudget = withAttribution.tokensUsed - 5;
     const withoutAttribution = formatContext(results, tightBudget);
-    expect(withoutAttribution.context).not.toContain("briefly note which memory was relevant");
+    expect(withoutAttribution.context).not.toContain("which memories you considered");
     expect(withoutAttribution.chunksUsed).toBe(1);
   });
 });
