@@ -19,7 +19,7 @@ When working on Kizuna with Claude Code CLI, refer to the current phase. Do NOT 
 | Phase 1 | Documentation              | ✅ Complete    |
 | Phase 2 | Core implementation        | ✅ Complete    |
 | Phase 3 | Plugin system              | ✅ Complete    |
-| Phase 4 | Public release preparation | 🔄 In Progress |
+| Phase 4 | Public release preparation | ✅ Complete    |
 | Phase 5 | Extensions and ecosystem   | ⏳ Future      |
 
 ---
@@ -250,7 +250,7 @@ Add the plugin system so that project-specific or use-case-specific functionalit
 
 ## Phase 4: Public Release Preparation
 
-**Status: In Progress (4.1〜4.4 完了、4.5 はオーナー判断待ち)**
+**Status: Complete**
 
 ### Goal
 
@@ -289,18 +289,17 @@ Make the repository ready for public release. Polish documentation, add CI, addr
 - Changelog (CHANGELOG.md)
 - npm publish dry run (do not actually publish until ready)
 
-#### 4.5 Visibility
+#### 4.5 Visibility ✅
 
 - Repository made public
-- (Optional) Announcement post on Zenn or DEV.to
-- (Optional) Listing in awesome-claude-code or similar
+- Announcement: not planned (owner's decision)
 
 ### Exit Criteria
 
-- ⏳ Repository is public on GitHub
+- ✅ Repository is public on GitHub
 - ✅ A new user can read the README and have Kizuna working in 5 minutes
 - ✅ CI passes on every PR
-- ⏳ Project owner has shared the tool externally (or made the conscious decision not to)
+- ✅ Project owner has decided not to announce externally
 
 ---
 
