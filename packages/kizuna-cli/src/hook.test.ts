@@ -215,6 +215,104 @@ describe("Hook handlers", () => {
     });
   });
 
+  describe("stop", () => {
+    it("should incrementally capture new turns", () => {
+      const kizunaDir = join(tempDir, ".kizuna");
+      mkdirSync(kizunaDir, { recursive: true });
+      const transcriptPath = createTranscript(tempDir);
+
+      const result1 = runHook("stop", {
+        session_id: "stop-test-session",
+        transcript_path: transcriptPath,
+        cwd: tempDir,
+        hook_event_name: "Stop",
+      });
+
+      expect(result1.exitCode).toBe(0);
+
+      const dbPath = join(kizunaDir, "memory.db");
+      expect(existsSync(dbPath)).toBe(true);
+
+      const db = new Database(dbPath);
+      try {
+        const count = (
+          db.db.prepare("SELECT COUNT(*) AS count FROM chunks").get() as { count: number }
+        ).count;
+        expect(count).toBeGreaterThan(0);
+      } finally {
+        db.close();
+      }
+    });
+
+    it("should not duplicate chunks on repeated calls", () => {
+      const kizunaDir = join(tempDir, ".kizuna");
+      mkdirSync(kizunaDir, { recursive: true });
+      const transcriptPath = createTranscript(tempDir);
+
+      const hookInput = {
+        session_id: "stop-dedup-session",
+        transcript_path: transcriptPath,
+        cwd: tempDir,
+        hook_event_name: "Stop",
+      };
+
+      runHook("stop", hookInput);
+      runHook("stop", hookInput);
+
+      const db = new Database(join(kizunaDir, "memory.db"));
+      try {
+        const chunks = db.getChunksBySession("stop-dedup-session");
+        const transcriptChunkCount = chunks.length;
+        expect(transcriptChunkCount).toBeGreaterThan(0);
+
+        runHook("stop", hookInput);
+
+        const chunksAfter = db.getChunksBySession("stop-dedup-session");
+        expect(chunksAfter.length).toBe(transcriptChunkCount);
+      } finally {
+        db.close();
+      }
+    });
+
+    it("should silently exit when .kizuna directory does not exist", () => {
+      const result = runHook("stop", {
+        session_id: "test-session",
+        transcript_path: "/nonexistent/transcript.jsonl",
+        cwd: tempDir,
+        hook_event_name: "Stop",
+      });
+
+      expect(result.exitCode).toBe(0);
+    });
+
+    it("should work with session-end for the same session", () => {
+      const kizunaDir = join(tempDir, ".kizuna");
+      mkdirSync(kizunaDir, { recursive: true });
+      const transcriptPath = createTranscript(tempDir);
+
+      const hookInput = {
+        session_id: "stop-then-end-session",
+        transcript_path: transcriptPath,
+        cwd: tempDir,
+      };
+
+      runHook("stop", { ...hookInput, hook_event_name: "Stop" });
+      runHook("session-end", { ...hookInput, hook_event_name: "SessionEnd" });
+
+      const db = new Database(join(kizunaDir, "memory.db"));
+      try {
+        const chunks = db.getChunksBySession("stop-then-end-session");
+        expect(chunks.length).toBeGreaterThan(0);
+
+        const turnIndices = chunks.map((c) => c.turnIndex);
+        const uniqueIndices = new Set(turnIndices);
+        expect(uniqueIndices.size).toBe(turnIndices.length);
+      } finally {
+        db.close();
+      }
+    });
+  });
+
   describe("session-start", () => {
     it("should report memory stats when database has data", async () => {
       await seedDatabase(tempDir);
@@ -260,6 +358,7 @@ describe("Hook handlers", () => {
       expect(hooks["SessionStart"]).toBeDefined();
       expect(hooks["SessionEnd"]).toBeDefined();
       expect(hooks["UserPromptSubmit"]).toBeDefined();
+      expect(hooks["Stop"]).toBeDefined();
     });
   });
 });

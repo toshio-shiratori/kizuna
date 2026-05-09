@@ -463,6 +463,136 @@ describe("captureTranscript", () => {
     expect(afterCaptureFn.mock.calls[1]![0].content).toBe("msg2");
   });
 
+  it("captures incrementally on repeated calls with same session", async () => {
+    const content1 = [
+      makeTranscriptLine({
+        type: "user",
+        uuid: "u1",
+        timestamp: "2025-01-01T00:00:00.000Z",
+        message: { role: "user", content: "first question" },
+      }),
+      makeTranscriptLine({
+        type: "assistant",
+        uuid: "a1",
+        timestamp: "2025-01-01T00:00:01.000Z",
+        message: { role: "assistant", content: "first answer" },
+      }),
+    ].join("\n");
+
+    const result1 = await captureTranscript(db, {
+      sessionId: "sess-inc",
+      projectId: "proj-1",
+      transcriptContent: content1,
+    });
+    expect(result1.chunksStored).toBe(2);
+
+    const content2 = [
+      makeTranscriptLine({
+        type: "user",
+        uuid: "u1",
+        timestamp: "2025-01-01T00:00:00.000Z",
+        message: { role: "user", content: "first question" },
+      }),
+      makeTranscriptLine({
+        type: "assistant",
+        uuid: "a1",
+        timestamp: "2025-01-01T00:00:01.000Z",
+        message: { role: "assistant", content: "first answer" },
+      }),
+      makeTranscriptLine({
+        type: "user",
+        uuid: "u2",
+        timestamp: "2025-01-01T00:00:02.000Z",
+        message: { role: "user", content: "second question" },
+      }),
+      makeTranscriptLine({
+        type: "assistant",
+        uuid: "a2",
+        timestamp: "2025-01-01T00:00:03.000Z",
+        message: { role: "assistant", content: "second answer" },
+      }),
+    ].join("\n");
+
+    const result2 = await captureTranscript(db, {
+      sessionId: "sess-inc",
+      projectId: "proj-1",
+      transcriptContent: content2,
+    });
+    expect(result2.chunksStored).toBe(2);
+
+    const chunks = db.getChunksBySession("sess-inc");
+    expect(chunks).toHaveLength(4);
+    expect(chunks[0]!.content).toBe("first question");
+    expect(chunks[3]!.content).toBe("second answer");
+  });
+
+  it("updates session ended_at on incremental capture", async () => {
+    const content1 = makeTranscriptLine({
+      type: "user",
+      uuid: "u1",
+      timestamp: "2025-01-01T00:00:00.000Z",
+      message: { role: "user", content: "initial" },
+    });
+
+    await captureTranscript(db, {
+      sessionId: "sess-upsert",
+      projectId: "proj-1",
+      transcriptContent: content1,
+    });
+
+    const session1 = db.getSession("sess-upsert");
+    expect(session1!.endedAt).toBe("2025-01-01T00:00:00.000Z");
+
+    const content2 = [
+      makeTranscriptLine({
+        type: "user",
+        uuid: "u1",
+        timestamp: "2025-01-01T00:00:00.000Z",
+        message: { role: "user", content: "initial" },
+      }),
+      makeTranscriptLine({
+        type: "assistant",
+        uuid: "a1",
+        timestamp: "2025-01-01T00:05:00.000Z",
+        message: { role: "assistant", content: "later response" },
+      }),
+    ].join("\n");
+
+    await captureTranscript(db, {
+      sessionId: "sess-upsert",
+      projectId: "proj-1",
+      transcriptContent: content2,
+    });
+
+    const session2 = db.getSession("sess-upsert");
+    expect(session2!.endedAt).toBe("2025-01-01T00:05:00.000Z");
+  });
+
+  it("does not duplicate chunks on idempotent call with no new turns", async () => {
+    const content = makeTranscriptLine({
+      type: "user",
+      uuid: "u1",
+      timestamp: "2025-01-01T00:00:00.000Z",
+      message: { role: "user", content: "only message" },
+    });
+
+    await captureTranscript(db, {
+      sessionId: "sess-idem",
+      projectId: "proj-1",
+      transcriptContent: content,
+    });
+
+    const result = await captureTranscript(db, {
+      sessionId: "sess-idem",
+      projectId: "proj-1",
+      transcriptContent: content,
+    });
+
+    expect(result.chunksStored).toBe(0);
+    const chunks = db.getChunksBySession("sess-idem");
+    expect(chunks).toHaveLength(1);
+  });
+
   it("continues capture when a plugin throws in beforeCapture", async () => {
     const pm = new PluginManager({ db: db.db, projectConfig: { id: "test" } });
     pm.register({

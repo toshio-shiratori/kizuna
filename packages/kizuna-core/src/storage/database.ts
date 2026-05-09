@@ -103,6 +103,33 @@ export class Database {
     return row ? sessionRowToSession(row) : null;
   }
 
+  upsertSession(session: Session): void {
+    this.db
+      .prepare(
+        `INSERT INTO sessions (id, project_id, started_at, ended_at, transcript_path, metadata)
+         VALUES (?, ?, ?, ?, ?, ?)
+         ON CONFLICT(id) DO UPDATE SET
+           ended_at = excluded.ended_at,
+           transcript_path = excluded.transcript_path,
+           metadata = excluded.metadata`,
+      )
+      .run(
+        session.id,
+        session.projectId,
+        session.startedAt,
+        session.endedAt,
+        session.transcriptPath,
+        JSON.stringify(session.metadata),
+      );
+  }
+
+  getMaxTurnIndex(sessionId: string): number | null {
+    const row = this.db
+      .prepare("SELECT MAX(turn_index) AS max_turn FROM chunks WHERE session_id = ?")
+      .get(sessionId) as { max_turn: number | null };
+    return row.max_turn;
+  }
+
   // ─── Chunks ───────────────────────────────────────────
 
   insertChunk(
