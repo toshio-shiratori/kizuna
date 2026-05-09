@@ -3,8 +3,16 @@ import type { ParsedTurn } from "./transcript-parser.js";
 
 export const MIN_CONTENT_LENGTH = 10;
 
+const BOILERPLATE_PATTERNS: RegExp[] = [
+  /^セッション(開始|終了)(チェック|処理)を(実行|開始)します。?$/,
+  /^Kizuna の(記憶|セットアップ状況)を確認します。?$/,
+  /^\[Request interrupted by user\]$/,
+];
+
 export function isLowQualityContent(content: string): boolean {
-  return content.trim().length < MIN_CONTENT_LENGTH;
+  const trimmed = content.trim();
+  if (trimmed.length < MIN_CONTENT_LENGTH) return true;
+  return BOILERPLATE_PATTERNS.some((p) => p.test(trimmed));
 }
 
 export function chunkifyTurns(
