@@ -34,13 +34,16 @@ function createTranscript(dir: string): string {
       timestamp: "2025-01-20T10:00:00Z",
     }),
     JSON.stringify({
-      type: "human",
-      message: { content: "SQLiteのWALモードについて教えてください" },
+      type: "user",
+      uuid: "hook-test-user-001",
+      message: { role: "user", content: "SQLiteのWALモードについて教えてください" },
       timestamp: "2025-01-20T10:01:00Z",
     }),
     JSON.stringify({
       type: "assistant",
+      uuid: "hook-test-assistant-001",
       message: {
+        role: "assistant",
         content: "WALモードはWrite-Ahead Loggingの略で、SQLiteの並行読み取り性能を向上させます。",
       },
       timestamp: "2025-01-20T10:02:00Z",
@@ -66,13 +69,16 @@ async function seedDatabase(cwd: string): Promise<void> {
         timestamp: "2025-01-15T10:00:00Z",
       }),
       JSON.stringify({
-        type: "human",
-        message: { content: "better-sqlite3でマイグレーションを実装してください" },
+        type: "user",
+        uuid: "seed-user-001",
+        message: { role: "user", content: "better-sqlite3でマイグレーションを実装してください" },
         timestamp: "2025-01-15T10:01:00Z",
       }),
       JSON.stringify({
         type: "assistant",
+        uuid: "seed-assistant-001",
         message: {
+          role: "assistant",
           content:
             "schema_versionsテーブルでバージョン管理を行い、未適用のSQLファイルを順番に実行する実装にしました。",
         },
@@ -115,10 +121,14 @@ describe("Hook handlers", () => {
 
       const db = new Database(dbPath);
       try {
-        const count = (
-          db.db.prepare("SELECT COUNT(*) AS count FROM chunks").get() as { count: number }
-        ).count;
-        expect(count).toBeGreaterThan(0);
+        const chunks = db.db
+          .prepare("SELECT role FROM chunks WHERE session_id = ?")
+          .all("test-session-123") as { role: string }[];
+        expect(chunks.length).toBe(2);
+
+        const roles = chunks.map((c) => c.role);
+        expect(roles).toContain("user");
+        expect(roles).toContain("assistant");
 
         const session = db.db
           .prepare("SELECT * FROM sessions WHERE id = ?")
@@ -235,10 +245,14 @@ describe("Hook handlers", () => {
 
       const db = new Database(dbPath);
       try {
-        const count = (
-          db.db.prepare("SELECT COUNT(*) AS count FROM chunks").get() as { count: number }
-        ).count;
-        expect(count).toBeGreaterThan(0);
+        const chunks = db.db
+          .prepare("SELECT role FROM chunks WHERE session_id = ?")
+          .all("stop-test-session") as { role: string }[];
+        expect(chunks.length).toBe(2);
+
+        const roles = chunks.map((c) => c.role);
+        expect(roles).toContain("user");
+        expect(roles).toContain("assistant");
       } finally {
         db.close();
       }
