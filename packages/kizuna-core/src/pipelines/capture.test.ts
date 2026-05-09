@@ -678,6 +678,58 @@ describe("captureTranscript", () => {
     expect(chunks[0]!.content).not.toContain("system-reminder");
   });
 
+  it("strips 'Base directory' prefix from skill responses", async () => {
+    const content = makeTranscriptLine({
+      type: "assistant",
+      uuid: "a1",
+      timestamp: "2025-01-01T00:00:00.000Z",
+      message: {
+        role: "assistant",
+        content:
+          "Base directory for this skill: /path/.claude/skills/session-start\n\nHere is the actual status report with useful content.",
+      },
+    });
+
+    const result = await captureTranscript(db, {
+      sessionId: "sess-basedir",
+      projectId: "proj-1",
+      transcriptContent: content,
+    });
+
+    expect(result.chunksStored).toBe(1);
+    const chunks = db.getChunksBySession("sess-basedir");
+    expect(chunks[0]!.content).not.toContain("Base directory");
+    expect(chunks[0]!.content).toContain("actual status report");
+  });
+
+  it("skips session boilerplate chunks", async () => {
+    const content = [
+      makeTranscriptLine({
+        type: "assistant",
+        uuid: "a1",
+        timestamp: "2025-01-01T00:00:00.000Z",
+        message: { role: "assistant", content: "セッション開始チェックを実行します。" },
+      }),
+      makeTranscriptLine({
+        type: "assistant",
+        uuid: "a2",
+        timestamp: "2025-01-01T00:00:01.000Z",
+        message: { role: "assistant", content: "Here is the detailed session status report." },
+      }),
+    ].join("\n");
+
+    const result = await captureTranscript(db, {
+      sessionId: "sess-boilerplate",
+      projectId: "proj-1",
+      transcriptContent: content,
+    });
+
+    expect(result.chunksStored).toBe(1);
+    expect(result.chunksSkipped).toBe(1);
+    const chunks = db.getChunksBySession("sess-boilerplate");
+    expect(chunks[0]!.content).toContain("detailed session status report");
+  });
+
   it("skips command invocation turns entirely", async () => {
     const commandContent =
       "<command-message>session-start</command-message>\n<command-name>/session-start</command-name>\n## When to Use\n- template content here";
@@ -755,6 +807,24 @@ describe("sanitizeContent", () => {
     expect(sanitizeContent("")).toBe("");
     expect(sanitizeContent("   ")).toBe("");
   });
+
+  it("strips 'Base directory for this skill:' lines", () => {
+    const input =
+      "Base directory for this skill: /Users/test/project/.claude/skills/session-start\n\nセッション開始チェックを実行します。以下の順序で確認します。";
+    const result = sanitizeContent(input);
+    expect(result).not.toContain("Base directory");
+    expect(result).toContain("セッション開始チェックを実行します。");
+  });
+
+  it("strips 'Base directory' line even in the middle of content", () => {
+    const input =
+      "Some text before\nBase directory for this skill: /path/to/skill\nSome text after";
+    expect(sanitizeContent(input)).toBe("Some text before\n\nSome text after");
+  });
+
+  it("returns empty when content is only 'Base directory' line", () => {
+    expect(sanitizeContent("Base directory for this skill: /path/to/skill")).toBe("");
+  });
 });
 
 describe("isLowQualityContent", () => {
@@ -776,5 +846,30 @@ describe("isLowQualityContent", () => {
     expect(isLowQualityContent("   YES   ")).toBe(true);
     const padded = "   " + "a".repeat(MIN_CONTENT_LENGTH) + "   ";
     expect(isLowQualityContent(padded)).toBe(false);
+  });
+
+  it("detects session boilerplate as low quality", () => {
+    expect(isLowQualityContent("セッション開始チェックを実行します。")).toBe(true);
+    expect(isLowQualityContent("セッション終了処理を開始します。")).toBe(true);
+    expect(isLowQualityContent("セッション開始処理を実行します。")).toBe(true);
+    expect(isLowQualityContent("セッション終了チェックを開始します。")).toBe(true);
+  });
+
+  it("detects kizuna operational boilerplate as low quality", () => {
+    expect(isLowQualityContent("Kizuna の記憶を確認します。")).toBe(true);
+    expect(isLowQualityContent("Kizuna のセットアップ状況を確認します。")).toBe(true);
+  });
+
+  it("detects interrupted request marker as low quality", () => {
+    expect(isLowQualityContent("[Request interrupted by user]")).toBe(true);
+  });
+
+  it("does not flag real content that contains boilerplate substrings", () => {
+    expect(
+      isLowQualityContent("セッション開始チェックを実行します。以下の順序で確認します。"),
+    ).toBe(false);
+    expect(isLowQualityContent("Kizuna の記憶を確認します。前回の作業内容は以下の通りです。")).toBe(
+      false,
+    );
   });
 });
