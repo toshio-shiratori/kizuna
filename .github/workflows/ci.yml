@@ -11,6 +11,7 @@ permissions:
 
 jobs:
   ci:
+    name: Lint / Type check / Test (Node ${{ matrix.node-version }})
     runs-on: ubuntu-latest
     strategy:
       matrix:

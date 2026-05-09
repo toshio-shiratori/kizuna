@@ -107,6 +107,31 @@ describe("CLI", () => {
       const hooks = settings["hooks"] as Record<string, unknown>;
       expect(hooks["SessionEnd"]).toBeDefined();
     });
+
+    it("should inject usage guide into CLAUDE.md", () => {
+      runCli(`setup --cwd ${tempDir}`, tempDir);
+      const claudeMd = readFileSync(join(tempDir, "CLAUDE.md"), "utf-8");
+      expect(claudeMd).toContain("## Kizuna (Long-term Memory)");
+      expect(claudeMd).toContain("kizuna search <query>");
+      expect(claudeMd).toContain("kizuna stats");
+    });
+
+    it("should append to existing CLAUDE.md", () => {
+      writeFileSync(join(tempDir, "CLAUDE.md"), "# My Project\n\nExisting content.\n");
+      runCli(`setup --cwd ${tempDir}`, tempDir);
+      const claudeMd = readFileSync(join(tempDir, "CLAUDE.md"), "utf-8");
+      expect(claudeMd).toContain("# My Project");
+      expect(claudeMd).toContain("Existing content.");
+      expect(claudeMd).toContain("## Kizuna (Long-term Memory)");
+    });
+
+    it("should not duplicate section on re-run", () => {
+      runCli(`setup --cwd ${tempDir}`, tempDir);
+      runCli(`setup --cwd ${tempDir}`, tempDir);
+      const claudeMd = readFileSync(join(tempDir, "CLAUDE.md"), "utf-8");
+      const matches = claudeMd.match(/## Kizuna \(Long-term Memory\)/g);
+      expect(matches).toHaveLength(1);
+    });
   });
 
   describe("search", () => {

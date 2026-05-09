@@ -4,6 +4,38 @@ import { resolve } from "node:path";
 import { execSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
+const KIZUNA_SECTION_MARKER = "## Kizuna (Long-term Memory)";
+
+function buildClaudeMdSection(): string {
+  return `
+${KIZUNA_SECTION_MARKER}
+
+Memories are captured and recalled automatically via hooks. For active queries:
+
+| Command | Description |
+|---------|-------------|
+| \`kizuna search <query>\` | Search this project's memories |
+| \`kizuna search <query> --cwd <path>\` | Search another project's memories |
+| \`kizuna list --session <id>\` | List chunks from a specific session |
+| \`kizuna stats\` | Show database statistics |
+`;
+}
+
+function injectClaudeMdSection(claudeMdPath: string): boolean {
+  let content = "";
+  if (existsSync(claudeMdPath)) {
+    content = readFileSync(claudeMdPath, "utf-8");
+    if (content.includes(KIZUNA_SECTION_MARKER)) {
+      return false;
+    }
+  }
+
+  const section = buildClaudeMdSection();
+  const newContent = content.length > 0 ? content.trimEnd() + "\n" + section : section.trimStart();
+  writeFileSync(claudeMdPath, newContent);
+  return true;
+}
+
 interface HookEntry {
   type: string;
   command: string;
@@ -121,6 +153,9 @@ export function registerSetup(program: Command): void {
 
       writeFileSync(settingsPath, JSON.stringify(settings, null, 2) + "\n");
 
+      const claudeMdPath = resolve(cwd, "CLAUDE.md");
+      const injected = injectClaudeMdSection(claudeMdPath);
+
       console.log("Kizuna hooks configured:");
       console.log(`  Settings: ${settingsPath}`);
       console.log(`  Database: ${resolve(kizunaDir, "memory.db")}`);
@@ -130,5 +165,11 @@ export function registerSetup(program: Command): void {
       console.log("  SessionEnd       → capture transcript");
       console.log("  UserPromptSubmit → inject relevant memories");
       console.log("  Stop             → incremental capture");
+      console.log("");
+      if (injected) {
+        console.log(`CLAUDE.md updated: ${claudeMdPath}`);
+      } else {
+        console.log("CLAUDE.md: Kizuna section already present, skipped");
+      }
     });
 }
