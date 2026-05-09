@@ -36,41 +36,49 @@ export async function captureTranscript(
   const startedAt = turns[0]!.timestamp;
   const endedAt = turns[turns.length - 1]!.timestamp;
 
-  db.insertSession({
-    id: sessionId,
-    projectId,
-    startedAt,
-    endedAt,
-    transcriptPath: transcriptPath ?? null,
-    metadata: {},
-  });
+  db.beginTransaction();
+  try {
+    db.insertSession({
+      id: sessionId,
+      projectId,
+      startedAt,
+      endedAt,
+      transcriptPath: transcriptPath ?? null,
+      metadata: {},
+    });
 
-  const rawChunks = chunkifyTurns(sessionId, turns);
-  const storedChunks: StoredChunk[] = [];
-  let chunksSkipped = 0;
+    const rawChunks = chunkifyTurns(sessionId, turns);
+    const storedChunks: StoredChunk[] = [];
+    let chunksSkipped = 0;
 
-  for (const chunk of rawChunks) {
-    const processed = pluginManager ? await pluginManager.runBeforeCapture(chunk) : chunk;
+    for (const chunk of rawChunks) {
+      const processed = pluginManager ? await pluginManager.runBeforeCapture(chunk) : chunk;
 
-    if (processed === null) {
-      chunksSkipped++;
-      continue;
+      if (processed === null) {
+        chunksSkipped++;
+        continue;
+      }
+
+      const stored = db.insertChunk(processed);
+      storedChunks.push(stored);
+
+      if (pluginManager) {
+        await pluginManager.runAfterCapture(stored);
+      }
     }
 
-    const stored = db.insertChunk(processed);
-    storedChunks.push(stored);
+    db.commit();
 
-    if (pluginManager) {
-      await pluginManager.runAfterCapture(stored);
-    }
+    const totalTokens = storedChunks.reduce((sum, c) => sum + c.tokenCount, 0);
+
+    return {
+      sessionId,
+      chunksStored: storedChunks.length,
+      chunksSkipped,
+      totalTokens,
+    };
+  } catch (e) {
+    db.rollback();
+    throw e;
   }
-
-  const totalTokens = storedChunks.reduce((sum, c) => sum + c.tokenCount, 0);
-
-  return {
-    sessionId,
-    chunksStored: storedChunks.length,
-    chunksSkipped,
-    totalTokens,
-  };
 }
