@@ -12,7 +12,11 @@ import { join, resolve } from "node:path";
 import { tmpdir } from "node:os";
 import { spawnSync } from "node:child_process";
 import { Database, captureTranscript } from "@kizuna/core";
-import { resolvePluginFromModule, readPluginsConfig } from "./plugin-loader.js";
+import {
+  resolvePluginFromModule,
+  readPluginsConfig,
+  hasHooksForCategory,
+} from "./plugin-loader.js";
 
 const TSX_BIN = join(import.meta.dirname, "..", "node_modules", ".bin", "tsx");
 const CLI_PATH = join(import.meta.dirname, "cli.ts");
@@ -187,6 +191,53 @@ describe("readPluginsConfig", () => {
   });
 });
 
+describe("hasHooksForCategory", () => {
+  const basePlugin = { name: "test", version: "1.0.0" };
+
+  it("should match capture category for beforeCapture", () => {
+    expect(hasHooksForCategory({ ...basePlugin, beforeCapture: () => null }, "capture")).toBe(true);
+  });
+
+  it("should match capture category for afterCapture", () => {
+    expect(hasHooksForCategory({ ...basePlugin, afterCapture: async () => {} }, "capture")).toBe(
+      true,
+    );
+  });
+
+  it("should not match capture category for search-only hooks", () => {
+    expect(hasHooksForCategory({ ...basePlugin, beforeSearch: async (q) => q }, "capture")).toBe(
+      false,
+    );
+  });
+
+  it("should match search category for beforeSearch", () => {
+    expect(hasHooksForCategory({ ...basePlugin, beforeSearch: async (q) => q }, "search")).toBe(
+      true,
+    );
+  });
+
+  it("should match search category for afterSearch", () => {
+    expect(hasHooksForCategory({ ...basePlugin, afterSearch: async (r) => r }, "search")).toBe(
+      true,
+    );
+  });
+
+  it("should match search category for enrichContext", () => {
+    expect(hasHooksForCategory({ ...basePlugin, enrichContext: async (i) => i }, "search")).toBe(
+      true,
+    );
+  });
+
+  it("should not match search category for capture-only hooks", () => {
+    expect(hasHooksForCategory({ ...basePlugin, beforeCapture: () => null }, "search")).toBe(false);
+  });
+
+  it("should not match either category for plugin with no pipeline hooks", () => {
+    expect(hasHooksForCategory(basePlugin, "capture")).toBe(false);
+    expect(hasHooksForCategory(basePlugin, "search")).toBe(false);
+  });
+});
+
 describe("Plugin integration via hooks", () => {
   let tempDir: string;
 
@@ -342,7 +393,7 @@ describe("Plugin integration via hooks", () => {
     }
   });
 
-  it("should load plugin for prompt-submit hook", async () => {
+  it("should skip capture-only plugins on prompt-submit", async () => {
     await seedDatabase(tempDir);
     linkPlugin(tempDir, "@kizuna/plugin-pii-sanitizer");
     writeFileSync(
@@ -364,6 +415,7 @@ describe("Plugin integration via hooks", () => {
 
     expect(result.exitCode).toBe(0);
     expect(result.stdout).toContain("Relevant Memories");
+    expect(result.stderr).not.toContain("pii-sanitizer");
   });
 
   it("should load plugin for stop hook", () => {

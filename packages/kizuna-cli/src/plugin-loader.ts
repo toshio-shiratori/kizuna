@@ -122,9 +122,19 @@ async function importPlugin(packageName: string, cwd: string): Promise<Record<st
   throw new Error(`Cannot resolve "${packageName}" from CLI or from ${cwd}/node_modules`);
 }
 
+export type HookCategory = "capture" | "search";
+
+export function hasHooksForCategory(plugin: Plugin, category: HookCategory): boolean {
+  if (category === "capture") {
+    return !!(plugin.beforeCapture || plugin.afterCapture);
+  }
+  return !!(plugin.beforeSearch || plugin.afterSearch || plugin.enrichContext);
+}
+
 export async function loadPluginManager(
   db: Database,
   cwd: string,
+  hookCategory?: HookCategory,
 ): Promise<PluginManager | undefined> {
   const config = readPluginsConfig(cwd);
   if (!config?.plugins || Object.keys(config.plugins).length === 0) {
@@ -149,6 +159,10 @@ export async function loadPluginManager(
 
       if (!plugin) {
         stderrLogger.warn(`No plugin export found in "${packageName}"`);
+        continue;
+      }
+
+      if (hookCategory && !hasHooksForCategory(plugin, hookCategory)) {
         continue;
       }
 
