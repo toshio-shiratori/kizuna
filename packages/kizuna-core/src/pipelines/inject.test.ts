@@ -42,13 +42,14 @@ describe("formatContext", () => {
     expect(result.tokensUsed).toBe(0);
   });
 
-  it("formats a single result", () => {
+  it("formats a single result with attribution instruction", () => {
     const results = [makeResult("Authentication uses JWT tokens.")];
     const result = formatContext(results, 2000);
 
     expect(result.context).toContain("## Relevant Memories");
     expect(result.context).toContain("[2025-06-01] assistant");
     expect(result.context).toContain("Authentication uses JWT tokens.");
+    expect(result.context).toContain("briefly note which memory was relevant");
     expect(result.chunksUsed).toBe(1);
     expect(result.tokensUsed).toBeGreaterThan(0);
   });
@@ -114,6 +115,17 @@ describe("formatContext", () => {
     expect(result.context).toContain("SQLiteでデータベース接続を実装しました。");
     expect(result.chunksUsed).toBe(1);
     expect(result.tokensUsed).toBeGreaterThan(0);
+  });
+
+  it("omits attribution instruction when budget is tight", () => {
+    const results = [makeResult("short")];
+    const withAttribution = formatContext(results, 2000);
+    expect(withAttribution.context).toContain("briefly note which memory was relevant");
+
+    const tightBudget = withAttribution.tokensUsed - 5;
+    const withoutAttribution = formatContext(results, tightBudget);
+    expect(withoutAttribution.context).not.toContain("briefly note which memory was relevant");
+    expect(withoutAttribution.chunksUsed).toBe(1);
   });
 });
 

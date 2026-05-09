@@ -19,6 +19,8 @@ export interface InjectResult {
 
 const HEADER = "## Relevant Memories\n";
 const SEPARATOR = "\n---\n\n";
+const ATTRIBUTION_INSTRUCTION =
+  "\n---\nIf any of the above memories informed your response, briefly note which memory was relevant at the end of your reply.\n";
 
 function formatChunkBlock(result: SearchResult): string {
   const { chunk } = result;
@@ -58,8 +60,17 @@ export function formatContext(results: SearchResult[], tokenBudget: number): Inj
     return { context: "", chunksUsed: 0, tokensUsed: 0 };
   }
 
-  const context = HEADER + blocks.join(SEPARATOR);
-  return { context, chunksUsed, tokensUsed };
+  const baseContext = HEADER + blocks.join(SEPARATOR);
+  const attributionTokens = estimateTokens(ATTRIBUTION_INSTRUCTION);
+  if (tokensUsed + attributionTokens <= tokenBudget) {
+    return {
+      context: baseContext + ATTRIBUTION_INSTRUCTION,
+      chunksUsed,
+      tokensUsed: tokensUsed + attributionTokens,
+    };
+  }
+
+  return { context: baseContext, chunksUsed, tokensUsed };
 }
 
 function formatContextBlocks(blocks: ContextBlock[]): string {
