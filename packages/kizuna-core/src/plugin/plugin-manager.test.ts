@@ -593,3 +593,73 @@ describe("PluginManager - hook runners", () => {
     expect(result.contextBlocks[0]!.content).toBe("extra info");
   });
 });
+
+describe("PluginManager - token budget reservation", () => {
+  it("returns empty map when no plugins have tokenBudget", () => {
+    const manager = new PluginManager({ db: database.db, projectConfig });
+    manager.register(minimalPlugin());
+    expect(manager.getReservedTokenBudgets().size).toBe(0);
+    expect(manager.getTotalReservedTokens()).toBe(0);
+  });
+
+  it("returns budgets for plugins with tokenBudget", async () => {
+    const manager = new PluginManager({ db: database.db, projectConfig });
+    manager.register(minimalPlugin({ name: "plugin-a", tokenBudget: 300 }));
+    manager.register(minimalPlugin({ name: "plugin-b", tokenBudget: 500 }));
+    await manager.initAll();
+
+    const budgets = manager.getReservedTokenBudgets();
+    expect(budgets.get("plugin-a")).toBe(300);
+    expect(budgets.get("plugin-b")).toBe(500);
+    expect(manager.getTotalReservedTokens()).toBe(800);
+  });
+
+  it("ignores uninitialized or failed plugins", async () => {
+    const manager = new PluginManager({ db: database.db, projectConfig });
+    manager.register(
+      minimalPlugin({
+        name: "good-plugin",
+        tokenBudget: 300,
+      }),
+    );
+    manager.register(
+      minimalPlugin({
+        name: "bad-plugin",
+        tokenBudget: 500,
+        init() {
+          throw new Error("init fail");
+        },
+      }),
+    );
+    await manager.initAll();
+
+    expect(manager.getTotalReservedTokens()).toBe(300);
+  });
+
+  it("scaleTokenBudgets returns totalReserved when within budget", async () => {
+    const manager = new PluginManager({ db: database.db, projectConfig });
+    manager.register(minimalPlugin({ name: "plugin-a", tokenBudget: 300 }));
+    manager.register(minimalPlugin({ name: "plugin-b", tokenBudget: 200 }));
+    await manager.initAll();
+
+    expect(manager.scaleTokenBudgets(2000)).toBe(500);
+  });
+
+  it("scaleTokenBudgets caps at 80% and warns when overcommitted", async () => {
+    const logger = createTestLogger();
+    const manager = new PluginManager({ db: database.db, projectConfig, logger });
+    manager.register(minimalPlugin({ name: "plugin-a", tokenBudget: 1500 }));
+    manager.register(minimalPlugin({ name: "plugin-b", tokenBudget: 1500 }));
+    await manager.initAll();
+
+    const scaled = manager.scaleTokenBudgets(2000);
+    expect(scaled).toBe(1600);
+    expect(logger.messages.some((m) => m.includes("WARN") && m.includes("exceed"))).toBe(true);
+  });
+
+  it("scaleTokenBudgets returns 0 when no plugins have tokenBudget", () => {
+    const manager = new PluginManager({ db: database.db, projectConfig });
+    manager.register(minimalPlugin());
+    expect(manager.scaleTokenBudgets(2000)).toBe(0);
+  });
+});

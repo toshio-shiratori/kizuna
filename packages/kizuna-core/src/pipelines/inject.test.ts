@@ -266,4 +266,151 @@ describe("injectMemory", () => {
     const result = await injectMemory(db, "authentication", { pluginManager: pm });
     expect(result.chunksUsed).toBeGreaterThan(0);
   });
+
+  it("reserves token budget for plugins with tokenBudget", async () => {
+    const pm = new PluginManager({ db: db.db, projectConfig: { id: "test" } });
+    const pluginContent = "## API Info\n\n" + "x".repeat(300);
+    const plugin: Plugin = {
+      name: "api-enricher",
+      version: "1.0.0",
+      tokenBudget: 500,
+      enrichContext(injection) {
+        return {
+          ...injection,
+          contextBlocks: [
+            ...injection.contextBlocks,
+            { source: "api-enricher", priority: 10, content: pluginContent },
+          ],
+        };
+      },
+    };
+    pm.register(plugin);
+    await pm.initAll();
+
+    const result = await injectMemory(db, "authentication", {
+      pluginManager: pm,
+      tokenBudget: 2000,
+    });
+    expect(result.context).toContain("API Info");
+    expect(result.context).toContain("Relevant Memories");
+    expect(result.tokensUsed).toBeLessThanOrEqual(2000);
+  });
+
+  it("plugin output fits when tokenBudget reserves space", async () => {
+    for (let i = 0; i < 20; i++) {
+      db.insertChunk({
+        sessionId: "session-1",
+        turnIndex: 10 + i,
+        role: "assistant",
+        content: "Long memory chunk content ".repeat(10) + ` chunk-${i}`,
+        metadata: {},
+        importance: 8,
+      });
+    }
+
+    const pmWithout = new PluginManager({ db: db.db, projectConfig: { id: "test" } });
+    const pluginContent = "## OpenAPI\n\nGET /api/users - returns user list";
+    const pluginFactory = (): Plugin => ({
+      name: "openapi",
+      version: "1.0.0",
+      tokenBudget: 200,
+      enrichContext(injection) {
+        return {
+          ...injection,
+          contextBlocks: [
+            ...injection.contextBlocks,
+            { source: "openapi", priority: 10, content: pluginContent },
+          ],
+        };
+      },
+    });
+
+    pmWithout.register({ ...pluginFactory(), tokenBudget: undefined });
+    await pmWithout.initAll();
+    const withoutReservation = await injectMemory(db, "TypeScript authentication", {
+      pluginManager: pmWithout,
+      tokenBudget: 800,
+    });
+
+    const pmWith = new PluginManager({ db: db.db, projectConfig: { id: "test" } });
+    pmWith.register(pluginFactory());
+    await pmWith.initAll();
+    const withReservation = await injectMemory(db, "TypeScript authentication", {
+      pluginManager: pmWith,
+      tokenBudget: 800,
+    });
+
+    expect(withReservation.context).toContain("OpenAPI");
+    expect(withReservation.chunksUsed).toBeLessThanOrEqual(withoutReservation.chunksUsed);
+  });
+
+  it("handles overcommitted plugin budgets with proportional scaling", async () => {
+    const pm = new PluginManager({ db: db.db, projectConfig: { id: "test" } });
+    const plugin1: Plugin = {
+      name: "plugin-a",
+      version: "1.0.0",
+      tokenBudget: 1500,
+      enrichContext(injection) {
+        return {
+          ...injection,
+          contextBlocks: [
+            ...injection.contextBlocks,
+            { source: "plugin-a", priority: 10, content: "Plugin A output" },
+          ],
+        };
+      },
+    };
+    const plugin2: Plugin = {
+      name: "plugin-b",
+      version: "1.0.0",
+      tokenBudget: 1500,
+      enrichContext(injection) {
+        return {
+          ...injection,
+          contextBlocks: [
+            ...injection.contextBlocks,
+            { source: "plugin-b", priority: 5, content: "Plugin B output" },
+          ],
+        };
+      },
+    };
+    pm.register(plugin1);
+    pm.register(plugin2);
+    await pm.initAll();
+
+    const result = await injectMemory(db, "authentication", {
+      pluginManager: pm,
+      tokenBudget: 2000,
+    });
+
+    expect(result.tokensUsed).toBeLessThanOrEqual(2000);
+    expect(result.context).toContain("Plugin A output");
+    expect(result.context).toContain("Plugin B output");
+  });
+
+  it("plugins without tokenBudget use remaining space as before", async () => {
+    const pm = new PluginManager({ db: db.db, projectConfig: { id: "test" } });
+    const plugin: Plugin = {
+      name: "no-budget-plugin",
+      version: "1.0.0",
+      enrichContext(injection) {
+        return {
+          ...injection,
+          contextBlocks: [
+            ...injection.contextBlocks,
+            { source: "no-budget-plugin", priority: 10, content: "No budget output" },
+          ],
+        };
+      },
+    };
+    pm.register(plugin);
+    await pm.initAll();
+
+    const result = await injectMemory(db, "authentication", {
+      pluginManager: pm,
+      tokenBudget: 2000,
+    });
+    expect(result.context).toContain("No budget output");
+    expect(result.context).toContain("Relevant Memories");
+  });
 });
