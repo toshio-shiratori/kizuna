@@ -4,6 +4,7 @@ import { createOpenAPIAwareness } from "./index.js";
 import { parseEndpoints, type EndpointInfo } from "./parser.js";
 import { matchEndpoints } from "./matcher.js";
 import { formatEndpoints } from "./formatter.js";
+import { BUILTIN_SYNONYMS, expandTerms, mergeSynonyms, type SynonymMap } from "./synonyms.js";
 import { join } from "node:path";
 
 function runEnrichContext(
@@ -59,6 +60,61 @@ function makeInjection(userPrompt: string): ContextInjection {
     contextBlocks: [],
   };
 }
+
+const SPEC_WITH_AUTH = {
+  openapi: "3.0.3",
+  info: { title: "Auth API", version: "1.0.0" },
+  paths: {
+    "/api/v1/auth/passkey/register/options": {
+      post: {
+        operationId: "getPasskeyRegisterOptions",
+        summary: "Get passkey registration options",
+        tags: ["Authentication"],
+        responses: { "200": { description: "OK" } },
+      },
+    },
+    "/api/v1/auth/passkey/register/verify": {
+      post: {
+        operationId: "verifyPasskeyRegistration",
+        summary: "Verify passkey registration",
+        tags: ["Authentication"],
+        responses: { "200": { description: "OK" } },
+      },
+    },
+    "/api/v1/auth/passkey/login/options": {
+      post: {
+        operationId: "getPasskeyLoginOptions",
+        summary: "Get passkey login options",
+        tags: ["Authentication"],
+        responses: { "200": { description: "OK" } },
+      },
+    },
+    "/api/v1/auth/login": {
+      post: {
+        operationId: "loginWithPassword",
+        summary: "Login with email and password",
+        tags: ["Authentication"],
+        responses: { "200": { description: "OK" } },
+      },
+    },
+    "/api/v1/users/profile": {
+      get: {
+        operationId: "getUserProfile",
+        summary: "Get user profile",
+        tags: ["Users"],
+        responses: { "200": { description: "OK" } },
+      },
+    },
+    "/api/v1/settings/notifications": {
+      get: {
+        operationId: "getNotificationSettings",
+        summary: "Get notification settings",
+        tags: ["Settings"],
+        responses: { "200": { description: "OK" } },
+      },
+    },
+  },
+};
 
 const SAMPLE_SPEC = {
   openapi: "3.0.3",
@@ -472,5 +528,204 @@ describe("createOpenAPIAwareness", () => {
 
     expect(resultA.contextBlocks.length).toBeGreaterThan(0);
     expect(resultB.contextBlocks).toHaveLength(0);
+  });
+});
+
+describe("expandTerms", () => {
+  it("expands Japanese token to English equivalents", () => {
+    const result = expandTerms(["パスキー"], BUILTIN_SYNONYMS);
+    expect(result).toContain("パスキー");
+    expect(result).toContain("passkey");
+    expect(result).toContain("passkeys");
+  });
+
+  it("expands multiple Japanese tokens", () => {
+    const result = expandTerms(["認証", "ユーザー"], BUILTIN_SYNONYMS);
+    expect(result).toContain("auth");
+    expect(result).toContain("authentication");
+    expect(result).toContain("user");
+  });
+
+  it("handles compound Japanese text via substring matching", () => {
+    const result = expandTerms(["パスキー登録のフロー"], BUILTIN_SYNONYMS);
+    expect(result).toContain("passkey");
+    expect(result).toContain("register");
+    expect(result).toContain("registration");
+    expect(result).toContain("flow");
+  });
+
+  it("returns original terms unchanged when no synonyms match", () => {
+    const result = expandTerms(["transactions"], BUILTIN_SYNONYMS);
+    expect(result).toEqual(["transactions"]);
+  });
+
+  it("deduplicates expanded terms", () => {
+    const synonyms: SynonymMap = { テスト: ["test"], テストケース: ["test"] };
+    const result = expandTerms(["テストケース"], synonyms);
+    expect(result.filter((t) => t === "test")).toHaveLength(1);
+  });
+});
+
+describe("mergeSynonyms", () => {
+  it("merges custom synonyms with base", () => {
+    const base: SynonymMap = { 認証: ["auth"] };
+    const custom: SynonymMap = { 課金: ["billing"] };
+    const merged = mergeSynonyms(base, custom);
+    expect(merged["認証"]).toEqual(["auth"]);
+    expect(merged["課金"]).toEqual(["billing"]);
+  });
+
+  it("overrides base entries with custom", () => {
+    const base: SynonymMap = { 認証: ["auth"] };
+    const custom: SynonymMap = { 認証: ["authentication", "authn"] };
+    const merged = mergeSynonyms(base, custom);
+    expect(merged["認証"]).toEqual(["authentication", "authn"]);
+  });
+});
+
+describe("matchEndpoints with synonyms (cross-lingual)", () => {
+  let endpoints: EndpointInfo[];
+
+  beforeEach(() => {
+    endpoints = parseEndpoints(SPEC_WITH_AUTH);
+  });
+
+  it("matches パスキー to passkey endpoints", () => {
+    const results = matchEndpoints("パスキー", endpoints, 5, BUILTIN_SYNONYMS);
+    expect(results.length).toBeGreaterThan(0);
+    expect(results.every((r) => r.endpoint.path.includes("passkey"))).toBe(true);
+  });
+
+  it("matches パスキー登録 to passkey register endpoints", () => {
+    const results = matchEndpoints("パスキー登録", endpoints, 5, BUILTIN_SYNONYMS);
+    expect(results.length).toBeGreaterThan(0);
+    expect(results[0]!.endpoint.path).toContain("register");
+  });
+
+  it("matches 認証 to auth endpoints", () => {
+    const results = matchEndpoints("認証", endpoints, 5, BUILTIN_SYNONYMS);
+    expect(results.length).toBeGreaterThan(0);
+    expect(
+      results.some(
+        (r) => r.endpoint.path.includes("auth") || r.endpoint.tags.includes("Authentication"),
+      ),
+    ).toBe(true);
+  });
+
+  it("matches ログイン to login endpoints", () => {
+    const results = matchEndpoints("ログイン", endpoints, 5, BUILTIN_SYNONYMS);
+    expect(results.length).toBeGreaterThan(0);
+    expect(
+      results.some(
+        (r) => r.endpoint.path.includes("login") || r.endpoint.operationId?.includes("login"),
+      ),
+    ).toBe(true);
+  });
+
+  it("matches ユーザープロフィール to user profile endpoint", () => {
+    const results = matchEndpoints("ユーザープロフィール", endpoints, 5, BUILTIN_SYNONYMS);
+    expect(results.length).toBeGreaterThan(0);
+    expect(results.some((r) => r.endpoint.path.includes("profile"))).toBe(true);
+  });
+
+  it("matches 通知設定 to notification settings endpoint", () => {
+    const results = matchEndpoints("通知設定", endpoints, 5, BUILTIN_SYNONYMS);
+    expect(results.length).toBeGreaterThan(0);
+    expect(results.some((r) => r.endpoint.path.includes("notifications"))).toBe(true);
+  });
+
+  it("still matches English queries with synonyms enabled", () => {
+    const results = matchEndpoints("passkey register", endpoints, 5, BUILTIN_SYNONYMS);
+    expect(results.length).toBeGreaterThan(0);
+    expect(results[0]!.endpoint.path).toContain("passkey");
+  });
+
+  it("returns no matches for unrelated Japanese text", () => {
+    const results = matchEndpoints("天気予報を見せて", endpoints, 5, BUILTIN_SYNONYMS);
+    expect(results).toHaveLength(0);
+  });
+
+  it("does not expand when synonyms are not provided", () => {
+    const results = matchEndpoints("パスキー", endpoints, 5);
+    expect(results).toHaveLength(0);
+  });
+});
+
+describe("createOpenAPIAwareness with synonyms", () => {
+  it("matches Japanese queries with builtin synonyms by default", () => {
+    const plugin = createOpenAPIAwareness();
+    const specPath = join(import.meta.dirname, "__fixtures__", "sample-spec.yaml");
+    const ctx = makeContext({ specPath });
+    plugin.init!(ctx);
+
+    const injection = makeInjection("ユーザー一覧");
+    const result = runEnrichContext(plugin, injection, ctx);
+    expect(result.contextBlocks.length).toBeGreaterThan(0);
+    expect(result.contextBlocks[0]!.content).toContain("users");
+  });
+
+  it("matches トランザクション to transactions", () => {
+    const plugin = createOpenAPIAwareness();
+    const specPath = join(import.meta.dirname, "__fixtures__", "sample-spec.yaml");
+    const ctx = makeContext({ specPath });
+    plugin.init!(ctx);
+
+    const injection = makeInjection("トランザクション履歴");
+    const result = runEnrichContext(plugin, injection, ctx);
+    expect(result.contextBlocks.length).toBeGreaterThan(0);
+    expect(result.contextBlocks[0]!.content).toContain("transactions");
+  });
+
+  it("uses custom synonyms merged with builtins", () => {
+    const plugin = createOpenAPIAwareness();
+    const specPath = join(import.meta.dirname, "__fixtures__", "sample-spec.yaml");
+    const ctx = makeContext({
+      specPath,
+      synonyms: { 残高: ["transaction", "transactions"] },
+    });
+    plugin.init!(ctx);
+
+    const injection = makeInjection("残高");
+    const result = runEnrichContext(plugin, injection, ctx);
+    expect(result.contextBlocks.length).toBeGreaterThan(0);
+    expect(result.contextBlocks[0]!.content).toContain("transactions");
+  });
+
+  it("disables builtin synonyms when configured", () => {
+    const plugin = createOpenAPIAwareness();
+    const specPath = join(import.meta.dirname, "__fixtures__", "sample-spec.yaml");
+    const ctx = makeContext({ specPath, disableBuiltinSynonyms: true });
+    plugin.init!(ctx);
+
+    const injection = makeInjection("トランザクション");
+    const result = runEnrichContext(plugin, injection, ctx);
+    expect(result.contextBlocks).toHaveLength(0);
+  });
+
+  it("allows custom synonyms even when builtins are disabled", () => {
+    const plugin = createOpenAPIAwareness();
+    const specPath = join(import.meta.dirname, "__fixtures__", "sample-spec.yaml");
+    const ctx = makeContext({
+      specPath,
+      disableBuiltinSynonyms: true,
+      synonyms: { 取引: ["transactions"] },
+    });
+    plugin.init!(ctx);
+
+    const injection = makeInjection("取引");
+    const result = runEnrichContext(plugin, injection, ctx);
+    expect(result.contextBlocks.length).toBeGreaterThan(0);
+  });
+
+  it("matches ヘルスチェック to health endpoint", () => {
+    const plugin = createOpenAPIAwareness();
+    const specPath = join(import.meta.dirname, "__fixtures__", "sample-spec.yaml");
+    const ctx = makeContext({ specPath });
+    plugin.init!(ctx);
+
+    const injection = makeInjection("ヘルスチェック");
+    const result = runEnrichContext(plugin, injection, ctx);
+    expect(result.contextBlocks.length).toBeGreaterThan(0);
+    expect(result.contextBlocks[0]!.content).toContain("health");
   });
 });
