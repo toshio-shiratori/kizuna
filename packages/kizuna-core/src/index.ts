@@ -5,9 +5,13 @@ export { SqlitePluginStorage } from "./plugin/index.js";
 export { runPluginMigrations } from "./plugin/index.js";
 export { captureTranscript } from "./pipelines/capture.js";
 export type { CaptureResult, CaptureOptions } from "./pipelines/capture.js";
-export { parseTranscriptFile, parseTranscriptContent } from "./pipelines/transcript-parser.js";
+export {
+  parseTranscriptFile,
+  parseTranscriptContent,
+  sanitizeContent,
+} from "./pipelines/transcript-parser.js";
 export type { ParsedTurn } from "./pipelines/transcript-parser.js";
-export { chunkifyTurns } from "./pipelines/chunker.js";
+export { chunkifyTurns, isLowQualityContent, MIN_CONTENT_LENGTH } from "./pipelines/chunker.js";
 export { searchMemory } from "./pipelines/search.js";
 export type { SearchOptions } from "./pipelines/search.js";
 export { preprocessQuery, isCJKChar, splitByCJK } from "./pipelines/cjk-preprocessing.js";

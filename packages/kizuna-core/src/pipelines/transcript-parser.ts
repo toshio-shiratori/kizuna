@@ -25,6 +25,28 @@ export interface ParsedTurn {
   uuid: string;
 }
 
+const SYSTEM_TAG_PATTERNS = [
+  /<system-reminder>[\s\S]*?<\/system-reminder>/g,
+  /<local-command-caveat>[\s\S]*?<\/local-command-caveat>/g,
+  /<local-command-stdout>[\s\S]*?<\/local-command-stdout>/g,
+  /<command-message>[\s\S]*?<\/command-message>/g,
+  /<command-args>[\s\S]*?<\/command-args>/g,
+  /<user-prompt-submit-hook>[\s\S]*?<\/user-prompt-submit-hook>/g,
+];
+
+export function sanitizeContent(text: string): string {
+  if (/<command-name>/.test(text)) {
+    return "";
+  }
+
+  let result = text;
+  for (const pattern of SYSTEM_TAG_PATTERNS) {
+    result = result.replace(pattern, "");
+  }
+
+  return result.trim();
+}
+
 export function parseTranscriptFile(filePath: string): ParsedTurn[] {
   const content = readFileSync(filePath, "utf-8");
   return parseTranscriptContent(content);
@@ -63,7 +85,7 @@ export function parseTranscriptContent(content: string): ParsedTurn[] {
 }
 
 function extractText(content: string | ContentBlock[]): string {
-  if (typeof content === "string") return content;
+  if (typeof content === "string") return sanitizeContent(content);
 
   const parts: string[] = [];
   for (const block of content) {
@@ -71,5 +93,5 @@ function extractText(content: string | ContentBlock[]): string {
       parts.push(block.text);
     }
   }
-  return parts.join("\n");
+  return sanitizeContent(parts.join("\n"));
 }
