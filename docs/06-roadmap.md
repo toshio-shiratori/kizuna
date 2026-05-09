@@ -13,14 +13,14 @@ When working on Kizuna with Claude Code CLI, refer to the current phase. Do NOT 
 
 ## Phase Overview
 
-| Phase   | Goal                       | Status                         |
-| ------- | -------------------------- | ------------------------------ |
-| Phase 0 | Project initialization     | ✅ Complete                    |
-| Phase 1 | Documentation              | ✅ Complete                    |
-| Phase 2 | Core implementation        | 🔄 Validation (実運用テスト中) |
-| Phase 3 | Plugin system              | ⏳ Pending                     |
-| Phase 4 | Public release preparation | ⏳ Pending                     |
-| Phase 5 | Extensions and ecosystem   | ⏳ Future                      |
+| Phase   | Goal                       | Status      |
+| ------- | -------------------------- | ----------- |
+| Phase 0 | Project initialization     | ✅ Complete |
+| Phase 1 | Documentation              | ✅ Complete |
+| Phase 2 | Core implementation        | ✅ Complete |
+| Phase 3 | Plugin system              | ✅ Complete |
+| Phase 4 | Public release preparation | ⏳ Pending  |
+| Phase 5 | Extensions and ecosystem   | ⏳ Future   |
 
 ---
 
@@ -74,7 +74,7 @@ Document the project's vision, design principles, architecture, and decisions cl
 
 ## Phase 2: Core Implementation
 
-**Status: Validation (全 deliverables 実装完了、実運用テスト中)**
+**Status: Complete**
 
 ### Goal
 
@@ -165,9 +165,9 @@ Implement the minimum viable Kizuna: a working memory system that captures and r
 - ✅ Running `kizuna setup` configures Claude Code hooks for a project
 - ✅ Running a Claude Code session and exiting saves chunks to SQLite
 - ✅ A subsequent session injects relevant memories into prompts
-- ✅ All unit and integration tests pass (125 tests)
+- ✅ All unit and integration tests pass (233 tests)
 - ✅ `pnpm tsc --noEmit` passes
-- ⏳ The project owner has used the tool in their own daily work for at least one week without major issues
+- ✅ The project owner has used the tool in their own daily work for at least one week without major issues
 
 ### Out of Scope (Phase 2)
 
@@ -182,7 +182,7 @@ Implement the minimum viable Kizuna: a working memory system that captures and r
 
 ## Phase 3: Plugin System
 
-**Status: Pending**
+**Status: Complete**
 
 ### Goal
 
@@ -195,7 +195,7 @@ Add the plugin system so that project-specific or use-case-specific functionalit
 
 ### Deliverables
 
-#### 3.1 Plugin loader
+#### 3.1 Plugin loader ✅
 
 - Implement `PluginManager` class in `kizuna-core/src/plugin/`
 - Implement plugin discovery (config-declared and auto-discovered)
@@ -204,7 +204,7 @@ Add the plugin system so that project-specific or use-case-specific functionalit
 - Implement per-plugin KV storage (`plugin_kv` table from schema doc)
 - Unit tests with mock plugins
 
-#### 3.2 Pipeline integration
+#### 3.2 Pipeline integration ✅
 
 - Refactor capture pipeline to invoke `beforeCapture` and `afterCapture` hooks
 - Refactor search pipeline to invoke `beforeSearch` and `afterSearch` hooks
@@ -212,7 +212,7 @@ Add the plugin system so that project-specific or use-case-specific functionalit
 - Ensure error isolation: a failing plugin does not break the pipeline
 - Tests verifying hook execution order and error handling
 
-#### 3.3 Plugin: pii-sanitizer
+#### 3.3 Plugin: pii-sanitizer ✅
 
 - Create `packages/plugin-pii-sanitizer/` (the example from `05-plugin-api.md`)
 - Implement and test
@@ -220,7 +220,7 @@ Add the plugin system so that project-specific or use-case-specific functionalit
 
 **Validation**: With the plugin enabled, API keys in transcripts are redacted before storage
 
-#### 3.4 MCP server
+#### 3.4 MCP server ✅
 
 - Create `packages/kizuna-mcp/` with package.json, bin entry
 - Implement MCP stdio transport using the official SDK
@@ -230,7 +230,7 @@ Add the plugin system so that project-specific or use-case-specific functionalit
 
 **Validation**: Claude Code can invoke `kizuna_search` and receive results
 
-#### 3.5 Plugin: multi-repo-sharing
+#### 3.5 Plugin: multi-repo-sharing ✅
 
 - Create `packages/plugin-multi-repo-sharing/` (the example from `05-plugin-api.md`)
 - Implement and test
@@ -240,11 +240,11 @@ Add the plugin system so that project-specific or use-case-specific functionalit
 
 ### Exit Criteria
 
-- Plugin API is stable and documented
-- Two example plugins work end-to-end
-- MCP server provides bidirectional search to active Claude Code sessions
-- All tests pass
-- The project owner has used a plugin-enabled setup in real workflow
+- ✅ Plugin API is stable and documented
+- ✅ Two example plugins work end-to-end
+- ✅ MCP server provides bidirectional search to active Claude Code sessions
+- ✅ All tests pass (233 tests)
+- ✅ The project owner has used a plugin-enabled setup in real workflow
 
 ---
 
