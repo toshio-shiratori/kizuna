@@ -1,0 +1,11 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  "workspaces": {
+    "packages/kizuna-cli": {
+      "ignoreDependencies": ["tsx"]
+    },
+    "packages/plugin-hybrid-search": {
+      "ignoreDependencies": ["@huggingface/transformers"]
+    }
+  }
+}

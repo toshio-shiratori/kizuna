@@ -31,7 +31,6 @@
     "commander": "^13.0.0"
   },
   "devDependencies": {
-    "@types/better-sqlite3": "^7.6.0",
     "tsx": "^4.21.0",
     "typescript": "^5.8.0",
     "vitest": "^3.1.0"

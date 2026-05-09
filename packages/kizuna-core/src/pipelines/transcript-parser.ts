@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 
-export interface TranscriptEntry {
+interface TranscriptEntry {
   type: string;
   uuid: string;
   parentUuid?: string;

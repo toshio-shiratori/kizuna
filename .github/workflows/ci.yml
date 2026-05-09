@@ -32,6 +32,8 @@ jobs:
 
       - run: pnpm format:check
 
+      - run: pnpm knip
+
       - run: pnpm tsc --noEmit
 
       - run: pnpm test
