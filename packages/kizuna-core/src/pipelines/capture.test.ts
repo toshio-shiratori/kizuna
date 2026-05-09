@@ -1,11 +1,13 @@
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { Database } from "../storage/database.js";
+import { PluginManager } from "../plugin/plugin-manager.js";
 import { parseTranscriptContent } from "./transcript-parser.js";
 import { chunkifyTurns } from "./chunker.js";
 import { captureTranscript } from "./capture.js";
+import type { Plugin } from "../index.js";
 
 function makeTranscriptLine(overrides: Record<string, unknown> = {}): string {
   return JSON.stringify({
@@ -253,7 +255,7 @@ describe("captureTranscript", () => {
     rmSync(dir, { recursive: true, force: true });
   });
 
-  it("captures from transcript content", () => {
+  it("captures from transcript content", async () => {
     const content = [
       makeTranscriptLine({
         type: "user",
@@ -275,7 +277,7 @@ describe("captureTranscript", () => {
       }),
     ].join("\n");
 
-    const result = captureTranscript(db, {
+    const result = await captureTranscript(db, {
       sessionId: "sess-1",
       projectId: "proj-1",
       transcriptContent: content,
@@ -298,7 +300,7 @@ describe("captureTranscript", () => {
     expect(chunks[2]!.content).toBe("question two");
   });
 
-  it("captures from a transcript file", () => {
+  it("captures from a transcript file", async () => {
     const filePath = join(dir, "transcript.jsonl");
     const content = [
       makeTranscriptLine({
@@ -310,7 +312,7 @@ describe("captureTranscript", () => {
     ].join("\n");
     writeFileSync(filePath, content);
 
-    const result = captureTranscript(db, {
+    const result = await captureTranscript(db, {
       sessionId: "sess-file",
       projectId: "proj-1",
       transcriptPath: filePath,
@@ -321,8 +323,8 @@ describe("captureTranscript", () => {
     expect(session!.transcriptPath).toBe(filePath);
   });
 
-  it("returns zero counts for empty transcript", () => {
-    const result = captureTranscript(db, {
+  it("returns zero counts for empty transcript", async () => {
+    const result = await captureTranscript(db, {
       sessionId: "sess-empty",
       projectId: "proj-1",
       transcriptContent: "",
@@ -333,7 +335,7 @@ describe("captureTranscript", () => {
     expect(db.getSession("sess-empty")).toBeNull();
   });
 
-  it("captures chunks that are searchable via FTS", () => {
+  it("captures chunks that are searchable via FTS", async () => {
     const content = makeTranscriptLine({
       type: "user",
       uuid: "u1",
@@ -341,7 +343,7 @@ describe("captureTranscript", () => {
       message: { role: "user", content: "implement the authentication module" },
     });
 
-    captureTranscript(db, {
+    await captureTranscript(db, {
       sessionId: "sess-search",
       projectId: "proj-1",
       transcriptContent: content,
@@ -350,5 +352,142 @@ describe("captureTranscript", () => {
     const results = db.searchChunks("authentication");
     expect(results.length).toBeGreaterThan(0);
     expect(results[0]!.chunk.content).toContain("authentication");
+  });
+
+  it("runs beforeCapture hooks on each chunk", async () => {
+    const pm = new PluginManager({ db: db.db, projectConfig: { id: "test" } });
+    const plugin: Plugin = {
+      name: "upper-plugin",
+      version: "1.0.0",
+      beforeCapture(chunk) {
+        return { ...chunk, content: chunk.content.toUpperCase() };
+      },
+    };
+    pm.register(plugin);
+    await pm.initAll();
+
+    const content = makeTranscriptLine({
+      type: "user",
+      uuid: "u1",
+      timestamp: "2025-01-01T00:00:00.000Z",
+      message: { role: "user", content: "hello world" },
+    });
+
+    const result = await captureTranscript(db, {
+      sessionId: "sess-plugin",
+      projectId: "proj-1",
+      transcriptContent: content,
+      pluginManager: pm,
+    });
+
+    expect(result.chunksStored).toBe(1);
+    const chunks = db.getChunksBySession("sess-plugin");
+    expect(chunks[0]!.content).toBe("HELLO WORLD");
+  });
+
+  it("skips chunks when beforeCapture returns null", async () => {
+    const pm = new PluginManager({ db: db.db, projectConfig: { id: "test" } });
+    const plugin: Plugin = {
+      name: "filter-plugin",
+      version: "1.0.0",
+      beforeCapture(chunk) {
+        return chunk.role === "user" ? null : chunk;
+      },
+    };
+    pm.register(plugin);
+    await pm.initAll();
+
+    const content = [
+      makeTranscriptLine({
+        type: "user",
+        uuid: "u1",
+        timestamp: "2025-01-01T00:00:00.000Z",
+        message: { role: "user", content: "user message" },
+      }),
+      makeTranscriptLine({
+        type: "assistant",
+        uuid: "a1",
+        timestamp: "2025-01-01T00:00:01.000Z",
+        message: { role: "assistant", content: "assistant message" },
+      }),
+    ].join("\n");
+
+    const result = await captureTranscript(db, {
+      sessionId: "sess-filter",
+      projectId: "proj-1",
+      transcriptContent: content,
+      pluginManager: pm,
+    });
+
+    expect(result.chunksStored).toBe(1);
+    expect(result.chunksSkipped).toBe(1);
+    const chunks = db.getChunksBySession("sess-filter");
+    expect(chunks).toHaveLength(1);
+    expect(chunks[0]!.role).toBe("assistant");
+  });
+
+  it("calls afterCapture for each stored chunk", async () => {
+    const afterCaptureFn = vi.fn();
+    const pm = new PluginManager({ db: db.db, projectConfig: { id: "test" } });
+    pm.register({
+      name: "after-plugin",
+      version: "1.0.0",
+      afterCapture: afterCaptureFn,
+    });
+    await pm.initAll();
+
+    const content = [
+      makeTranscriptLine({
+        type: "user",
+        uuid: "u1",
+        timestamp: "2025-01-01T00:00:00.000Z",
+        message: { role: "user", content: "msg1" },
+      }),
+      makeTranscriptLine({
+        type: "assistant",
+        uuid: "a1",
+        timestamp: "2025-01-01T00:00:01.000Z",
+        message: { role: "assistant", content: "msg2" },
+      }),
+    ].join("\n");
+
+    await captureTranscript(db, {
+      sessionId: "sess-after",
+      projectId: "proj-1",
+      transcriptContent: content,
+      pluginManager: pm,
+    });
+
+    expect(afterCaptureFn).toHaveBeenCalledTimes(2);
+    expect(afterCaptureFn.mock.calls[0]![0].content).toBe("msg1");
+    expect(afterCaptureFn.mock.calls[1]![0].content).toBe("msg2");
+  });
+
+  it("continues capture when a plugin throws in beforeCapture", async () => {
+    const pm = new PluginManager({ db: db.db, projectConfig: { id: "test" } });
+    pm.register({
+      name: "error-plugin",
+      version: "1.0.0",
+      beforeCapture() {
+        throw new Error("plugin error");
+      },
+    });
+    await pm.initAll();
+
+    const content = makeTranscriptLine({
+      type: "user",
+      uuid: "u1",
+      timestamp: "2025-01-01T00:00:00.000Z",
+      message: { role: "user", content: "should still be stored" },
+    });
+
+    const result = await captureTranscript(db, {
+      sessionId: "sess-error",
+      projectId: "proj-1",
+      transcriptContent: content,
+      pluginManager: pm,
+    });
+
+    expect(result.chunksStored).toBe(1);
   });
 });

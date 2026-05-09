@@ -1,11 +1,13 @@
 import type { Database } from "../storage/database.js";
 import type { StoredChunk } from "../index.js";
+import type { PluginManager } from "../plugin/plugin-manager.js";
 import { parseTranscriptFile, parseTranscriptContent } from "./transcript-parser.js";
 import { chunkifyTurns } from "./chunker.js";
 
 export interface CaptureResult {
   sessionId: string;
   chunksStored: number;
+  chunksSkipped: number;
   totalTokens: number;
 }
 
@@ -14,17 +16,21 @@ export interface CaptureOptions {
   projectId: string;
   transcriptPath?: string;
   transcriptContent?: string;
+  pluginManager?: PluginManager;
 }
 
-export function captureTranscript(db: Database, options: CaptureOptions): CaptureResult {
-  const { sessionId, projectId, transcriptPath, transcriptContent } = options;
+export async function captureTranscript(
+  db: Database,
+  options: CaptureOptions,
+): Promise<CaptureResult> {
+  const { sessionId, projectId, transcriptPath, transcriptContent, pluginManager } = options;
 
   const turns = transcriptPath
     ? parseTranscriptFile(transcriptPath)
     : parseTranscriptContent(transcriptContent ?? "");
 
   if (turns.length === 0) {
-    return { sessionId, chunksStored: 0, totalTokens: 0 };
+    return { sessionId, chunksStored: 0, chunksSkipped: 0, totalTokens: 0 };
   }
 
   const startedAt = turns[0]!.timestamp;
@@ -41,9 +47,22 @@ export function captureTranscript(db: Database, options: CaptureOptions): Captur
 
   const rawChunks = chunkifyTurns(sessionId, turns);
   const storedChunks: StoredChunk[] = [];
+  let chunksSkipped = 0;
 
   for (const chunk of rawChunks) {
-    storedChunks.push(db.insertChunk(chunk));
+    const processed = pluginManager ? await pluginManager.runBeforeCapture(chunk) : chunk;
+
+    if (processed === null) {
+      chunksSkipped++;
+      continue;
+    }
+
+    const stored = db.insertChunk(processed);
+    storedChunks.push(stored);
+
+    if (pluginManager) {
+      await pluginManager.runAfterCapture(stored);
+    }
   }
 
   const totalTokens = storedChunks.reduce((sum, c) => sum + c.tokenCount, 0);
@@ -51,6 +70,7 @@ export function captureTranscript(db: Database, options: CaptureOptions): Captur
   return {
     sessionId,
     chunksStored: storedChunks.length,
+    chunksSkipped,
     totalTokens,
   };
 }

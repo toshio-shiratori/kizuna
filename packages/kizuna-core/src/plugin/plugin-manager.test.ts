@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { Database } from "../storage/database.js";
 import { PluginManager } from "./plugin-manager.js";
-import type { Plugin, Logger, ProjectConfig } from "../index.js";
+import type { Plugin, Logger, ProjectConfig, RawChunk, SearchResult } from "../index.js";
 
 let database: Database;
 let dir: string;
@@ -414,5 +414,182 @@ describe("PluginManager - migrations", () => {
       .prepare("SELECT * FROM schema_versions WHERE component = ?")
       .get("good-plugin");
     expect(goodMigration).toBeDefined();
+  });
+});
+
+describe("PluginManager - hook runners", () => {
+  const testChunk: RawChunk = {
+    sessionId: "s1",
+    turnIndex: 0,
+    role: "user",
+    content: "test content",
+    metadata: {},
+  };
+
+  it("runBeforeCapture chains plugins in order", async () => {
+    const manager = new PluginManager({ db: database.db, projectConfig });
+    manager.register(
+      minimalPlugin({
+        name: "plugin-a",
+        beforeCapture(chunk) {
+          return { ...chunk, content: chunk.content + " [A]" };
+        },
+      }),
+    );
+    manager.register(
+      minimalPlugin({
+        name: "plugin-b",
+        beforeCapture(chunk) {
+          return { ...chunk, content: chunk.content + " [B]" };
+        },
+      }),
+    );
+    await manager.initAll();
+
+    const result = await manager.runBeforeCapture(testChunk);
+    expect(result!.content).toBe("test content [A] [B]");
+  });
+
+  it("runBeforeCapture stops when plugin returns null", async () => {
+    const manager = new PluginManager({ db: database.db, projectConfig });
+    manager.register(
+      minimalPlugin({
+        name: "plugin-a",
+        beforeCapture() {
+          return null;
+        },
+      }),
+    );
+    manager.register(
+      minimalPlugin({
+        name: "plugin-b",
+        beforeCapture(chunk) {
+          return { ...chunk, content: "should not reach" };
+        },
+      }),
+    );
+    await manager.initAll();
+
+    const result = await manager.runBeforeCapture(testChunk);
+    expect(result).toBeNull();
+  });
+
+  it("runBeforeCapture skips failed plugins", async () => {
+    const manager = new PluginManager({ db: database.db, projectConfig });
+    manager.register(
+      minimalPlugin({
+        name: "failing",
+        init() {
+          throw new Error("init fail");
+        },
+        beforeCapture(chunk) {
+          return { ...chunk, content: "should not run" };
+        },
+      }),
+    );
+    manager.register(
+      minimalPlugin({
+        name: "working",
+        beforeCapture(chunk) {
+          return { ...chunk, content: chunk.content + " [ok]" };
+        },
+      }),
+    );
+    await manager.initAll();
+
+    const result = await manager.runBeforeCapture(testChunk);
+    expect(result!.content).toBe("test content [ok]");
+  });
+
+  it("runBeforeCapture catches plugin errors and continues", async () => {
+    const manager = new PluginManager({ db: database.db, projectConfig });
+    manager.register(
+      minimalPlugin({
+        name: "error-plugin",
+        beforeCapture() {
+          throw new Error("boom");
+        },
+      }),
+    );
+    await manager.initAll();
+
+    const result = await manager.runBeforeCapture(testChunk);
+    expect(result).toEqual(testChunk);
+  });
+
+  it("runBeforeSearch chains plugins in order", async () => {
+    const manager = new PluginManager({ db: database.db, projectConfig });
+    manager.register(
+      minimalPlugin({
+        name: "search-modifier",
+        beforeSearch(query) {
+          return { ...query, limit: 5 };
+        },
+      }),
+    );
+    await manager.initAll();
+
+    const result = await manager.runBeforeSearch({ text: "test", limit: 10 });
+    expect(result.limit).toBe(5);
+  });
+
+  it("runAfterSearch chains plugins in order", async () => {
+    const manager = new PluginManager({ db: database.db, projectConfig });
+    manager.register(
+      minimalPlugin({
+        name: "score-doubler",
+        afterSearch(results) {
+          return results.map((r) => ({ ...r, score: r.score * 2 }));
+        },
+      }),
+    );
+    await manager.initAll();
+
+    const input: SearchResult[] = [
+      {
+        chunk: {
+          id: 1,
+          sessionId: "s1",
+          turnIndex: 0,
+          role: "user",
+          content: "test",
+          tokenCount: 10,
+          importance: 5,
+          createdAt: "2025-01-01T00:00:00Z",
+          metadata: {},
+        },
+        score: 1.0,
+      },
+    ];
+
+    const result = await manager.runAfterSearch(input);
+    expect(result[0]!.score).toBe(2.0);
+  });
+
+  it("runEnrichContext adds context blocks", async () => {
+    const manager = new PluginManager({ db: database.db, projectConfig });
+    manager.register(
+      minimalPlugin({
+        name: "enricher",
+        enrichContext(injection) {
+          return {
+            ...injection,
+            contextBlocks: [
+              ...injection.contextBlocks,
+              { source: "enricher", priority: 10, content: "extra info" },
+            ],
+          };
+        },
+      }),
+    );
+    await manager.initAll();
+
+    const result = await manager.runEnrichContext({
+      userPrompt: "test",
+      chunks: [],
+      contextBlocks: [],
+    });
+    expect(result.contextBlocks).toHaveLength(1);
+    expect(result.contextBlocks[0]!.content).toBe("extra info");
   });
 });

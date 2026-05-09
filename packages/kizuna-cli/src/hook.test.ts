@@ -50,12 +50,12 @@ function createTranscript(dir: string): string {
   return transcriptPath;
 }
 
-function seedDatabase(cwd: string): void {
+async function seedDatabase(cwd: string): Promise<void> {
   const kizunaDir = join(cwd, ".kizuna");
   mkdirSync(kizunaDir, { recursive: true });
   const db = new Database(join(kizunaDir, "memory.db"));
 
-  captureTranscript(db, {
+  await captureTranscript(db, {
     sessionId: "seed-session-001",
     projectId: "test-project",
     transcriptContent: [
@@ -156,8 +156,8 @@ describe("Hook handlers", () => {
   });
 
   describe("prompt-submit", () => {
-    it("should inject relevant memories when matches exist", () => {
-      seedDatabase(tempDir);
+    it("should inject relevant memories when matches exist", async () => {
+      await seedDatabase(tempDir);
 
       const result = runHook("prompt-submit", {
         session_id: "current-session",
@@ -171,8 +171,8 @@ describe("Hook handlers", () => {
       expect(result.stdout).toContain("Relevant Memories");
     });
 
-    it("should output nothing when no memories match", () => {
-      seedDatabase(tempDir);
+    it("should output nothing when no memories match", async () => {
+      await seedDatabase(tempDir);
 
       const result = runHook("prompt-submit", {
         session_id: "current-session",
@@ -199,8 +199,8 @@ describe("Hook handlers", () => {
       expect(result.stdout).toBe("");
     });
 
-    it("should silently exit when prompt is empty", () => {
-      seedDatabase(tempDir);
+    it("should silently exit when prompt is empty", async () => {
+      await seedDatabase(tempDir);
 
       const result = runHook("prompt-submit", {
         session_id: "current-session",
@@ -216,8 +216,8 @@ describe("Hook handlers", () => {
   });
 
   describe("session-start", () => {
-    it("should report memory stats when database has data", () => {
-      seedDatabase(tempDir);
+    it("should report memory stats when database has data", async () => {
+      await seedDatabase(tempDir);
 
       const result = runHook("session-start", {
         session_id: "new-session",

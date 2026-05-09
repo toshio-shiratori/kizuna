@@ -3,7 +3,8 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { Database } from "../storage/database.js";
-import type { SearchResult } from "../index.js";
+import { PluginManager } from "../plugin/plugin-manager.js";
+import type { SearchResult, Plugin } from "../index.js";
 import { formatContext, injectMemory } from "./inject.js";
 
 // ─── formatContext Tests ─────────────────────────────────
@@ -169,46 +170,88 @@ describe("injectMemory", () => {
     rmSync(tmpDir, { recursive: true, force: true });
   });
 
-  it("returns relevant context for a query", () => {
-    const result = injectMemory(db, "authentication JWT");
+  it("returns relevant context for a query", async () => {
+    const result = await injectMemory(db, "authentication JWT");
     expect(result.context).toContain("authentication");
     expect(result.chunksUsed).toBeGreaterThan(0);
     expect(result.tokensUsed).toBeGreaterThan(0);
   });
 
-  it("returns empty for empty prompt", () => {
-    const result = injectMemory(db, "");
+  it("returns empty for empty prompt", async () => {
+    const result = await injectMemory(db, "");
     expect(result.context).toBe("");
     expect(result.chunksUsed).toBe(0);
   });
 
-  it("returns empty for whitespace-only prompt", () => {
-    const result = injectMemory(db, "   ");
+  it("returns empty for whitespace-only prompt", async () => {
+    const result = await injectMemory(db, "   ");
     expect(result.context).toBe("");
     expect(result.chunksUsed).toBe(0);
   });
 
-  it("returns empty when no matches found", () => {
-    const result = injectMemory(db, "xyznonexistent");
+  it("returns empty when no matches found", async () => {
+    const result = await injectMemory(db, "xyznonexistent");
     expect(result.context).toBe("");
     expect(result.chunksUsed).toBe(0);
   });
 
-  it("respects tokenBudget option", () => {
-    const small = injectMemory(db, "TypeScript", { tokenBudget: 50 });
-    const large = injectMemory(db, "TypeScript", { tokenBudget: 5000 });
+  it("respects tokenBudget option", async () => {
+    const small = await injectMemory(db, "TypeScript", { tokenBudget: 50 });
+    const large = await injectMemory(db, "TypeScript", { tokenBudget: 5000 });
     expect(small.chunksUsed).toBeLessThanOrEqual(large.chunksUsed);
     expect(small.tokensUsed).toBeLessThanOrEqual(50);
   });
 
-  it("respects maxResults option", () => {
-    const result = injectMemory(db, "TypeScript", { maxResults: 1 });
+  it("respects maxResults option", async () => {
+    const result = await injectMemory(db, "TypeScript", { maxResults: 1 });
     expect(result.chunksUsed).toBeLessThanOrEqual(1);
   });
 
-  it("works with Japanese prompts", () => {
-    const result = injectMemory(db, "データベース接続");
+  it("works with Japanese prompts", async () => {
+    const result = await injectMemory(db, "データベース接続");
     expect(result.chunksUsed).toBeGreaterThan(0);
     expect(result.context).toContain("データベース");
+  });
+
+  it("includes enrichContext blocks from plugins", async () => {
+    const pm = new PluginManager({ db: db.db, projectConfig: { id: "test" } });
+    const plugin: Plugin = {
+      name: "context-enricher",
+      version: "1.0.0",
+      enrichContext(injection) {
+        return {
+          ...injection,
+          contextBlocks: [
+            ...injection.contextBlocks,
+            {
+              source: "context-enricher",
+              priority: 10,
+              content: "## Extra Context\n\nThis is extra context from a plugin.",
+            },
+          ],
+        };
+      },
+    };
+    pm.register(plugin);
+    await pm.initAll();
+
+    const result = await injectMemory(db, "authentication", { pluginManager: pm });
+    expect(result.context).toContain("Extra Context");
+    expect(result.context).toContain("Relevant Memories");
+  });
+
+  it("continues injection when enrichContext plugin throws", async () => {
+    const pm = new PluginManager({ db: db.db, projectConfig: { id: "test" } });
+    pm.register({
+      name: "error-plugin",
+      version: "1.0.0",
+      enrichContext() {
+        throw new Error("enrich error");
+      },
+    });
+    await pm.initAll();
+
+    const result = await injectMemory(db, "authentication", { pluginManager: pm });
+    expect(result.chunksUsed).toBeGreaterThan(0);
   });
 });
