@@ -97,6 +97,39 @@ export function registerHook(program: Command): void {
     });
 
   hook
+    .command("stop")
+    .description("Incrementally capture new turns on assistant stop")
+    .action(async () => {
+      const input = parseInput();
+      const kizunaDir = join(input.cwd, ".kizuna");
+
+      if (!existsSync(kizunaDir)) {
+        return;
+      }
+
+      if (!input.transcript_path || !existsSync(input.transcript_path)) {
+        return;
+      }
+
+      const db = new Database(resolveDbPath(input.cwd));
+      try {
+        const result = await captureTranscript(db, {
+          sessionId: input.session_id,
+          projectId: getProjectId(input.cwd),
+          transcriptPath: input.transcript_path,
+        });
+
+        if (result.chunksStored > 0) {
+          process.stderr.write(
+            `kizuna: incremental capture ${result.chunksStored} chunks (${result.totalTokens} tokens)\n`,
+          );
+        }
+      } finally {
+        db.close();
+      }
+    });
+
+  hook
     .command("session-start")
     .description("Initialize session context")
     .action(() => {

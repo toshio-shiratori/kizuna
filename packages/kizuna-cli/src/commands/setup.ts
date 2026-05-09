@@ -86,6 +86,13 @@ export function registerSetup(program: Command): void {
             command: `${bin} hook prompt-submit`,
           },
         },
+        Stop: {
+          matcher: "",
+          hook: {
+            type: "command",
+            command: `${bin} hook stop`,
+          },
+        },
       };
 
       for (const [event, config] of Object.entries(kizunaHooks)) {
@@ -122,5 +129,6 @@ export function registerSetup(program: Command): void {
       console.log("  SessionStart     → show memory stats");
       console.log("  SessionEnd       → capture transcript");
       console.log("  UserPromptSubmit → inject relevant memories");
+      console.log("  Stop             → incremental capture");
     });
 }

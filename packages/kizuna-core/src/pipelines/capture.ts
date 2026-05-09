@@ -38,7 +38,7 @@ export async function captureTranscript(
 
   db.beginTransaction();
   try {
-    db.insertSession({
+    db.upsertSession({
       id: sessionId,
       projectId,
       startedAt,
@@ -47,11 +47,16 @@ export async function captureTranscript(
       metadata: {},
     });
 
+    const maxTurnIndex = db.getMaxTurnIndex(sessionId);
     const rawChunks = chunkifyTurns(sessionId, turns);
     const storedChunks: StoredChunk[] = [];
     let chunksSkipped = 0;
 
     for (const chunk of rawChunks) {
+      if (maxTurnIndex !== null && chunk.turnIndex <= maxTurnIndex) {
+        continue;
+      }
+
       const processed = pluginManager ? await pluginManager.runBeforeCapture(chunk) : chunk;
 
       if (processed === null) {
