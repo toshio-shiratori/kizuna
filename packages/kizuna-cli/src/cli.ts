@@ -6,6 +6,7 @@ import { registerList } from "./commands/list.js";
 import { registerStats } from "./commands/stats.js";
 import { registerPrune } from "./commands/prune.js";
 import { registerHook } from "./commands/hook.js";
+import { registerCleanup } from "./commands/cleanup.js";
 
 const program = new Command();
 
@@ -17,5 +18,6 @@ registerList(program);
 registerStats(program);
 registerPrune(program);
 registerHook(program);
+registerCleanup(program);
 
 program.parse();
