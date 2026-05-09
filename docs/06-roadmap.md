@@ -13,14 +13,14 @@ When working on Kizuna with Claude Code CLI, refer to the current phase. Do NOT 
 
 ## Phase Overview
 
-| Phase   | Goal                       | Status         |
-| ------- | -------------------------- | -------------- |
-| Phase 0 | Project initialization     | ✅ Complete    |
-| Phase 1 | Documentation              | ✅ Complete    |
-| Phase 2 | Core implementation        | ✅ Complete    |
-| Phase 3 | Plugin system              | ✅ Complete    |
-| Phase 4 | Public release preparation | ✅ Complete    |
-| Phase 5 | Extensions and ecosystem   | ⏳ Future      |
+| Phase   | Goal                       | Status      |
+| ------- | -------------------------- | ----------- |
+| Phase 0 | Project initialization     | ✅ Complete |
+| Phase 1 | Documentation              | ✅ Complete |
+| Phase 2 | Core implementation        | ✅ Complete |
+| Phase 3 | Plugin system              | ✅ Complete |
+| Phase 4 | Public release preparation | ✅ Complete |
+| Phase 5 | Extensions and ecosystem   | ⏳ Future   |
 
 ---
 
