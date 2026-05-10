@@ -133,6 +133,25 @@ describe("CLI", () => {
       expect(matches).toHaveLength(1);
     });
 
+    it("should deploy recap skill to .claude/commands/", () => {
+      runCli(`setup --cwd ${tempDir}`, tempDir);
+      const recapPath = join(tempDir, ".claude", "commands", "recap.md");
+      expect(existsSync(recapPath)).toBe(true);
+      const content = readFileSync(recapPath, "utf-8");
+      expect(content).toContain("name: recap");
+      expect(content).toContain("kizuna recap --project <path>");
+    });
+
+    it("should overwrite recap skill on re-run", () => {
+      runCli(`setup --cwd ${tempDir}`, tempDir);
+      const recapPath = join(tempDir, ".claude", "commands", "recap.md");
+      writeFileSync(recapPath, "old content");
+      runCli(`setup --cwd ${tempDir}`, tempDir);
+      const content = readFileSync(recapPath, "utf-8");
+      expect(content).toContain("name: recap");
+      expect(content).not.toContain("old content");
+    });
+
     it("should not configure MCP server without --with-mcp", () => {
       runCli(`setup --cwd ${tempDir}`, tempDir);
       const settings = JSON.parse(

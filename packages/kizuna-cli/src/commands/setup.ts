@@ -3,6 +3,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { execSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
+import { RECAP_SKILL_CONTENT } from "../templates/recap-skill.js";
 
 const KIZUNA_SECTION_MARKER = "## Kizuna (Long-term Memory)";
 
@@ -19,6 +20,17 @@ Memories are captured and recalled automatically via hooks. For active queries:
 | \`kizuna list --session <id>\` | List chunks from a specific session |
 | \`kizuna stats\` | Show database statistics |
 `;
+}
+
+function deployRecapSkill(claudeDir: string): boolean {
+  const commandsDir = resolve(claudeDir, "commands");
+  if (!existsSync(commandsDir)) {
+    mkdirSync(commandsDir, { recursive: true });
+  }
+
+  const recapPath = resolve(commandsDir, "recap.md");
+  writeFileSync(recapPath, RECAP_SKILL_CONTENT);
+  return true;
 }
 
 function injectClaudeMdSection(claudeMdPath: string): boolean {
@@ -217,6 +229,8 @@ export function registerSetup(program: Command): void {
       const claudeMdPath = resolve(cwd, "CLAUDE.md");
       const injected = injectClaudeMdSection(claudeMdPath);
 
+      deployRecapSkill(claudeDir);
+
       console.log("Kizuna hooks configured:");
       console.log(`  Settings: ${settingsPath}`);
       console.log(`  Database: ${resolve(kizunaDir, "memory.db")}`);
@@ -244,5 +258,7 @@ export function registerSetup(program: Command): void {
       } else {
         console.log("CLAUDE.md: Kizuna section already present, skipped");
       }
+      console.log("");
+      console.log(`Skill deployed: ${resolve(claudeDir, "commands", "recap.md")}`);
     });
 }
