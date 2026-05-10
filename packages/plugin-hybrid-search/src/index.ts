@@ -6,7 +6,6 @@ import type {
   PluginContext,
   Migration,
 } from "@kizuna/core";
-import { Database } from "@kizuna/core";
 import type BetterSqlite3 from "better-sqlite3";
 import {
   type EmbeddingProvider,
@@ -16,7 +15,7 @@ import {
   bufferToFloat32,
 } from "./embedder.js";
 
-export type { EmbeddingProvider } from "./embedder.js";
+export type { EmbeddingProvider, EmbeddingStats } from "./embedder.js";
 export { TransformersEmbeddingProvider, cosineSimilarity } from "./embedder.js";
 
 const PLUGIN_NAME = "@kizuna/plugin-hybrid-search";
@@ -55,7 +54,7 @@ export function createHybridSearchPlugin(options?: HybridSearchOptions): Plugin 
     },
 
     async init(ctx: PluginContext): Promise<void> {
-      rawDb = (ctx.db as Database).db;
+      rawDb = ctx.db as BetterSqlite3.Database;
 
       provider =
         options?.embeddingProvider ??
@@ -68,6 +67,19 @@ export function createHybridSearchPlugin(options?: HybridSearchOptions): Plugin 
         alpha,
         dimensions: provider.dimensions,
       });
+    },
+
+    async shutdown(ctx: PluginContext): Promise<void> {
+      if (provider.stats) {
+        ctx.logger.info("Embedding stats", {
+          modelLoadMs: Math.round(provider.stats.modelLoadMs),
+          totalEmbedCalls: provider.stats.totalEmbedCalls,
+          avgEmbedMs:
+            provider.stats.totalEmbedCalls > 0
+              ? Math.round(provider.stats.totalEmbedMs / provider.stats.totalEmbedCalls)
+              : 0,
+        });
+      }
     },
 
     async afterCapture(chunk: StoredChunk, ctx: PluginContext): Promise<void> {

@@ -4,16 +4,17 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
-import { Database } from "@kizuna/core";
+import { Database, PluginManager } from "@kizuna/core";
 import { createServer } from "./server.js";
+import type { KizunaMcpServerOptions } from "./server.js";
 
 let tmpDir: string;
 let dbPath: string;
 let db: Database;
 let client: Client;
 
-async function setupClient(overrideDbPath?: string) {
-  const mcp = createServer({ dbPath: overrideDbPath ?? dbPath });
+async function setupClient(opts?: Partial<KizunaMcpServerOptions>) {
+  const mcp = createServer({ dbPath, ...opts });
   client = new Client({ name: "test-client", version: "1.0.0" });
   const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
   await Promise.all([client.connect(clientTransport), mcp.connect(serverTransport)]);
@@ -269,5 +270,48 @@ describe("kizuna_delete", () => {
     const result = await client.callTool({ name: "kizuna_delete", arguments: { ids: [99999] } });
     const text = (result.content as Array<{ type: string; text: string }>)[0]!.text;
     expect(text).toBe("Deleted 0 chunk(s).");
+  });
+});
+
+describe("MCP server with PluginManager", () => {
+  it("passes pluginManager to search pipeline", async () => {
+    const manager = new PluginManager({
+      db: db.db,
+      projectConfig: { id: "test" },
+    });
+
+    let searchHookCalled = false;
+    manager.register({
+      name: "test-search-plugin",
+      version: "1.0.0",
+      async afterSearch(results) {
+        searchHookCalled = true;
+        return results;
+      },
+    });
+    await manager.initAll();
+
+    db.insertSession({
+      id: "s1",
+      projectId: "test",
+      startedAt: new Date().toISOString(),
+      endedAt: null,
+      transcriptPath: null,
+      metadata: {},
+    });
+    db.insertChunk({
+      sessionId: "s1",
+      turnIndex: 0,
+      role: "assistant",
+      content: "TypeScript is a typed superset of JavaScript for building reliable applications",
+      metadata: {},
+      tokenCount: 10,
+      importance: 5,
+    });
+
+    await setupClient({ pluginManager: manager });
+    await client.callTool({ name: "kizuna_search", arguments: { query: "TypeScript" } });
+
+    expect(searchHookCalled).toBe(true);
   });
 });
