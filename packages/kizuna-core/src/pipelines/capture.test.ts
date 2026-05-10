@@ -872,4 +872,41 @@ describe("isLowQualityContent", () => {
       false,
     );
   });
+
+  it("detects skill definition text as low quality", () => {
+    const skillDef = [
+      "---",
+      "name: session-start",
+      "description: セッション開始時のプロジェクト状況確認。",
+      "---",
+      "",
+      "## When to Use",
+      "",
+      "- 新しいセッションを開始するとき",
+    ].join("\n");
+    expect(isLowQualityContent(skillDef)).toBe(true);
+  });
+
+  it("detects recap skill definition as low quality", () => {
+    const recapSkill = [
+      "---",
+      "name: recap",
+      "description: 別プロジェクトの直近セッション履歴を取り込む。",
+      "---",
+      "",
+      "## When to Use",
+      "",
+      "- 別チーム・別プロジェクトの直近セッション内容を把握したいとき",
+    ].join("\n");
+    expect(isLowQualityContent(recapSkill)).toBe(true);
+  });
+
+  it("does not flag content that merely mentions 'When to Use'", () => {
+    expect(isLowQualityContent("## When to Use this feature in production")).toBe(false);
+    expect(
+      isLowQualityContent(
+        "この機能の使い方を説明します。When to Use セクションを参照してください。",
+      ),
+    ).toBe(false);
+  });
 });

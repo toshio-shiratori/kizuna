@@ -391,6 +391,144 @@ describe("CLI", () => {
       expect(result.stdout).toContain("Message number 4");
       expect(result.stdout).not.toContain("Message number 0");
     });
+
+    it("should apply default limit of 5 chunks", () => {
+      const kizunaDir = join(tempDir, ".kizuna");
+      mkdirSync(kizunaDir, { recursive: true });
+      const db = new Database(join(kizunaDir, "memory.db"));
+      db.insertSession({
+        id: "many-chunks",
+        projectId: "test",
+        startedAt: "2025-01-01T00:00:00Z",
+        endedAt: null,
+        transcriptPath: null,
+        metadata: {},
+      });
+      for (let i = 0; i < 10; i++) {
+        db.insertChunk({
+          sessionId: "many-chunks",
+          turnIndex: i,
+          role: i % 2 === 0 ? "user" : "assistant",
+          content: `Chunk content ${i}`,
+          metadata: {},
+        });
+      }
+      db.close();
+
+      const result = runCli(`recap --cwd ${tempDir}`, tempDir);
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).toContain("Chunk content 5");
+      expect(result.stdout).toContain("Chunk content 9");
+      expect(result.stdout).not.toContain("Chunk content 4");
+    });
+
+    it("should show all chunks with --no-limit", () => {
+      const kizunaDir = join(tempDir, ".kizuna");
+      mkdirSync(kizunaDir, { recursive: true });
+      const db = new Database(join(kizunaDir, "memory.db"));
+      db.insertSession({
+        id: "all-chunks",
+        projectId: "test",
+        startedAt: "2025-01-01T00:00:00Z",
+        endedAt: null,
+        transcriptPath: null,
+        metadata: {},
+      });
+      for (let i = 0; i < 10; i++) {
+        db.insertChunk({
+          sessionId: "all-chunks",
+          turnIndex: i,
+          role: i % 2 === 0 ? "user" : "assistant",
+          content: `All chunk ${i}`,
+          metadata: {},
+        });
+      }
+      db.close();
+
+      const result = runCli(`recap --no-limit --cwd ${tempDir}`, tempDir);
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).toContain("All chunk 0");
+      expect(result.stdout).toContain("All chunk 9");
+    });
+
+    it("should show multiple sessions with --sessions option", () => {
+      const kizunaDir = join(tempDir, ".kizuna");
+      mkdirSync(kizunaDir, { recursive: true });
+      const db = new Database(join(kizunaDir, "memory.db"));
+      db.insertSession({
+        id: "session-old",
+        projectId: "test",
+        startedAt: "2025-01-01T00:00:00Z",
+        endedAt: null,
+        transcriptPath: null,
+        metadata: {},
+      });
+      db.insertSession({
+        id: "session-new",
+        projectId: "test",
+        startedAt: "2025-01-02T00:00:00Z",
+        endedAt: null,
+        transcriptPath: null,
+        metadata: {},
+      });
+      db.insertChunk({
+        sessionId: "session-old",
+        turnIndex: 0,
+        role: "user",
+        content: "Old session content here",
+        metadata: {},
+      });
+      db.insertChunk({
+        sessionId: "session-new",
+        turnIndex: 0,
+        role: "user",
+        content: "New session content here",
+        metadata: {},
+      });
+      db.close();
+
+      const result = runCli(`recap --sessions 2 --no-limit --cwd ${tempDir}`, tempDir);
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).toContain("Old session content here");
+      expect(result.stdout).toContain("New session content here");
+    });
+
+    it("should show specific session with --session option", () => {
+      const kizunaDir = join(tempDir, ".kizuna");
+      mkdirSync(kizunaDir, { recursive: true });
+      const db = new Database(join(kizunaDir, "memory.db"));
+      db.insertSession({
+        id: "target-session",
+        projectId: "test",
+        startedAt: "2025-01-01T00:00:00Z",
+        endedAt: null,
+        transcriptPath: null,
+        metadata: {},
+      });
+      db.insertChunk({
+        sessionId: "target-session",
+        turnIndex: 0,
+        role: "assistant",
+        content: "Target session specific content",
+        metadata: {},
+      });
+      db.close();
+
+      const result = runCli(`recap --session target-session --no-limit --cwd ${tempDir}`, tempDir);
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).toContain("Target session specific content");
+    });
+
+    it("should report error for non-existent session ID", () => {
+      const kizunaDir = join(tempDir, ".kizuna");
+      mkdirSync(kizunaDir, { recursive: true });
+      const db = new Database(join(kizunaDir, "memory.db"));
+      db.close();
+
+      const result = runCli(`recap --session nonexistent --cwd ${tempDir}`, tempDir);
+      expect(result.exitCode).toBe(1);
+      expect(result.stdout).toContain("Session not found");
+    });
   });
 
   describe("prune", () => {

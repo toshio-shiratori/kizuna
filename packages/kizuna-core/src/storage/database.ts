@@ -153,6 +153,17 @@ export class Database {
     return row ? sessionRowToSession(row) : null;
   }
 
+  getLatestSessionsWithChunks(count: number): Session[] {
+    const rows = this.db
+      .prepare(
+        `SELECT s.* FROM sessions s
+         WHERE EXISTS (SELECT 1 FROM chunks c WHERE c.session_id = s.id)
+         ORDER BY s.started_at DESC LIMIT ?`,
+      )
+      .all(count) as SessionRow[];
+    return rows.map(sessionRowToSession);
+  }
+
   getMaxTurnIndex(sessionId: string): number | null {
     const row = this.db
       .prepare("SELECT MAX(turn_index) AS max_turn FROM chunks WHERE session_id = ?")
