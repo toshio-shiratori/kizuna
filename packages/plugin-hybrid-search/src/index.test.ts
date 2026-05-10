@@ -53,7 +53,7 @@ const noopLogger: Logger = {
 
 function makeContext(db: Database): PluginContext {
   return {
-    db,
+    db: db.db,
     config: { enabled: true, options: {} },
     projectConfig: { id: "test-project" },
     logger: noopLogger,

@@ -3,6 +3,17 @@ export { PluginManager } from "./plugin/index.js";
 export type { PluginManagerOptions, PluginEntry } from "./plugin/index.js";
 export { SqlitePluginStorage } from "./plugin/index.js";
 export { runPluginMigrations } from "./plugin/index.js";
+export {
+  loadPluginManager,
+  readPluginsConfig,
+  importPlugin,
+  resolvePluginFromModule,
+} from "./plugin/index.js";
+export type {
+  PluginsFileConfig,
+  PluginEntryConfig,
+  LoadPluginManagerOptions,
+} from "./plugin/index.js";
 export { captureTranscript } from "./pipelines/capture.js";
 export type { CaptureResult, CaptureOptions } from "./pipelines/capture.js";
 export {

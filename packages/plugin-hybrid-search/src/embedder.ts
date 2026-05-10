@@ -1,6 +1,13 @@
 export interface EmbeddingProvider {
   readonly dimensions: number;
   embed(text: string): Promise<Float32Array>;
+  readonly stats?: EmbeddingStats;
+}
+
+export interface EmbeddingStats {
+  modelLoadMs: number;
+  totalEmbedCalls: number;
+  totalEmbedMs: number;
 }
 
 export function cosineSimilarity(a: Float32Array, b: Float32Array): number {
@@ -34,6 +41,7 @@ type Extractor = (
 
 export class TransformersEmbeddingProvider implements EmbeddingProvider {
   readonly dimensions: number;
+  readonly stats: EmbeddingStats = { modelLoadMs: 0, totalEmbedCalls: 0, totalEmbedMs: 0 };
   private readonly model: string;
   private extractor: Extractor | null = null;
 
@@ -43,11 +51,15 @@ export class TransformersEmbeddingProvider implements EmbeddingProvider {
   }
 
   async embed(text: string): Promise<Float32Array> {
+    const start = performance.now();
     if (!this.extractor) {
       const { pipeline } = await import("@huggingface/transformers");
       this.extractor = (await pipeline("feature-extraction", this.model)) as Extractor;
+      this.stats.modelLoadMs = performance.now() - start;
     }
     const output = await this.extractor(text, { pooling: "mean", normalize: true });
+    this.stats.totalEmbedCalls++;
+    this.stats.totalEmbedMs += performance.now() - start;
     return new Float32Array(output.data);
   }
 }
