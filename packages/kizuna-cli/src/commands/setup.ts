@@ -46,8 +46,15 @@ interface HookMatcher {
   hooks: HookEntry[];
 }
 
+interface McpServerEntry {
+  command: string;
+  args: string[];
+  env?: Record<string, string>;
+}
+
 interface ClaudeSettings {
   hooks?: Record<string, HookMatcher[]>;
+  mcpServers?: Record<string, McpServerEntry>;
   [key: string]: unknown;
 }
 
@@ -65,12 +72,36 @@ function findKizunaBin(): string {
   return "kizuna";
 }
 
+function findMcpServerPath(): string {
+  const mcpMainJs = resolve(
+    fileURLToPath(import.meta.url),
+    "..",
+    "..",
+    "..",
+    "..",
+    "kizuna-mcp",
+    "dist",
+    "main.js",
+  );
+  if (existsSync(mcpMainJs)) {
+    return mcpMainJs;
+  }
+  try {
+    const result = execSync("which kizuna-mcp", { encoding: "utf-8" }).trim();
+    if (result) return result;
+  } catch {
+    // not in PATH
+  }
+  return mcpMainJs;
+}
+
 export function registerSetup(program: Command): void {
   program
     .command("setup")
     .description("Configure Claude Code hooks for the current project")
     .option("--cwd <path>", "Project directory", process.cwd())
-    .action((opts: { cwd: string }) => {
+    .option("--with-mcp", "Also configure MCP server in settings")
+    .action((opts: { cwd: string; withMcp?: boolean }) => {
       const cwd = resolve(opts.cwd);
       const claudeDir = resolve(cwd, ".claude");
       const settingsPath = resolve(claudeDir, "settings.json");
@@ -161,6 +192,26 @@ export function registerSetup(program: Command): void {
         }
       }
 
+      let mcpConfigured = false;
+      if (opts.withMcp) {
+        const mcpServerPath = findMcpServerPath();
+        const dbPath = resolve(kizunaDir, "memory.db");
+
+        if (!settings.mcpServers) {
+          settings.mcpServers = {};
+        }
+
+        settings.mcpServers["kizuna"] = {
+          command: "node",
+          args: [mcpServerPath],
+          env: {
+            KIZUNA_DB_PATH: dbPath,
+            KIZUNA_PROJECT_DIR: cwd,
+          },
+        };
+        mcpConfigured = true;
+      }
+
       writeFileSync(settingsPath, JSON.stringify(settings, null, 2) + "\n");
 
       const claudeMdPath = resolve(cwd, "CLAUDE.md");
@@ -175,6 +226,12 @@ export function registerSetup(program: Command): void {
       console.log("  SessionEnd       → capture transcript");
       console.log("  UserPromptSubmit → inject relevant memories");
       console.log("  Stop             → incremental capture");
+      if (mcpConfigured) {
+        console.log("");
+        console.log("MCP server configured:");
+        console.log('  Server name: "kizuna"');
+        console.log(`  Entry point: ${findMcpServerPath()}`);
+      }
       console.log("");
       if (pluginsJsonCreated) {
         console.log(`Plugins config: ${pluginsJsonPath} (created)`);

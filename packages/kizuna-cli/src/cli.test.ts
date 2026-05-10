@@ -132,6 +132,66 @@ describe("CLI", () => {
       const matches = claudeMd.match(/## Kizuna \(Long-term Memory\)/g);
       expect(matches).toHaveLength(1);
     });
+
+    it("should not configure MCP server without --with-mcp", () => {
+      runCli(`setup --cwd ${tempDir}`, tempDir);
+      const settings = JSON.parse(
+        readFileSync(join(tempDir, ".claude", "settings.json"), "utf-8"),
+      ) as Record<string, unknown>;
+      expect(settings["mcpServers"]).toBeUndefined();
+    });
+
+    it("should configure MCP server with --with-mcp", () => {
+      const result = runCli(`setup --with-mcp --cwd ${tempDir}`, tempDir);
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).toContain("MCP server configured");
+
+      const settings = JSON.parse(
+        readFileSync(join(tempDir, ".claude", "settings.json"), "utf-8"),
+      ) as Record<string, unknown>;
+      const mcpServers = settings["mcpServers"] as Record<string, unknown>;
+      expect(mcpServers["kizuna"]).toBeDefined();
+
+      const kizunaServer = mcpServers["kizuna"] as {
+        command: string;
+        args: string[];
+        env: Record<string, string>;
+      };
+      expect(kizunaServer.command).toBe("node");
+      expect(kizunaServer.args[0]).toContain("main.js");
+      expect(kizunaServer.env["KIZUNA_DB_PATH"]).toContain(".kizuna/memory.db");
+      expect(kizunaServer.env["KIZUNA_PROJECT_DIR"]).toBe(tempDir);
+    });
+
+    it("should preserve existing mcpServers on re-run with --with-mcp", () => {
+      const claudeDir = join(tempDir, ".claude");
+      mkdirSync(claudeDir, { recursive: true });
+      writeFileSync(
+        join(claudeDir, "settings.json"),
+        JSON.stringify({
+          mcpServers: { other: { command: "other-server", args: [] } },
+        }),
+      );
+
+      runCli(`setup --with-mcp --cwd ${tempDir}`, tempDir);
+      const settings = JSON.parse(
+        readFileSync(join(claudeDir, "settings.json"), "utf-8"),
+      ) as Record<string, unknown>;
+      const mcpServers = settings["mcpServers"] as Record<string, unknown>;
+      expect(mcpServers["other"]).toBeDefined();
+      expect(mcpServers["kizuna"]).toBeDefined();
+    });
+
+    it("should update kizuna MCP entry on re-run with --with-mcp", () => {
+      runCli(`setup --with-mcp --cwd ${tempDir}`, tempDir);
+      runCli(`setup --with-mcp --cwd ${tempDir}`, tempDir);
+      const settings = JSON.parse(
+        readFileSync(join(tempDir, ".claude", "settings.json"), "utf-8"),
+      ) as Record<string, unknown>;
+      const mcpServers = settings["mcpServers"] as Record<string, unknown>;
+      const keys = Object.keys(mcpServers);
+      expect(keys.filter((k) => k === "kizuna")).toHaveLength(1);
+    });
   });
 
   describe("search", () => {
