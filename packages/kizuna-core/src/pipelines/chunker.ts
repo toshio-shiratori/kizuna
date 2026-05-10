@@ -33,10 +33,16 @@ export function chunkifyTurns(
 }
 
 export function estimateTokens(text: string): number {
+  const len = text.length;
   let count = 0;
-  for (const char of text) {
-    const code = char.codePointAt(0)!;
-    count += code > 0x2e80 ? 2 : 0.25;
+  for (let i = 0; i < len; i++) {
+    const code = text.charCodeAt(i);
+    if (code >= 0xd800 && code <= 0xdbff && i + 1 < len) {
+      i++;
+      count += 2;
+    } else {
+      count += code > 0x2e80 ? 2 : 0.25;
+    }
   }
   return Math.max(1, Math.ceil(count));
 }

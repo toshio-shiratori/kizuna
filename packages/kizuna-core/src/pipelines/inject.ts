@@ -22,6 +22,10 @@ const SEPARATOR = "\n---\n\n";
 const ATTRIBUTION_INSTRUCTION =
   "\n---\nIf any of the above memories are relevant to your current task, verify whether they indicate cross-repo dependencies, deployment constraints, or past design decisions that should inform your approach. Briefly note which memories you considered at the end of your reply.\n";
 
+const HEADER_TOKENS = estimateTokens(HEADER);
+const SEPARATOR_TOKENS = estimateTokens(SEPARATOR);
+const ATTRIBUTION_TOKENS = estimateTokens(ATTRIBUTION_INSTRUCTION);
+
 function formatChunkBlock(result: SearchResult): string {
   const { chunk } = result;
   const date = chunk.createdAt.split("T")[0];
@@ -33,18 +37,17 @@ export function formatContext(results: SearchResult[], tokenBudget: number): Inj
     return { context: "", chunksUsed: 0, tokensUsed: 0 };
   }
 
-  const headerTokens = estimateTokens(HEADER);
-  if (headerTokens > tokenBudget) {
+  if (HEADER_TOKENS > tokenBudget) {
     return { context: "", chunksUsed: 0, tokensUsed: 0 };
   }
 
   const blocks: string[] = [];
-  let tokensUsed = headerTokens;
+  let tokensUsed = HEADER_TOKENS;
   let chunksUsed = 0;
 
   for (const result of results) {
     const block = formatChunkBlock(result);
-    const separatorCost = chunksUsed > 0 ? estimateTokens(SEPARATOR) : 0;
+    const separatorCost = chunksUsed > 0 ? SEPARATOR_TOKENS : 0;
     const blockTokens = estimateTokens(block) + separatorCost;
 
     if (tokensUsed + blockTokens > tokenBudget) {
@@ -61,12 +64,11 @@ export function formatContext(results: SearchResult[], tokenBudget: number): Inj
   }
 
   const baseContext = HEADER + blocks.join(SEPARATOR);
-  const attributionTokens = estimateTokens(ATTRIBUTION_INSTRUCTION);
-  if (tokensUsed + attributionTokens <= tokenBudget) {
+  if (tokensUsed + ATTRIBUTION_TOKENS <= tokenBudget) {
     return {
       context: baseContext + ATTRIBUTION_INSTRUCTION,
       chunksUsed,
-      tokensUsed: tokensUsed + attributionTokens,
+      tokensUsed: tokensUsed + ATTRIBUTION_TOKENS,
     };
   }
 
