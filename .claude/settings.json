@@ -75,7 +75,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node /Users/toshio/github/kizuna/packages/kizuna-cli/dist/cli.js hook session-start"
+            "command": "kizuna hook session-start"
           }
         ]
       }
@@ -86,7 +86,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node /Users/toshio/github/kizuna/packages/kizuna-cli/dist/cli.js hook session-end"
+            "command": "kizuna hook session-end"
           }
         ]
       }
@@ -97,7 +97,18 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node /Users/toshio/github/kizuna/packages/kizuna-cli/dist/cli.js hook prompt-submit"
+            "command": "kizuna hook prompt-submit"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "kizuna hook stop"
           }
         ]
       }
