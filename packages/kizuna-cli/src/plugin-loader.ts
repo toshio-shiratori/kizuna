@@ -1,6 +1,5 @@
 import type { Database, Plugin, Logger } from "@kizuna/core";
 import { loadPluginManager as coreLoadPluginManager } from "@kizuna/core";
-export type { PluginsFileConfig, PluginEntryConfig } from "@kizuna/core";
 export { readPluginsConfig, resolvePluginFromModule } from "@kizuna/core";
 
 const stderrLogger: Logger = {
