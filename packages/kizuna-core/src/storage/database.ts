@@ -135,6 +135,24 @@ export class Database {
       );
   }
 
+  getLatestSession(): Session | null {
+    const row = this.db.prepare("SELECT * FROM sessions ORDER BY started_at DESC LIMIT 1").get() as
+      | SessionRow
+      | undefined;
+    return row ? sessionRowToSession(row) : null;
+  }
+
+  getLatestSessionWithChunks(): Session | null {
+    const row = this.db
+      .prepare(
+        `SELECT s.* FROM sessions s
+         WHERE EXISTS (SELECT 1 FROM chunks c WHERE c.session_id = s.id)
+         ORDER BY s.started_at DESC LIMIT 1`,
+      )
+      .get() as SessionRow | undefined;
+    return row ? sessionRowToSession(row) : null;
+  }
+
   getMaxTurnIndex(sessionId: string): number | null {
     const row = this.db
       .prepare("SELECT MAX(turn_index) AS max_turn FROM chunks WHERE session_id = ?")

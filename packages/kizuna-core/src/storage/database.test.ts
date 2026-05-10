@@ -59,6 +59,32 @@ describe("Database", () => {
       expect(db.getSession("nonexistent")).toBeNull();
     });
 
+    it("returns the latest session by started_at", () => {
+      db.insertSession(makeSession({ id: "old", startedAt: "2025-01-01T00:00:00Z" }));
+      db.insertSession(makeSession({ id: "new", startedAt: "2025-06-01T00:00:00Z" }));
+      const latest = db.getLatestSession();
+      expect(latest).not.toBeNull();
+      expect(latest!.id).toBe("new");
+    });
+
+    it("returns null when no sessions exist", () => {
+      expect(db.getLatestSession()).toBeNull();
+    });
+
+    it("returns the latest session that has chunks", () => {
+      db.insertSession(makeSession({ id: "with-chunks", startedAt: "2025-01-01T00:00:00Z" }));
+      db.insertSession(makeSession({ id: "empty-newer", startedAt: "2025-06-01T00:00:00Z" }));
+      db.insertChunk(makeChunk({ sessionId: "with-chunks" }));
+      const latest = db.getLatestSessionWithChunks();
+      expect(latest).not.toBeNull();
+      expect(latest!.id).toBe("with-chunks");
+    });
+
+    it("returns null when no sessions have chunks", () => {
+      db.insertSession(makeSession({ id: "empty" }));
+      expect(db.getLatestSessionWithChunks()).toBeNull();
+    });
+
     it("stores metadata as JSON", () => {
       const session = makeSession({ metadata: { tool: "claude", count: 42 } });
       db.insertSession(session);

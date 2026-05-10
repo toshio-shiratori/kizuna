@@ -272,6 +272,108 @@ describe("CLI", () => {
     });
   });
 
+  describe("recap", () => {
+    it("should show the latest session chunks", () => {
+      const db = seedDatabase(tempDir);
+      db.close();
+
+      const result = runCli(`recap --cwd ${tempDir}`, tempDir);
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).toContain("## Session:");
+      expect(result.stdout).toContain("(project: test-project)");
+      expect(result.stdout).toContain("**assistant**:");
+      expect(result.stdout).toContain("SQLite");
+    });
+
+    it("should support --project option for cross-project sharing", () => {
+      const otherDir = mkdtempSync(join(tmpdir(), "kizuna-cli-test-other-"));
+      try {
+        const db = seedDatabase(otherDir);
+        db.close();
+
+        const result = runCli(`recap --project ${otherDir}`, tempDir);
+        expect(result.exitCode).toBe(0);
+        expect(result.stdout).toContain("## Session:");
+        expect(result.stdout).toContain("test-project");
+      } finally {
+        rmSync(otherDir, { recursive: true, force: true });
+      }
+    });
+
+    it("should report when no database exists", () => {
+      const result = runCli(`recap --cwd ${tempDir}`, tempDir);
+      expect(result.exitCode).toBe(1);
+      expect(result.stdout).toContain("No Kizuna database found");
+    });
+
+    it("should report when no sessions with chunks exist", () => {
+      const kizunaDir = join(tempDir, ".kizuna");
+      mkdirSync(kizunaDir, { recursive: true });
+      const db = new Database(join(kizunaDir, "memory.db"));
+      db.insertSession({
+        id: "empty-session",
+        projectId: "test",
+        startedAt: new Date().toISOString(),
+        endedAt: null,
+        transcriptPath: null,
+        metadata: {},
+      });
+      db.close();
+
+      const result = runCli(`recap --cwd ${tempDir}`, tempDir);
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).toContain("No sessions with chunks found");
+    });
+
+    it("should skip empty sessions and show the one with chunks", () => {
+      const db = seedDatabase(tempDir);
+      db.insertSession({
+        id: "empty-newer",
+        projectId: "test-project",
+        startedAt: "2099-01-01T00:00:00Z",
+        endedAt: null,
+        transcriptPath: null,
+        metadata: {},
+      });
+      db.close();
+
+      const result = runCli(`recap --cwd ${tempDir}`, tempDir);
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).toContain("**assistant**:");
+      expect(result.stdout).toContain("SQLite");
+    });
+
+    it("should limit output with --limit option", () => {
+      const kizunaDir = join(tempDir, ".kizuna");
+      mkdirSync(kizunaDir, { recursive: true });
+      const db = new Database(join(kizunaDir, "memory.db"));
+      db.insertSession({
+        id: "multi-chunk",
+        projectId: "test",
+        startedAt: "2025-01-01T00:00:00Z",
+        endedAt: null,
+        transcriptPath: null,
+        metadata: {},
+      });
+      for (let i = 0; i < 5; i++) {
+        db.insertChunk({
+          sessionId: "multi-chunk",
+          turnIndex: i,
+          role: i % 2 === 0 ? "user" : "assistant",
+          content: `Message number ${i}`,
+          metadata: {},
+        });
+      }
+      db.close();
+
+      const result = runCli(`recap --limit 2 --cwd ${tempDir}`, tempDir);
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).toContain("Message number 3");
+      expect(result.stdout).toContain("Message number 4");
+      expect(result.stdout).not.toContain("Message number 0");
+    });
+  });
+
   describe("prune", () => {
     it("should prune old chunks", () => {
       const db = seedDatabase(tempDir);
