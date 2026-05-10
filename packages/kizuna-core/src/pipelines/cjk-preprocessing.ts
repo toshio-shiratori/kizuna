@@ -1,16 +1,14 @@
-const CJK_RANGES: [number, number][] = [
-  [0x3040, 0x309f], // Hiragana
-  [0x30a0, 0x30ff], // Katakana
-  [0x4e00, 0x9fff], // CJK Unified Ideographs
-  [0x3400, 0x4dbf], // CJK Unified Ideographs Extension A
-  [0xff00, 0xffef], // Halfwidth and Fullwidth Forms
-  [0x3000, 0x303f], // CJK Symbols and Punctuation
-];
-
 export function isCJKChar(char: string): boolean {
   const code = char.codePointAt(0);
   if (code === undefined) return false;
-  return CJK_RANGES.some(([lo, hi]) => code >= lo && code <= hi);
+  return (
+    (code >= 0x3000 && code <= 0x303f) ||
+    (code >= 0x3040 && code <= 0x309f) ||
+    (code >= 0x30a0 && code <= 0x30ff) ||
+    (code >= 0x3400 && code <= 0x4dbf) ||
+    (code >= 0x4e00 && code <= 0x9fff) ||
+    (code >= 0xff00 && code <= 0xffef)
+  );
 }
 
 interface Segment {

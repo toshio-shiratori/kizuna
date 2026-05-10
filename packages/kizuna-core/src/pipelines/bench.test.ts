@@ -115,3 +115,128 @@ describe("Performance baselines", () => {
     expect(avg).toBeLessThan(150);
   });
 });
+
+describe("Scale performance (2000 chunks)", () => {
+  let db: Database;
+  let dir: string;
+
+  beforeAll(async () => {
+    dir = mkdtempSync(join(tmpdir(), "kizuna-bench-2k-"));
+    db = new Database(join(dir, "bench.db"));
+
+    for (let s = 0; s < 100; s++) {
+      await captureTranscript(db, {
+        sessionId: `scale-session-${s}`,
+        projectId: "scale-project",
+        transcriptContent: makeTranscript(20),
+      });
+    }
+  });
+
+  afterAll(() => {
+    db.close();
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  it("searchMemory: 2000 chunks under 100ms", async () => {
+    const start = performance.now();
+    const results = await searchMemory(db, {
+      text: "FTS5 トリグラム インデックス",
+      limit: 10,
+    });
+    const elapsed = performance.now() - start;
+    expect(elapsed).toBeLessThan(100);
+    expect(results.length).toBeGreaterThan(0);
+  });
+
+  it("injectMemory: 2000 chunks under 100ms", async () => {
+    const start = performance.now();
+    const result = await injectMemory(db, "SQLiteのFTS5について教えて");
+    const elapsed = performance.now() - start;
+    expect(elapsed).toBeLessThan(100);
+    expect(result.chunksUsed).toBeGreaterThan(0);
+  });
+
+  it("searchMemory with filters: 2000 chunks under 100ms", async () => {
+    const start = performance.now();
+    const results = await searchMemory(db, {
+      text: "FTS5 トリグラム",
+      limit: 10,
+      filters: { projectIds: ["scale-project"] },
+    });
+    const elapsed = performance.now() - start;
+    expect(elapsed).toBeLessThan(100);
+    expect(results.length).toBeGreaterThan(0);
+  });
+});
+
+describe("Scale performance (5000 chunks)", () => {
+  let db: Database;
+  let dir: string;
+
+  beforeAll(async () => {
+    dir = mkdtempSync(join(tmpdir(), "kizuna-bench-5k-"));
+    db = new Database(join(dir, "bench.db"));
+
+    for (let s = 0; s < 250; s++) {
+      await captureTranscript(db, {
+        sessionId: `scale-session-${s}`,
+        projectId: `project-${s % 5}`,
+        transcriptContent: makeTranscript(20),
+      });
+    }
+  });
+
+  afterAll(() => {
+    db.close();
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  it("searchMemory: 5000 chunks under 200ms", async () => {
+    const start = performance.now();
+    const results = await searchMemory(db, {
+      text: "FTS5 トリグラム インデックス",
+      limit: 10,
+    });
+    const elapsed = performance.now() - start;
+    expect(elapsed).toBeLessThan(200);
+    expect(results.length).toBeGreaterThan(0);
+  });
+
+  it("injectMemory: 5000 chunks under 200ms", async () => {
+    const start = performance.now();
+    const result = await injectMemory(db, "SQLiteのFTS5について教えて");
+    const elapsed = performance.now() - start;
+    expect(elapsed).toBeLessThan(200);
+    expect(result.chunksUsed).toBeGreaterThan(0);
+  });
+
+  it("searchMemory with project filter: 5000 chunks under 200ms", async () => {
+    const start = performance.now();
+    const results = await searchMemory(db, {
+      text: "FTS5 トリグラム",
+      limit: 10,
+      filters: { projectIds: ["project-0", "project-1"] },
+    });
+    const elapsed = performance.now() - start;
+    expect(elapsed).toBeLessThan(200);
+    expect(results.length).toBeGreaterThan(0);
+  });
+
+  it("estimateTokens: 50000 chars under 2ms", () => {
+    const text = "日本語テスト mixed content テスト".repeat(3125);
+    const start = performance.now();
+    estimateTokens(text);
+    const elapsed = performance.now() - start;
+    expect(elapsed).toBeLessThan(2);
+  });
+
+  it("preprocessQuery: long CJK query under 2ms", () => {
+    const query =
+      "SQLiteのFTS5でトリグラムトークナイザーを使う場合の注意点を教えてください。日本語のテキスト検索に最適な設定は何ですか";
+    const start = performance.now();
+    preprocessQuery(query);
+    const elapsed = performance.now() - start;
+    expect(elapsed).toBeLessThan(2);
+  });
+});
