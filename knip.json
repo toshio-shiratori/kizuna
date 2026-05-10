@@ -1,5 +1,6 @@
 {
   "$schema": "https://unpkg.com/knip@6/schema.json",
+  "ignore": ["templates/**"],
   "workspaces": {
     "packages/kizuna-cli": {
       "ignoreDependencies": ["tsx"]
