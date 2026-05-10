@@ -519,6 +519,94 @@ describe("CLI", () => {
       expect(result.stdout).toContain("Target session specific content");
     });
 
+    it("should list sessions with --list option", () => {
+      const kizunaDir = join(tempDir, ".kizuna");
+      mkdirSync(kizunaDir, { recursive: true });
+      const db = new Database(join(kizunaDir, "memory.db"));
+      db.insertSession({
+        id: "list-sess-1",
+        projectId: "proj-a",
+        startedAt: "2025-01-01T10:00:00Z",
+        endedAt: null,
+        transcriptPath: null,
+        metadata: {},
+      });
+      db.insertSession({
+        id: "list-sess-2",
+        projectId: "proj-b",
+        startedAt: "2025-02-01T08:30:00Z",
+        endedAt: null,
+        transcriptPath: null,
+        metadata: {},
+      });
+      db.insertChunk({
+        sessionId: "list-sess-1",
+        turnIndex: 0,
+        role: "user",
+        content: "Session one first chunk",
+        metadata: {},
+      });
+      db.insertChunk({
+        sessionId: "list-sess-2",
+        turnIndex: 0,
+        role: "user",
+        content: "Session two first chunk",
+        metadata: {},
+      });
+      db.close();
+
+      const result = runCli(`recap --list --cwd ${tempDir}`, tempDir);
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).toContain("Sessions with chunks:");
+      expect(result.stdout).toContain("proj-b");
+      expect(result.stdout).toContain("Session two first chunk");
+      expect(result.stdout).toContain("proj-a");
+      expect(result.stdout).toContain("Session one first chunk");
+    });
+
+    it("should show no sessions message with --list when empty", () => {
+      const kizunaDir = join(tempDir, ".kizuna");
+      mkdirSync(kizunaDir, { recursive: true });
+      const db = new Database(join(kizunaDir, "memory.db"));
+      db.close();
+
+      const result = runCli(`recap --list --cwd ${tempDir}`, tempDir);
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).toContain("No sessions with chunks found");
+    });
+
+    it("should support --list with --project option", () => {
+      const otherDir = mkdtempSync(join(tmpdir(), "kizuna-cli-test-list-"));
+      try {
+        const kizunaDir = join(otherDir, ".kizuna");
+        mkdirSync(kizunaDir, { recursive: true });
+        const db = new Database(join(kizunaDir, "memory.db"));
+        db.insertSession({
+          id: "cross-list-sess",
+          projectId: "other-proj",
+          startedAt: "2025-03-01T12:00:00Z",
+          endedAt: null,
+          transcriptPath: null,
+          metadata: {},
+        });
+        db.insertChunk({
+          sessionId: "cross-list-sess",
+          turnIndex: 0,
+          role: "user",
+          content: "Cross project content",
+          metadata: {},
+        });
+        db.close();
+
+        const result = runCli(`recap --list --project ${otherDir}`, tempDir);
+        expect(result.exitCode).toBe(0);
+        expect(result.stdout).toContain("other-proj");
+        expect(result.stdout).toContain("Cross project content");
+      } finally {
+        rmSync(otherDir, { recursive: true, force: true });
+      }
+    });
+
     it("should report error for non-existent session ID", () => {
       const kizunaDir = join(tempDir, ".kizuna");
       mkdirSync(kizunaDir, { recursive: true });

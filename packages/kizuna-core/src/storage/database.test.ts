@@ -85,6 +85,57 @@ describe("Database", () => {
       expect(db.getLatestSessionWithChunks()).toBeNull();
     });
 
+    it("lists sessions with preview", () => {
+      db.insertSession(
+        makeSession({ id: "s1", projectId: "proj-a", startedAt: "2025-01-01T00:00:00Z" }),
+      );
+      db.insertSession(
+        makeSession({ id: "s2", projectId: "proj-b", startedAt: "2025-02-01T00:00:00Z" }),
+      );
+      db.insertSession(
+        makeSession({ id: "s3-empty", projectId: "proj-c", startedAt: "2025-03-01T00:00:00Z" }),
+      );
+
+      db.insertChunk({
+        ...makeChunk({ sessionId: "s1", turnIndex: 0, content: "First line of s1\nSecond line" }),
+        createdAt: "2025-01-01T00:01:00Z",
+      });
+      db.insertChunk({
+        ...makeChunk({ sessionId: "s1", turnIndex: 1, content: "Later chunk" }),
+        createdAt: "2025-01-01T00:02:00Z",
+      });
+      db.insertChunk({
+        ...makeChunk({ sessionId: "s2", turnIndex: 0, content: "Only chunk in s2" }),
+        createdAt: "2025-02-01T00:01:00Z",
+      });
+
+      const previews = db.listSessionsWithPreview();
+      expect(previews).toHaveLength(2);
+      expect(previews[0]!.sessionId).toBe("s2");
+      expect(previews[0]!.projectId).toBe("proj-b");
+      expect(previews[0]!.preview).toBe("Only chunk in s2");
+      expect(previews[1]!.sessionId).toBe("s1");
+      expect(previews[1]!.preview).toBe("First line of s1");
+    });
+
+    it("listSessionsWithPreview respects limit", () => {
+      for (let i = 0; i < 5; i++) {
+        const id = `lim-${i}`;
+        db.insertSession(makeSession({ id, startedAt: `2025-0${i + 1}-01T00:00:00Z` }));
+        db.insertChunk(makeChunk({ sessionId: id, turnIndex: 0, content: `Content ${i}` }));
+      }
+      const previews = db.listSessionsWithPreview(2);
+      expect(previews).toHaveLength(2);
+      expect(previews[0]!.sessionId).toBe("lim-4");
+      expect(previews[1]!.sessionId).toBe("lim-3");
+    });
+
+    it("listSessionsWithPreview returns empty when no sessions have chunks", () => {
+      db.insertSession(makeSession({ id: "empty-only" }));
+      const previews = db.listSessionsWithPreview();
+      expect(previews).toHaveLength(0);
+    });
+
     it("stores metadata as JSON", () => {
       const session = makeSession({ metadata: { tool: "claude", count: 42 } });
       db.insertSession(session);
