@@ -13,6 +13,7 @@ export function registerRecap(program: Command): void {
     .option("--no-limit", "Show all chunks without limit")
     .option("-s, --sessions <number>", "Number of recent sessions to show", "1")
     .option("--session <id>", "Show a specific session by ID")
+    .option("-l, --list", "List sessions with chunk previews")
     .option("--cwd <path>", "Project directory", process.cwd())
     .action(
       (opts: {
@@ -20,6 +21,7 @@ export function registerRecap(program: Command): void {
         limit: string | boolean;
         sessions: string;
         session?: string;
+        list?: boolean;
         cwd: string;
       }) => {
         const targetDir = opts.project ?? opts.cwd;
@@ -32,7 +34,9 @@ export function registerRecap(program: Command): void {
 
         const db = new Database(resolveDbPath(targetDir));
         try {
-          if (opts.session) {
+          if (opts.list) {
+            showSessionList(db);
+          } else if (opts.session) {
             showSpecificSession(db, opts.session, resolveLimit(opts.limit));
           } else {
             const count = parseInt(opts.sessions, 10);
@@ -55,6 +59,21 @@ function resolveLimit(limitOpt: string | boolean): number | null {
   const limit = parseInt(limitOpt as string, 10);
   if (Number.isNaN(limit) || limit <= 0) return DEFAULT_CHUNK_LIMIT;
   return limit;
+}
+
+function showSessionList(db: Database): void {
+  const previews = db.listSessionsWithPreview();
+  if (previews.length === 0) {
+    console.log("No sessions with chunks found.");
+    return;
+  }
+
+  console.log("Sessions with chunks:");
+  for (const p of previews) {
+    const dt = p.startedAt.replace("T", " ").slice(0, 16);
+    const proj = p.projectId.padEnd(12);
+    console.log(`  ${dt}  ${proj}${p.preview}`);
+  }
 }
 
 function showLatestSessions(db: Database, count: number, limit: number | null): void {

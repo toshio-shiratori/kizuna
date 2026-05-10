@@ -45,6 +45,13 @@ export interface Session {
   metadata: Record<string, unknown>;
 }
 
+export interface SessionPreview {
+  sessionId: string;
+  startedAt: string;
+  projectId: string;
+  preview: string;
+}
+
 // ─── Chunk Types ──────────────────────────────────────────
 
 export interface RawChunk {

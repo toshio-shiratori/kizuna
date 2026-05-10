@@ -1,5 +1,12 @@
 import BetterSqlite3 from "better-sqlite3";
-import type { Session, RawChunk, StoredChunk, SearchResult, MaintenanceResult } from "../index.js";
+import type {
+  Session,
+  RawChunk,
+  StoredChunk,
+  SearchResult,
+  MaintenanceResult,
+  SessionPreview,
+} from "../index.js";
 import { runCoreMigrations } from "./migrator.js";
 
 interface ChunkRow {
@@ -30,6 +37,13 @@ interface MaintenanceRow {
   sessions_deleted: number;
   bytes_reclaimed: number;
   duration_ms: number;
+}
+
+interface SessionPreviewRow {
+  session_id: string;
+  started_at: string;
+  project_id: string;
+  preview: string;
 }
 
 interface FtsRow extends ChunkRow {
@@ -162,6 +176,30 @@ export class Database {
       )
       .all(count) as SessionRow[];
     return rows.map(sessionRowToSession);
+  }
+
+  listSessionsWithPreview(limit: number = 10): SessionPreview[] {
+    const rows = this.db
+      .prepare(
+        `SELECT s.id AS session_id, s.started_at, s.project_id, c.content AS preview
+         FROM sessions s
+         JOIN chunks c ON c.id = (
+           SELECT c2.id FROM chunks c2
+           WHERE c2.session_id = s.id
+           ORDER BY c2.created_at ASC, c2.turn_index ASC
+           LIMIT 1
+         )
+         ORDER BY s.started_at DESC
+         LIMIT ?`,
+      )
+      .all(limit) as SessionPreviewRow[];
+
+    return rows.map((row) => ({
+      sessionId: row.session_id,
+      startedAt: row.started_at,
+      projectId: row.project_id,
+      preview: row.preview.split("\n")[0]!,
+    }));
   }
 
   getMaxTurnIndex(sessionId: string): number | null {
