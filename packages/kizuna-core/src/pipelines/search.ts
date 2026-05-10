@@ -74,19 +74,16 @@ function buildFilteredQuery(
   }
 
   const whereClause = conditions.join(" AND ");
-  params.push(query.limit);
+  params.push(halfLifeDays, query.limit);
 
-  const sql = `SELECT *, (bm25_score * time_decay * (1.0 + importance / 10.0)) AS combined_score
-  FROM (
-    SELECT
-      c.*,
-      bm25(chunks_fts) AS bm25_score,
-      exp(-0.693 * (julianday('now') - julianday(c.created_at)) / ?) AS time_decay
-    FROM chunks_fts
-    JOIN chunks c ON chunks_fts.rowid = c.id
-    WHERE ${whereClause}
-  )
-  ORDER BY combined_score DESC
+  const sql = `SELECT
+    c.*,
+    bm25(chunks_fts) AS bm25_score,
+    exp(-0.693 * (julianday('now') - julianday(c.created_at)) / ?) AS time_decay
+  FROM chunks_fts
+  JOIN chunks c ON chunks_fts.rowid = c.id
+  WHERE ${whereClause}
+  ORDER BY (bm25(chunks_fts) * exp(-0.693 * (julianday('now') - julianday(c.created_at)) / ?) * (1.0 + c.importance / 10.0)) DESC
   LIMIT ?`;
 
   interface FtsRow {

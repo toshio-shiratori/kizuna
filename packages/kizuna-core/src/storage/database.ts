@@ -208,20 +208,17 @@ export class Database {
   searchChunks(query: string, limit: number = 10, halfLifeDays: number = 30): SearchResult[] {
     const rows = this.db
       .prepare(
-        `SELECT *, (bm25_score * time_decay * (1.0 + importance / 10.0)) AS combined_score
-         FROM (
-           SELECT
-             c.*,
-             bm25(chunks_fts) AS bm25_score,
-             exp(-0.693 * (julianday('now') - julianday(c.created_at)) / ?) AS time_decay
-           FROM chunks_fts
-           JOIN chunks c ON chunks_fts.rowid = c.id
-           WHERE chunks_fts MATCH ?
-         )
-         ORDER BY combined_score DESC
+        `SELECT
+           c.*,
+           bm25(chunks_fts) AS bm25_score,
+           exp(-0.693 * (julianday('now') - julianday(c.created_at)) / ?) AS time_decay
+         FROM chunks_fts
+         JOIN chunks c ON chunks_fts.rowid = c.id
+         WHERE chunks_fts MATCH ?
+         ORDER BY (bm25(chunks_fts) * exp(-0.693 * (julianday('now') - julianday(c.created_at)) / ?) * (1.0 + c.importance / 10.0)) DESC
          LIMIT ?`,
       )
-      .all(halfLifeDays, query, limit) as FtsRow[];
+      .all(halfLifeDays, query, halfLifeDays, limit) as FtsRow[];
 
     return rows.map((row) => ({
       chunk: chunkRowToStoredChunk(row),
