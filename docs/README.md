@@ -24,7 +24,8 @@ After the introductory docs, also read:
 
 6. **[04-schema.md](./04-schema.md)** — Database schema and storage details
 7. **[05-plugin-api.md](./05-plugin-api.md)** — How plugins extend Kizuna
-8. **[adr/README.md](./adr/README.md)** — Index of architectural decisions
+8. **[08-plugin-development.md](./08-plugin-development.md)** — Step-by-step plugin development guide
+9. **[adr/README.md](./adr/README.md)** — Index of architectural decisions
 
 Then read the specific ADRs relevant to your work area.
 
@@ -52,6 +53,7 @@ docs/
 ├── 05-plugin-api.md        Plugin API specification
 ├── 06-roadmap.md           Phased development plan
 ├── 07-references.md        External references
+├── 08-plugin-development.md Plugin development guide
 └── adr/                    Architecture Decision Records
     ├── README.md           ADR index and conventions
     ├── 0001-use-sqlite.md
@@ -69,16 +71,17 @@ docs/
 
 These documents have different stability characteristics:
 
-| Document                | Stability | Update Frequency                                  |
-| ----------------------- | --------- | ------------------------------------------------- |
-| 01-vision.md            | High      | Rarely (major project shifts only)                |
-| 02-design-principles.md | Very high | Almost never                                      |
-| 03-architecture.md      | Medium    | When architecture evolves                         |
-| 04-schema.md            | Medium    | When schema changes (with migrations)             |
-| 05-plugin-api.md        | Medium    | Until Phase 3 stabilization, then high            |
-| 06-roadmap.md           | Living    | Updated as phases progress                        |
-| 07-references.md        | Low       | When new references are worth noting              |
-| adr/\*                  | Immutable | Never modified after acceptance (only superseded) |
+| Document                 | Stability | Update Frequency                                  |
+| ------------------------ | --------- | ------------------------------------------------- |
+| 01-vision.md             | High      | Rarely (major project shifts only)                |
+| 02-design-principles.md  | Very high | Almost never                                      |
+| 03-architecture.md       | Medium    | When architecture evolves                         |
+| 04-schema.md             | Medium    | When schema changes (with migrations)             |
+| 05-plugin-api.md         | Medium    | Until Phase 3 stabilization, then high            |
+| 06-roadmap.md            | Living    | Updated as phases progress                        |
+| 07-references.md         | Low       | When new references are worth noting              |
+| 08-plugin-development.md | Medium    | When plugin API or conventions change             |
+| adr/\*                   | Immutable | Never modified after acceptance (only superseded) |
 
 ## Conventions
 
@@ -131,10 +134,10 @@ For typos or minor clarifications, the same prefix applies but no further ceremo
 
 If a topic doesn't fit existing documents:
 
-1. Choose the next number in sequence (currently 08)
-2. Create `08-your-topic.md`
+1. Choose the next number in sequence (currently 09)
+2. Create `09-your-topic.md`
 3. Update this README's structure section and reading order
-4. Commit with `docs: add 08-your-topic`
+4. Commit with `docs: add 09-your-topic`
 
 ### Adding a new ADR
 
