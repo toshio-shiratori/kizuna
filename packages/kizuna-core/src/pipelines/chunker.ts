@@ -3,8 +3,10 @@ import type { ParsedTurn } from "./transcript-parser.js";
 
 export const MIN_CONTENT_LENGTH = 10;
 
-const SKILL_DEFINITION_PATTERN =
-  /^---\s*\nname:\s*.+\ndescription:\s*.+\n---\s*\n\n## When to Use/m;
+const SKILL_DEFINITION_PATTERNS: RegExp[] = [
+  /^---\s*\nname:\s*.+\ndescription:\s*.+\n---\s*\n\n## When to Use/m,
+  /^## When to Use\n[\s\S]*?## Steps\n/m,
+];
 
 const BOILERPLATE_PATTERNS: RegExp[] = [
   /^セッション(開始|終了)(チェック|処理)を(実行|開始)します。?$/,
@@ -16,7 +18,7 @@ export function isLowQualityContent(content: string): boolean {
   const trimmed = content.trim();
   if (trimmed.length < MIN_CONTENT_LENGTH) return true;
   if (BOILERPLATE_PATTERNS.some((p) => p.test(trimmed))) return true;
-  if (SKILL_DEFINITION_PATTERN.test(trimmed)) return true;
+  if (SKILL_DEFINITION_PATTERNS.some((p) => p.test(trimmed))) return true;
   return false;
 }
 

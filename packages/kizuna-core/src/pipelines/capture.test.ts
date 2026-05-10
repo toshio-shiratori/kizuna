@@ -901,6 +901,37 @@ describe("isLowQualityContent", () => {
     expect(isLowQualityContent(recapSkill)).toBe(true);
   });
 
+  it("detects skill definition without frontmatter (actual DB format)", () => {
+    const skillWithoutFrontmatter = [
+      "## When to Use",
+      "",
+      "- セッションを終了するとき",
+      "- ユーザーから「セッション終了」等の指示を受けたとき",
+      "",
+      "## Steps",
+      "",
+      "1. **未コミット変更の確認**",
+      "",
+      "   ```bash",
+      "   git status --short",
+      "   ```",
+    ].join("\n");
+    expect(isLowQualityContent(skillWithoutFrontmatter)).toBe(true);
+  });
+
+  it("detects session-start skill definition without frontmatter", () => {
+    const sessionStart = [
+      "## When to Use",
+      "",
+      "- 新しいセッションを開始するとき",
+      "",
+      "## Steps",
+      "",
+      "1. **Git 状態の確認**",
+    ].join("\n");
+    expect(isLowQualityContent(sessionStart)).toBe(true);
+  });
+
   it("does not flag content that merely mentions 'When to Use'", () => {
     expect(isLowQualityContent("## When to Use this feature in production")).toBe(false);
     expect(
