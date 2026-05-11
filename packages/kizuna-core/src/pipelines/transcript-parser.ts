@@ -34,7 +34,11 @@ const SYSTEM_TAG_PATTERNS = [
   /<user-prompt-submit-hook>[\s\S]*?<\/user-prompt-submit-hook>/g,
 ];
 
-const LINE_NOISE_PATTERNS = [/^Base directory for this skill:.*$/gm];
+const LINE_NOISE_PATTERNS = [
+  /^Base directory for this skill:.*$/gm,
+  /^<command-name>.*<\/command-name>$/gm,
+  /^Available tools:.*$/gm,
+];
 
 export function sanitizeContent(text: string): string {
   if (/<command-name>/.test(text)) {

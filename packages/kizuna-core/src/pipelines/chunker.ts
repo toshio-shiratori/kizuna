@@ -6,12 +6,16 @@ export const MIN_CONTENT_LENGTH = 10;
 const SKILL_DEFINITION_PATTERNS: RegExp[] = [
   /^---\s*\nname:\s*.+\ndescription:\s*.+\n---\s*\n\n## When to Use/m,
   /^## When to Use\n[\s\S]*?## Steps\n/m,
+  /^## When to Use\n[\s\S]*?## How to Use/m,
 ];
 
 const BOILERPLATE_PATTERNS: RegExp[] = [
   /^セッション(開始|終了)(チェック|処理)を(実行|開始)します。?$/,
   /^Kizuna の(記憶|セットアップ状況)を確認します。?$/,
-  /^\[Request interrupted by user\]$/,
+  /^\[Request interrupted( by user)?\]$/,
+  /^Session (start|end) (check|processing)\.?$/i,
+  /^Checking (Kizuna )?(memories|setup|session status)\.?$/i,
+  /^Running session (start|end) (check|hook)\.?$/i,
 ];
 
 export function isLowQualityContent(content: string): boolean {
