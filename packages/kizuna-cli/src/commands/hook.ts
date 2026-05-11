@@ -14,11 +14,16 @@ interface HookInput {
   source?: string;
 }
 
+function formatError(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
 function parseInput(): HookInput {
   try {
     const raw = readFileSync(0, "utf-8");
     return JSON.parse(raw) as HookInput;
-  } catch {
+  } catch (error) {
+    process.stderr.write(`kizuna: failed to parse hook input: ${formatError(error)}\n`);
     return { session_id: "", transcript_path: "", cwd: process.cwd(), hook_event_name: "" };
   }
 }
@@ -50,9 +55,12 @@ export function registerHook(program: Command): void {
         return;
       }
 
-      const db = new Database(resolveDbPath(input.cwd));
-      const pluginManager = await loadPluginManager(db, input.cwd, "capture");
+      let db: Database | undefined;
+      let pluginManager: Awaited<ReturnType<typeof loadPluginManager>> | undefined;
       try {
+        db = new Database(resolveDbPath(input.cwd));
+        pluginManager = await loadPluginManager(db, input.cwd, "capture");
+
         const result = await captureTranscript(db, {
           sessionId: input.session_id,
           projectId: getProjectId(input.cwd),
@@ -67,9 +75,12 @@ export function registerHook(program: Command): void {
         }
 
         runMaintenance(db);
+      } catch (error) {
+        process.stderr.write(`kizuna: session-end failed: ${formatError(error)}\n`);
+        process.exitCode = 1;
       } finally {
         await pluginManager?.shutdownAll();
-        db.close();
+        db?.close();
       }
     });
 
@@ -89,16 +100,21 @@ export function registerHook(program: Command): void {
         return;
       }
 
-      const db = new Database(dbPath);
-      const pluginManager = await loadPluginManager(db, input.cwd, "search");
+      let db: Database | undefined;
+      let pluginManager: Awaited<ReturnType<typeof loadPluginManager>> | undefined;
       try {
+        db = new Database(dbPath);
+        pluginManager = await loadPluginManager(db, input.cwd, "search");
+
         const result = await injectMemory(db, prompt, { pluginManager });
         if (result.context.length > 0) {
           process.stdout.write(result.context);
         }
+      } catch (error) {
+        process.stderr.write(`kizuna: prompt-submit failed: ${formatError(error)}\n`);
       } finally {
         await pluginManager?.shutdownAll();
-        db.close();
+        db?.close();
       }
     });
 
@@ -117,9 +133,12 @@ export function registerHook(program: Command): void {
         return;
       }
 
-      const db = new Database(resolveDbPath(input.cwd));
-      const pluginManager = await loadPluginManager(db, input.cwd, "capture");
+      let db: Database | undefined;
+      let pluginManager: Awaited<ReturnType<typeof loadPluginManager>> | undefined;
       try {
+        db = new Database(resolveDbPath(input.cwd));
+        pluginManager = await loadPluginManager(db, input.cwd, "capture");
+
         const result = await captureTranscript(db, {
           sessionId: input.session_id,
           projectId: getProjectId(input.cwd),
@@ -132,9 +151,12 @@ export function registerHook(program: Command): void {
             `kizuna: incremental capture ${result.chunksStored} chunks (${result.totalTokens} tokens)\n`,
           );
         }
+      } catch (error) {
+        process.stderr.write(`kizuna: stop failed: ${formatError(error)}\n`);
+        process.exitCode = 1;
       } finally {
         await pluginManager?.shutdownAll();
-        db.close();
+        db?.close();
       }
     });
 
@@ -149,8 +171,9 @@ export function registerHook(program: Command): void {
         return;
       }
 
-      const db = new Database(dbPath);
+      let db: Database | undefined;
       try {
+        db = new Database(dbPath);
         const chunkCount = (
           db.db.prepare("SELECT COUNT(*) AS count FROM chunks").get() as { count: number }
         ).count;
@@ -163,8 +186,10 @@ export function registerHook(program: Command): void {
             `kizuna: ${chunkCount} memories available (${sessionCount} sessions)\n`,
           );
         }
+      } catch (error) {
+        process.stderr.write(`kizuna: session-start failed: ${formatError(error)}\n`);
       } finally {
-        db.close();
+        db?.close();
       }
     });
 }
