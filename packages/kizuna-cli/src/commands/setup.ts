@@ -70,18 +70,18 @@ interface ClaudeSettings {
   [key: string]: unknown;
 }
 
-function findKizunaBin(): string {
+export function findKizunaBin(): { bin: string; found: boolean } {
   try {
     const result = execSync("which kizuna", { encoding: "utf-8" }).trim();
-    if (result) return "kizuna";
+    if (result) return { bin: "kizuna", found: true };
   } catch {
     // not in PATH — fall through to dev path
   }
   const cliJs = resolve(fileURLToPath(import.meta.url), "..", "..", "cli.js");
   if (existsSync(cliJs)) {
-    return `node ${cliJs}`;
+    return { bin: `node ${cliJs}`, found: true };
   }
-  return "kizuna";
+  return { bin: "kizuna", found: false };
 }
 
 function findMcpServerPath(): string {
@@ -118,7 +118,15 @@ export function registerSetup(program: Command): void {
       const claudeDir = resolve(cwd, ".claude");
       const settingsPath = resolve(claudeDir, "settings.json");
       const kizunaDir = resolve(cwd, ".kizuna");
-      const bin = findKizunaBin();
+      const { bin, found: binFound } = findKizunaBin();
+
+      if (!binFound) {
+        console.warn(
+          "Warning: kizuna binary was not found in PATH or as a dev build.\n" +
+            "  Suggestion: run `npm install -g @kizuna/cli` or check your installation.\n" +
+            "  Hooks were registered but may fail at runtime.",
+        );
+      }
 
       if (!existsSync(claudeDir)) {
         mkdirSync(claudeDir, { recursive: true });
