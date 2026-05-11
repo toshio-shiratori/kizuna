@@ -358,6 +358,55 @@ describe("Hook handlers", () => {
     });
   });
 
+  describe("error handling", () => {
+    it("should warn on invalid JSON input", () => {
+      const result = spawnSync(TSX_BIN, [CLI_PATH, "hook", "session-start"], {
+        input: "not valid json{{{",
+        encoding: "utf-8",
+        env: { ...process.env, NODE_NO_WARNINGS: "1" },
+      });
+
+      expect(result.status).toBe(0);
+      expect(result.stderr).toContain("kizuna: failed to parse hook input:");
+    });
+
+    it("should catch errors in session-end and set exit code", () => {
+      const kizunaDir = join(tempDir, ".kizuna");
+      mkdirSync(kizunaDir, { recursive: true });
+
+      writeFileSync(join(kizunaDir, "memory.db"), "corrupt data");
+      const transcriptPath = createTranscript(tempDir);
+
+      const result = runHook("session-end", {
+        session_id: "error-test-session",
+        transcript_path: transcriptPath,
+        cwd: tempDir,
+        hook_event_name: "SessionEnd",
+      });
+
+      expect(result.exitCode).toBe(1);
+      expect(result.stderr).toContain("kizuna: session-end failed:");
+    });
+
+    it("should catch errors in stop and set exit code", () => {
+      const kizunaDir = join(tempDir, ".kizuna");
+      mkdirSync(kizunaDir, { recursive: true });
+
+      writeFileSync(join(kizunaDir, "memory.db"), "corrupt data");
+      const transcriptPath = createTranscript(tempDir);
+
+      const result = runHook("stop", {
+        session_id: "error-test-session",
+        transcript_path: transcriptPath,
+        cwd: tempDir,
+        hook_event_name: "Stop",
+      });
+
+      expect(result.exitCode).toBe(1);
+      expect(result.stderr).toContain("kizuna: stop failed:");
+    });
+  });
+
   describe("setup integration", () => {
     it("should register all three hooks via setup command", () => {
       execSync(`${TSX_BIN} ${CLI_PATH} setup --cwd ${tempDir}`, {
