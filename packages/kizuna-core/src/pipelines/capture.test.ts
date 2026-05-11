@@ -825,6 +825,17 @@ describe("sanitizeContent", () => {
   it("returns empty when content is only 'Base directory' line", () => {
     expect(sanitizeContent("Base directory for this skill: /path/to/skill")).toBe("");
   });
+
+  it("should remove command-name tags", () => {
+    expect(
+      sanitizeContent("Some text\n<command-name>/session-start</command-name>\nMore text"),
+    ).toBe("");
+  });
+
+  it("should remove Available tools noise", () => {
+    const input = "Real content\nAvailable tools: Read, Write, Edit, Bash\nMore content";
+    expect(sanitizeContent(input)).toBe("Real content\n\nMore content");
+  });
 });
 
 describe("isLowQualityContent", () => {
@@ -862,6 +873,27 @@ describe("isLowQualityContent", () => {
 
   it("detects interrupted request marker as low quality", () => {
     expect(isLowQualityContent("[Request interrupted by user]")).toBe(true);
+    expect(isLowQualityContent("[Request interrupted]")).toBe(true);
+  });
+
+  it("detects English session boilerplate as low quality", () => {
+    expect(isLowQualityContent("Session start check.")).toBe(true);
+    expect(isLowQualityContent("Session end processing")).toBe(true);
+    expect(isLowQualityContent("Checking Kizuna memories.")).toBe(true);
+    expect(isLowQualityContent("Checking memories")).toBe(true);
+    expect(isLowQualityContent("Checking session status")).toBe(true);
+    expect(isLowQualityContent("Checking setup.")).toBe(true);
+    expect(isLowQualityContent("Running session start hook.")).toBe(true);
+    expect(isLowQualityContent("Running session end check")).toBe(true);
+  });
+
+  it("does not flag meaningful English content", () => {
+    expect(isLowQualityContent("Checking the database schema for migration issues")).toBe(false);
+    expect(isLowQualityContent("I'll check the session status and report back with details")).toBe(
+      false,
+    );
+    expect(isLowQualityContent("Running session benchmarks to identify bottlenecks")).toBe(false);
+    expect(isLowQualityContent("Let me review the authentication flow")).toBe(false);
   });
 
   it("does not flag real content that contains boilerplate substrings", () => {
@@ -930,6 +962,19 @@ describe("isLowQualityContent", () => {
       "1. **Git 状態の確認**",
     ].join("\n");
     expect(isLowQualityContent(sessionStart)).toBe(true);
+  });
+
+  it("detects English skill definition with How to Use section", () => {
+    const englishSkill = [
+      "## When to Use",
+      "",
+      "- When starting a new session",
+      "",
+      "## How to Use",
+      "",
+      "Run `/session-start` at the beginning of each session.",
+    ].join("\n");
+    expect(isLowQualityContent(englishSkill)).toBe(true);
   });
 
   it("does not flag content that merely mentions 'When to Use'", () => {
