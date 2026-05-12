@@ -74,7 +74,7 @@ export function loadConfig(cwd: string): KizunaConfig {
       pipeline: mergePipeline(pipelineOverrides),
       display: mergeDisplay(displayOverrides),
     };
-  } catch {
-    throw new Error(`Failed to parse config file: ${configPath}`);
+  } catch (error) {
+    throw new Error(`Failed to parse config file: ${configPath}`, { cause: error });
   }
 }
