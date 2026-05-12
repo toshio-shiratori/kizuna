@@ -10,6 +10,7 @@ export interface DisplayConfig {
   readonly cleanupPreviewLength: number;
   readonly cleanupShowLimit: number;
   readonly recapChunkLimit: number;
+  readonly listLimit: number;
 }
 
 export interface KizunaConfig {
@@ -29,6 +30,7 @@ export const DISPLAY_DEFAULTS: Readonly<DisplayConfig> = {
   cleanupPreviewLength: 50,
   cleanupShowLimit: 20,
   recapChunkLimit: 5,
+  listLimit: 20,
 };
 
 export const DEFAULT_CONFIG: Readonly<KizunaConfig> = {

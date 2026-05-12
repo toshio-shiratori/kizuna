@@ -135,4 +135,45 @@ describe("loadConfig", () => {
     expect(config.pipeline.tokenBudget).toBe(5000);
     expect(config.pipeline.maxResults).toBe(PIPELINE_DEFAULTS.maxResults);
   });
+
+  it("floors float values to integers for integer-semantics fields", () => {
+    mkdirSync(join(tmpDir, ".kizuna"));
+    writeFileSync(
+      join(tmpDir, ".kizuna", "config.json"),
+      JSON.stringify({
+        pipeline: { tokenBudget: 2500.9, maxResults: 7.3, minContentLength: 15.7 },
+        display: { previewLength: 150.5, cleanupShowLimit: 25.8, recapChunkLimit: 8.2 },
+      }),
+    );
+
+    const config = loadConfig(tmpDir);
+    expect(config.pipeline.tokenBudget).toBe(2500);
+    expect(config.pipeline.maxResults).toBe(7);
+    expect(config.pipeline.minContentLength).toBe(15);
+    expect(config.display.previewLength).toBe(150);
+    expect(config.display.cleanupShowLimit).toBe(25);
+    expect(config.display.recapChunkLimit).toBe(8);
+  });
+
+  it("allows float for halfLifeDays", () => {
+    mkdirSync(join(tmpDir, ".kizuna"));
+    writeFileSync(
+      join(tmpDir, ".kizuna", "config.json"),
+      JSON.stringify({ pipeline: { halfLifeDays: 14.5 } }),
+    );
+
+    const config = loadConfig(tmpDir);
+    expect(config.pipeline.halfLifeDays).toBe(14.5);
+  });
+
+  it("overrides listLimit from config file", () => {
+    mkdirSync(join(tmpDir, ".kizuna"));
+    writeFileSync(
+      join(tmpDir, ".kizuna", "config.json"),
+      JSON.stringify({ display: { listLimit: 50 } }),
+    );
+
+    const config = loadConfig(tmpDir);
+    expect(config.display.listLimit).toBe(50);
+  });
 });

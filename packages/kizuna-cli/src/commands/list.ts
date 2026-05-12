@@ -7,9 +7,9 @@ export function registerList(program: Command): void {
     .command("list")
     .description("List stored memory chunks")
     .option("--session <id>", "Filter by session ID")
-    .option("-n, --limit <number>", "Maximum results", "20")
+    .option("-n, --limit <number>", "Maximum results")
     .option("--cwd <path>", "Project directory", process.cwd())
-    .action((opts: { session?: string; limit: string; cwd: string }) => {
+    .action((opts: { session?: string; limit?: string; cwd: string }) => {
       if (!dbExists(opts.cwd)) {
         console.error("No Kizuna database found. Run 'kizuna setup' first.");
         process.exitCode = 1;
@@ -34,7 +34,7 @@ export function registerList(program: Command): void {
           }
           console.log(`${chunks.length} chunk(s) in session.`);
         } else {
-          const limit = parseInt(opts.limit, 10);
+          const limit = opts.limit ? parseInt(opts.limit, 10) : config.display.listLimit;
           const rows = db.db
             .prepare(`SELECT * FROM chunks ORDER BY created_at DESC LIMIT ?`)
             .all(limit) as Array<{

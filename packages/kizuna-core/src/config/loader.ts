@@ -15,37 +15,33 @@ function isPositiveNumber(value: unknown): value is number {
   return typeof value === "number" && Number.isFinite(value) && value > 0;
 }
 
+function intOrDefault(value: unknown, fallback: number): number {
+  return isPositiveNumber(value) ? Math.floor(value) : fallback;
+}
+
+function numOrDefault(value: unknown, fallback: number): number {
+  return isPositiveNumber(value) ? value : fallback;
+}
+
 function mergePipeline(overrides: Partial<Record<string, unknown>>): PipelineConfig {
   return {
-    tokenBudget: isPositiveNumber(overrides.tokenBudget)
-      ? overrides.tokenBudget
-      : PIPELINE_DEFAULTS.tokenBudget,
-    maxResults: isPositiveNumber(overrides.maxResults)
-      ? overrides.maxResults
-      : PIPELINE_DEFAULTS.maxResults,
-    halfLifeDays: isPositiveNumber(overrides.halfLifeDays)
-      ? overrides.halfLifeDays
-      : PIPELINE_DEFAULTS.halfLifeDays,
-    minContentLength: isPositiveNumber(overrides.minContentLength)
-      ? overrides.minContentLength
-      : PIPELINE_DEFAULTS.minContentLength,
+    tokenBudget: intOrDefault(overrides.tokenBudget, PIPELINE_DEFAULTS.tokenBudget),
+    maxResults: intOrDefault(overrides.maxResults, PIPELINE_DEFAULTS.maxResults),
+    halfLifeDays: numOrDefault(overrides.halfLifeDays, PIPELINE_DEFAULTS.halfLifeDays),
+    minContentLength: intOrDefault(overrides.minContentLength, PIPELINE_DEFAULTS.minContentLength),
   };
 }
 
 function mergeDisplay(overrides: Partial<Record<string, unknown>>): DisplayConfig {
   return {
-    previewLength: isPositiveNumber(overrides.previewLength)
-      ? overrides.previewLength
-      : DISPLAY_DEFAULTS.previewLength,
-    cleanupPreviewLength: isPositiveNumber(overrides.cleanupPreviewLength)
-      ? overrides.cleanupPreviewLength
-      : DISPLAY_DEFAULTS.cleanupPreviewLength,
-    cleanupShowLimit: isPositiveNumber(overrides.cleanupShowLimit)
-      ? overrides.cleanupShowLimit
-      : DISPLAY_DEFAULTS.cleanupShowLimit,
-    recapChunkLimit: isPositiveNumber(overrides.recapChunkLimit)
-      ? overrides.recapChunkLimit
-      : DISPLAY_DEFAULTS.recapChunkLimit,
+    previewLength: intOrDefault(overrides.previewLength, DISPLAY_DEFAULTS.previewLength),
+    cleanupPreviewLength: intOrDefault(
+      overrides.cleanupPreviewLength,
+      DISPLAY_DEFAULTS.cleanupPreviewLength,
+    ),
+    cleanupShowLimit: intOrDefault(overrides.cleanupShowLimit, DISPLAY_DEFAULTS.cleanupShowLimit),
+    recapChunkLimit: intOrDefault(overrides.recapChunkLimit, DISPLAY_DEFAULTS.recapChunkLimit),
+    listLimit: intOrDefault(overrides.listLimit, DISPLAY_DEFAULTS.listLimit),
   };
 }
 
