@@ -1,7 +1,8 @@
 import type { RawChunk } from "../index.js";
 import type { ParsedTurn } from "./transcript-parser.js";
+import { PIPELINE_DEFAULTS } from "../config/defaults.js";
 
-export const MIN_CONTENT_LENGTH = 10;
+export const MIN_CONTENT_LENGTH = PIPELINE_DEFAULTS.minContentLength;
 
 const SKILL_DEFINITION_PATTERNS: RegExp[] = [
   /^---\s*\nname:\s*.+\ndescription:\s*.+\n---\s*\n\n## When to Use/m,

@@ -1,6 +1,7 @@
 import type { Database } from "../storage/database.js";
 import type { SearchQuery, SearchResult } from "../index.js";
 import type { PluginManager } from "../plugin/plugin-manager.js";
+import { PIPELINE_DEFAULTS } from "../config/defaults.js";
 import { preprocessQuery } from "./cjk-preprocessing.js";
 
 export interface SearchOptions {
@@ -123,7 +124,7 @@ export async function searchMemory(
   query: SearchQuery,
   options: SearchOptions = {},
 ): Promise<SearchResult[]> {
-  const halfLifeDays = options.halfLifeDays ?? 30;
+  const halfLifeDays = options.halfLifeDays ?? PIPELINE_DEFAULTS.halfLifeDays;
   const { pluginManager } = options;
 
   const processedQuery = pluginManager ? await pluginManager.runBeforeSearch(query) : query;

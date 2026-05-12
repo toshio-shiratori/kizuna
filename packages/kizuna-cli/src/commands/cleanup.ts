@@ -1,5 +1,5 @@
 import type { Command } from "commander";
-import { Database, findLowQualityChunks, cleanupChunks } from "@kizuna/core";
+import { Database, findLowQualityChunks, cleanupChunks, loadConfig } from "@kizuna/core";
 import { resolveDbPath, dbExists } from "../db-path.js";
 
 export function registerCleanup(program: Command): void {
@@ -15,6 +15,8 @@ export function registerCleanup(program: Command): void {
         return;
       }
 
+      const config = loadConfig(opts.cwd);
+      const { cleanupPreviewLength, cleanupShowLimit } = config.display;
       const db = new Database(resolveDbPath(opts.cwd));
       try {
         if (opts.dryRun) {
@@ -24,15 +26,15 @@ export function registerCleanup(program: Command): void {
             return;
           }
 
-          const showCount = Math.min(targets.length, 20);
+          const showCount = Math.min(targets.length, cleanupShowLimit);
           console.log(`Found ${targets.length} low-quality chunks:`);
           for (let i = 0; i < showCount; i++) {
             const t = targets[i]!;
-            const preview = t.content.slice(0, 50).replace(/\n/g, " ");
+            const preview = t.content.slice(0, cleanupPreviewLength).replace(/\n/g, " ");
             console.log(`  #${t.id} [${t.role}]  "${preview}"`);
           }
-          if (targets.length > 20) {
-            console.log(`  (showing first 20 of ${targets.length})`);
+          if (targets.length > cleanupShowLimit) {
+            console.log(`  (showing first ${cleanupShowLimit} of ${targets.length})`);
           }
           console.log("");
           console.log("Run without --dry-run to delete.");

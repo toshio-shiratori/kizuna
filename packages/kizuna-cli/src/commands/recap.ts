@@ -1,15 +1,13 @@
 import type { Command } from "commander";
-import { Database } from "@kizuna/core";
+import { Database, loadConfig } from "@kizuna/core";
 import { resolveDbPath, dbExists } from "../db-path.js";
-
-const DEFAULT_CHUNK_LIMIT = 5;
 
 export function registerRecap(program: Command): void {
   program
     .command("recap")
     .description("Show session history for cross-team sharing")
     .option("--project <path>", "Target project directory (for cross-project sharing)")
-    .option("-n, --limit <number>", "Maximum chunks per session (from the end)", "5")
+    .option("-n, --limit <number>", "Maximum chunks per session (from the end)")
     .option("--no-limit", "Show all chunks without limit")
     .option("-s, --sessions <number>", "Number of recent sessions to show", "1")
     .option("--session <id>", "Show a specific session by ID")
@@ -32,12 +30,14 @@ export function registerRecap(program: Command): void {
           return;
         }
 
+        const config = loadConfig(targetDir);
+        const chunkLimit = resolveLimit(opts.limit, config.display.recapChunkLimit);
         const db = new Database(resolveDbPath(targetDir));
         try {
           if (opts.list) {
             showSessionList(db);
           } else if (opts.session) {
-            showSpecificSession(db, opts.session, resolveLimit(opts.limit));
+            showSpecificSession(db, opts.session, chunkLimit);
           } else {
             const count = parseInt(opts.sessions, 10);
             if (Number.isNaN(count) || count <= 0) {
@@ -45,7 +45,7 @@ export function registerRecap(program: Command): void {
               process.exitCode = 1;
               return;
             }
-            showLatestSessions(db, count, resolveLimit(opts.limit));
+            showLatestSessions(db, count, chunkLimit);
           }
         } finally {
           db.close();
@@ -54,10 +54,11 @@ export function registerRecap(program: Command): void {
     );
 }
 
-function resolveLimit(limitOpt: string | boolean): number | null {
+function resolveLimit(limitOpt: string | boolean, defaultLimit: number): number | null {
   if (limitOpt === false) return null;
+  if (limitOpt === true) return defaultLimit;
   const limit = parseInt(limitOpt as string, 10);
-  if (Number.isNaN(limit) || limit <= 0) return DEFAULT_CHUNK_LIMIT;
+  if (Number.isNaN(limit) || limit <= 0) return defaultLimit;
   return limit;
 }
 

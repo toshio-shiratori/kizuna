@@ -1,5 +1,5 @@
 import type { Command } from "commander";
-import { Database } from "@kizuna/core";
+import { Database, loadConfig } from "@kizuna/core";
 import { resolveDbPath, dbExists } from "../db-path.js";
 
 export function registerList(program: Command): void {
@@ -7,15 +7,17 @@ export function registerList(program: Command): void {
     .command("list")
     .description("List stored memory chunks")
     .option("--session <id>", "Filter by session ID")
-    .option("-n, --limit <number>", "Maximum results", "20")
+    .option("-n, --limit <number>", "Maximum results")
     .option("--cwd <path>", "Project directory", process.cwd())
-    .action((opts: { session?: string; limit: string; cwd: string }) => {
+    .action((opts: { session?: string; limit?: string; cwd: string }) => {
       if (!dbExists(opts.cwd)) {
         console.error("No Kizuna database found. Run 'kizuna setup' first.");
         process.exitCode = 1;
         return;
       }
 
+      const config = loadConfig(opts.cwd);
+      const { previewLength } = config.display;
       const db = new Database(resolveDbPath(opts.cwd));
       try {
         if (opts.session) {
@@ -27,12 +29,12 @@ export function registerList(program: Command): void {
           for (const chunk of chunks) {
             const date = chunk.createdAt.split("T")[0];
             console.log(`[${chunk.id}] turn=${chunk.turnIndex} ${date} (${chunk.role})`);
-            console.log(`  ${chunk.content.slice(0, 120).replace(/\n/g, " ")}`);
+            console.log(`  ${chunk.content.slice(0, previewLength).replace(/\n/g, " ")}`);
             console.log("");
           }
           console.log(`${chunks.length} chunk(s) in session.`);
         } else {
-          const limit = parseInt(opts.limit, 10);
+          const limit = opts.limit ? parseInt(opts.limit, 10) : config.display.listLimit;
           const rows = db.db
             .prepare(`SELECT * FROM chunks ORDER BY created_at DESC LIMIT ?`)
             .all(limit) as Array<{
@@ -57,7 +59,7 @@ export function registerList(program: Command): void {
             console.log(
               `[${row.id}] ${date} (${row.role}) session=${row.session_id.slice(0, 8)}...`,
             );
-            console.log(`  ${row.content.slice(0, 120).replace(/\n/g, " ")}`);
+            console.log(`  ${row.content.slice(0, previewLength).replace(/\n/g, " ")}`);
             console.log("");
           }
           console.log(`${rows.length} chunk(s) shown.`);

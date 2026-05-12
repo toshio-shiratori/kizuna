@@ -1,25 +1,27 @@
 import type { Command } from "commander";
-import { Database, searchMemory } from "@kizuna/core";
+import { Database, searchMemory, loadConfig } from "@kizuna/core";
 import { resolveDbPath, dbExists } from "../db-path.js";
 
 export function registerSearch(program: Command): void {
   program
     .command("search <query>")
     .description("Search stored memories")
-    .option("-n, --limit <number>", "Maximum results", "10")
+    .option("-n, --limit <number>", "Maximum results")
     .option("--cwd <path>", "Project directory", process.cwd())
-    .action(async (query: string, opts: { limit: string; cwd: string }) => {
+    .action(async (query: string, opts: { limit?: string; cwd: string }) => {
       if (!dbExists(opts.cwd)) {
         console.error("No Kizuna database found. Run 'kizuna setup' first.");
         process.exitCode = 1;
         return;
       }
 
+      const config = loadConfig(opts.cwd);
       const db = new Database(resolveDbPath(opts.cwd));
       try {
+        const limit = opts.limit ? parseInt(opts.limit, 10) : config.pipeline.maxResults;
         const results = await searchMemory(db, {
           text: query,
-          limit: parseInt(opts.limit, 10),
+          limit,
         });
 
         if (results.length === 0) {
@@ -27,11 +29,12 @@ export function registerSearch(program: Command): void {
           return;
         }
 
+        const { previewLength } = config.display;
         for (const result of results) {
           const { chunk, score } = result;
           const date = chunk.createdAt.split("T")[0];
           console.log(`[${chunk.id}] ${date} (${chunk.role}) score=${score.toFixed(3)}`);
-          console.log(`  ${chunk.content.slice(0, 120).replace(/\n/g, " ")}`);
+          console.log(`  ${chunk.content.slice(0, previewLength).replace(/\n/g, " ")}`);
           console.log("");
         }
 
