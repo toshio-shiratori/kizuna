@@ -54,6 +54,33 @@ This creates `.kizuna/memory.db` and registers three hooks in `.claude/settings.
 
 That's it. Memories are captured and recalled automatically from now on.
 
+### Configuration
+
+Kizuna can be configured at two levels:
+
+| File                            | Scope                          |
+| ------------------------------- | ------------------------------ |
+| `~/.config/kizuna/config.json`  | Global defaults (all projects) |
+| `<project>/.kizuna/config.json` | Per-project overrides          |
+
+Settings are merged in order: **built-in defaults < global config < project config**.
+
+```jsonc
+// Example: ~/.config/kizuna/config.json
+{
+  "pipeline": {
+    "tokenBudget": 3000, // Max tokens for memory injection (default: 2000)
+    "maxResults": 15, // Max search results (default: 10)
+    "halfLifeDays": 45, // Time decay half-life in days (default: 30)
+  },
+  "display": {
+    "listLimit": 30, // Default limit for list commands (default: 20)
+  },
+}
+```
+
+Both files are optional. If neither exists, built-in defaults are used.
+
 ### Search Memories
 
 ```bash
