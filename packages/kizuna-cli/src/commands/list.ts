@@ -1,5 +1,5 @@
 import type { Command } from "commander";
-import { Database } from "@kizuna/core";
+import { Database, loadConfig } from "@kizuna/core";
 import { resolveDbPath, dbExists } from "../db-path.js";
 
 export function registerList(program: Command): void {
@@ -16,6 +16,8 @@ export function registerList(program: Command): void {
         return;
       }
 
+      const config = loadConfig(opts.cwd);
+      const { previewLength } = config.display;
       const db = new Database(resolveDbPath(opts.cwd));
       try {
         if (opts.session) {
@@ -27,7 +29,7 @@ export function registerList(program: Command): void {
           for (const chunk of chunks) {
             const date = chunk.createdAt.split("T")[0];
             console.log(`[${chunk.id}] turn=${chunk.turnIndex} ${date} (${chunk.role})`);
-            console.log(`  ${chunk.content.slice(0, 120).replace(/\n/g, " ")}`);
+            console.log(`  ${chunk.content.slice(0, previewLength).replace(/\n/g, " ")}`);
             console.log("");
           }
           console.log(`${chunks.length} chunk(s) in session.`);
@@ -57,7 +59,7 @@ export function registerList(program: Command): void {
             console.log(
               `[${row.id}] ${date} (${row.role}) session=${row.session_id.slice(0, 8)}...`,
             );
-            console.log(`  ${row.content.slice(0, 120).replace(/\n/g, " ")}`);
+            console.log(`  ${row.content.slice(0, previewLength).replace(/\n/g, " ")}`);
             console.log("");
           }
           console.log(`${rows.length} chunk(s) shown.`);

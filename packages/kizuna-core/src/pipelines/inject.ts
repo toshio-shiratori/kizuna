@@ -1,6 +1,7 @@
 import type { Database } from "../storage/database.js";
 import type { SearchQuery, SearchResult, ContextInjection, ContextBlock } from "../index.js";
 import type { PluginManager } from "../plugin/plugin-manager.js";
+import { PIPELINE_DEFAULTS } from "../config/defaults.js";
 import { searchMemory } from "./search.js";
 import { estimateTokens } from "./chunker.js";
 
@@ -87,7 +88,12 @@ export async function injectMemory(
   userPrompt: string,
   options: InjectOptions = {},
 ): Promise<InjectResult> {
-  const { tokenBudget = 2000, maxResults = 10, halfLifeDays = 30, pluginManager } = options;
+  const {
+    tokenBudget = PIPELINE_DEFAULTS.tokenBudget,
+    maxResults = PIPELINE_DEFAULTS.maxResults,
+    halfLifeDays = PIPELINE_DEFAULTS.halfLifeDays,
+    pluginManager,
+  } = options;
 
   if (userPrompt.trim().length === 0) {
     return { context: "", chunksUsed: 0, tokensUsed: 0 };

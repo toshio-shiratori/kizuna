@@ -1,7 +1,13 @@
 import type { Command } from "commander";
 import { existsSync, readFileSync } from "node:fs";
 import { basename, join } from "node:path";
-import { Database, captureTranscript, injectMemory, runMaintenance } from "@kizuna/core";
+import {
+  Database,
+  captureTranscript,
+  injectMemory,
+  runMaintenance,
+  loadConfig,
+} from "@kizuna/core";
 import { resolveDbPath } from "../db-path.js";
 import { loadPluginManager } from "../plugin-loader.js";
 
@@ -106,7 +112,13 @@ export function registerHook(program: Command): void {
         db = new Database(dbPath);
         pluginManager = await loadPluginManager(db, input.cwd, "search");
 
-        const result = await injectMemory(db, prompt, { pluginManager });
+        const config = loadConfig(input.cwd);
+        const result = await injectMemory(db, prompt, {
+          pluginManager,
+          tokenBudget: config.pipeline.tokenBudget,
+          maxResults: config.pipeline.maxResults,
+          halfLifeDays: config.pipeline.halfLifeDays,
+        });
         if (result.context.length > 0) {
           process.stdout.write(result.context);
         }

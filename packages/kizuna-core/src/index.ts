@@ -1,3 +1,5 @@
+export type { KizunaConfig, PipelineConfig, DisplayConfig } from "./config/index.js";
+export { DEFAULT_CONFIG, PIPELINE_DEFAULTS, DISPLAY_DEFAULTS, loadConfig } from "./config/index.js";
 export { Database } from "./storage/database.js";
 export { PluginManager } from "./plugin/index.js";
 export type { PluginManagerOptions, PluginEntry } from "./plugin/index.js";
