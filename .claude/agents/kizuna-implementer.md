@@ -28,7 +28,10 @@ After reading, summarize:
 - The Validation criteria
 - Any open questions
 
-Wait for confirmation before writing code.
+### Confirmation
+
+- **通常呼び出し**: Wait for confirmation before writing code.
+- **`do-issue` スキル経由**: 確認不要。自律的に実装を完了する。
 
 ## Implementation Rules
 
