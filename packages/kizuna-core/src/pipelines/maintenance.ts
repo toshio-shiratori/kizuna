@@ -27,7 +27,7 @@ export function runMaintenance(
   // Step 1: Check throttle
   const lastRun = db.getLastMaintenanceRun();
   if (lastRun !== null) {
-    const lastRanAt = new Date(lastRun.ran_at);
+    const lastRanAt = new Date(lastRun.ranAt);
     const elapsedMs = now.getTime() - lastRanAt.getTime();
     const throttleMs = throttleHours * 60 * 60 * 1000;
     if (elapsedMs < throttleMs) {

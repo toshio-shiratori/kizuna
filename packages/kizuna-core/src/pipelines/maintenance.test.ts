@@ -185,9 +185,9 @@ describe("runMaintenance", () => {
 
     const lastRun = db.getLastMaintenanceRun();
     expect(lastRun).not.toBeNull();
-    expect(lastRun!.ran_at).toBe(now.toISOString());
-    expect(lastRun!.chunks_deleted).toBe(result!.chunksDeleted);
-    expect(lastRun!.sessions_deleted).toBe(result!.sessionsDeleted);
+    expect(lastRun!.ranAt).toBe(now.toISOString());
+    expect(lastRun!.chunksDeleted).toBe(result!.chunksDeleted);
+    expect(lastRun!.sessionsDeleted).toBe(result!.sessionsDeleted);
   });
 
   it("works on empty database", () => {

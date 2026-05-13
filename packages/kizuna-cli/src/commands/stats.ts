@@ -49,7 +49,7 @@ export function registerStats(program: Command): void {
           console.log(`Newest:       ${newestChunk.created_at.split("T")[0]}`);
         }
         if (lastMaintenance) {
-          console.log(`Last cleanup: ${lastMaintenance.ran_at.split("T")[0]}`);
+          console.log(`Last cleanup: ${lastMaintenance.ranAt.split("T")[0]}`);
         } else {
           console.log("Last cleanup: never");
         }
