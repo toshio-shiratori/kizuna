@@ -1,6 +1,7 @@
 import type { Command } from "commander";
 import { Database, findLowQualityChunks, cleanupChunks, loadConfig } from "@kizuna/core";
 import { resolveDbPath, dbExists } from "../db-path.js";
+import { formatBytes } from "../utils/format.js";
 
 export function registerCleanup(program: Command): void {
   program
@@ -55,10 +56,4 @@ export function registerCleanup(program: Command): void {
         db.close();
       }
     });
-}
-
-function formatBytes(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
