@@ -61,6 +61,7 @@ pnpm tsc --noEmit
 pnpm test
 pnpm lint
 pnpm format:check
+pnpm knip
 ```
 
 - 失敗した場合は原因を特定し修正 → 再検証
@@ -109,6 +110,7 @@ Closes #<N>
 - [x] `pnpm test` が成功
 - [x] `pnpm lint` が成功
 - [x] `pnpm format:check` が成功
+- [x] `pnpm knip` が成功
 - [x] 設計原則に違反していない
 
 ## Design Principles Check
