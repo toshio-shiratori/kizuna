@@ -1,4 +1,5 @@
 import type { Command } from "commander";
+import { InvalidArgumentError } from "commander";
 import { Database, loadConfig } from "@kizuna/core";
 import { resolveDbPath, dbExists } from "../db-path.js";
 import { createPositiveIntParser } from "../validators.js";
@@ -45,10 +46,16 @@ export function registerRecap(program: Command): void {
         }
 
         const config = loadConfig(targetDir);
-        const chunkLimit = resolveLimit(opts.limit, config.display.recapChunkLimit);
-        if (chunkLimit === "error") {
-          process.exitCode = 1;
-          return;
+        let chunkLimit: number | null;
+        try {
+          chunkLimit = resolveLimit(opts.limit, config.display.recapChunkLimit);
+        } catch (e) {
+          if (e instanceof InvalidArgumentError) {
+            console.error(e.message);
+            process.exitCode = 1;
+            return;
+          }
+          throw e;
         }
         const db = new Database(resolveDbPath(targetDir));
         try {
@@ -76,17 +83,15 @@ function isValidDate(dateStr: string): boolean {
   return parsed.getFullYear() === y && parsed.getMonth() === m - 1 && parsed.getDate() === d;
 }
 
-function resolveLimit(limitOpt: string | boolean, defaultLimit: number): number | null | "error" {
+function resolveLimit(limitOpt: string | boolean, defaultLimit: number): number | null {
   if (limitOpt === false) return null;
   if (limitOpt === true) return defaultLimit;
   const parsed = parseInt(limitOpt as string, 10);
   if (Number.isNaN(parsed) || parsed <= 0) {
-    console.error("--limit must be a positive integer.");
-    return "error";
+    throw new InvalidArgumentError("--limit must be a positive integer.");
   }
   if (parsed > 1000) {
-    console.error(`--limit must be at most 1000 (got ${parsed}).`);
-    return "error";
+    throw new InvalidArgumentError(`--limit must be at most 1000 (got ${parsed}).`);
   }
   return parsed;
 }

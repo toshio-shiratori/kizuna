@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { InvalidArgumentError } from "commander";
-import { createPositiveIntParser } from "./validators.js";
+import { createPositiveIntParser, createNonNegativeIntParser } from "./validators.js";
 
 describe("createPositiveIntParser", () => {
   const parse = createPositiveIntParser("--limit", 1000);
@@ -44,5 +44,36 @@ describe("createPositiveIntParser", () => {
     const parseSessions = createPositiveIntParser("--sessions", 100);
     expect(() => parseSessions("0")).toThrow("--sessions must be a positive integer.");
     expect(() => parseSessions("101")).toThrow("--sessions must be at most 100 (got 101).");
+  });
+});
+
+describe("createNonNegativeIntParser", () => {
+  const parse = createNonNegativeIntParser("--older-than", 3650);
+
+  it("should parse valid non-negative integers", () => {
+    expect(parse("0")).toBe(0);
+    expect(parse("1")).toBe(1);
+    expect(parse("90")).toBe(90);
+    expect(parse("3650")).toBe(3650);
+  });
+
+  it("should reject negative numbers", () => {
+    expect(() => parse("-1")).toThrow(InvalidArgumentError);
+    expect(() => parse("-1")).toThrow("--older-than must be a non-negative integer.");
+  });
+
+  it("should reject non-numeric strings", () => {
+    expect(() => parse("abc")).toThrow(InvalidArgumentError);
+    expect(() => parse("abc")).toThrow("--older-than must be a non-negative integer.");
+  });
+
+  it("should reject values exceeding the maximum", () => {
+    expect(() => parse("3651")).toThrow(InvalidArgumentError);
+    expect(() => parse("3651")).toThrow("--older-than must be at most 3650 (got 3651).");
+  });
+
+  it("should reject empty string", () => {
+    expect(() => parse("")).toThrow(InvalidArgumentError);
+    expect(() => parse("")).toThrow("--older-than must be a non-negative integer.");
   });
 });

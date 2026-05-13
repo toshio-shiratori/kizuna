@@ -1,20 +1,20 @@
 import type { Command } from "commander";
 import { Database, runMaintenance } from "@kizuna/core";
 import { resolveDbPath, dbExists } from "../db-path.js";
+import { createNonNegativeIntParser } from "../validators.js";
 
 export function registerPrune(program: Command): void {
   program
     .command("prune")
     .description("Remove old memory chunks")
-    .requiredOption("--older-than <days>", "Delete chunks older than N days")
+    .requiredOption(
+      "--older-than <days>",
+      "Delete chunks older than N days (0-3650)",
+      createNonNegativeIntParser("--older-than", 3650),
+    )
     .option("--cwd <path>", "Project directory", process.cwd())
-    .action((opts: { olderThan: string; cwd: string }) => {
-      const days = parseInt(opts.olderThan, 10);
-      if (isNaN(days) || days < 0) {
-        console.error("--older-than must be a non-negative integer.");
-        process.exitCode = 1;
-        return;
-      }
+    .action((opts: { olderThan: number; cwd: string }) => {
+      const days = opts.olderThan;
 
       if (!dbExists(opts.cwd)) {
         console.error("No Kizuna database found. Run 'kizuna setup' first.");

@@ -973,6 +973,24 @@ describe("CLI", () => {
       const result = runCli(`list --limit 5 --cwd ${tempDir}`, tempDir);
       expect(result.exitCode).toBe(0);
     });
+
+    it("should reject --older-than exceeding max for prune", () => {
+      const db = seedDatabase(tempDir);
+      db.close();
+
+      const result = runCli(`prune --older-than 3651 --cwd ${tempDir}`, tempDir);
+      expect(result.exitCode).toBe(1);
+      expect(result.stdout).toContain("--older-than must be at most 3650");
+    });
+
+    it("should reject non-numeric --older-than for prune", () => {
+      const db = seedDatabase(tempDir);
+      db.close();
+
+      const result = runCli(`prune --older-than abc --cwd ${tempDir}`, tempDir);
+      expect(result.exitCode).toBe(1);
+      expect(result.stdout).toContain("--older-than must be a non-negative integer");
+    });
   });
 
   describe("prune", () => {
