@@ -3,7 +3,7 @@ import { Database } from "@kizuna/core";
 import { resolveDbPath } from "../db-path.js";
 import { parseInput, formatError } from "./shared.js";
 
-export function handleSessionStart(): void {
+export async function handleSessionStart(): Promise<void> {
   const input = parseInput();
   const dbPath = resolveDbPath(input.cwd);
 
