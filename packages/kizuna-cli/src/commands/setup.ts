@@ -1,92 +1,11 @@
 import type { Command } from "commander";
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { execSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { RECAP_SKILL_CONTENT } from "../templates/recap-skill.js";
-import { SESSION_START_SKILL_CONTENT } from "../templates/session-start-skill.js";
-
-const KIZUNA_SECTION_MARKER = "## Kizuna (Long-term Memory)";
-
-function buildClaudeMdSection(): string {
-  return `
-${KIZUNA_SECTION_MARKER}
-
-Memories are captured and recalled automatically via hooks. For active queries:
-
-| Command | Description |
-|---------|-------------|
-| \`kizuna search <query>\` | Search this project's memories |
-| \`kizuna search <query> --cwd <path>\` | Search another project's memories |
-| \`kizuna list --session <id>\` | List chunks from a specific session |
-| \`kizuna stats\` | Show database statistics |
-`;
-}
-
-// Always overwrite — kizuna-managed template that should stay in sync with the installed version
-function deployRecapSkill(claudeDir: string): "created" | "updated" {
-  const commandsDir = resolve(claudeDir, "commands");
-  if (!existsSync(commandsDir)) {
-    mkdirSync(commandsDir, { recursive: true });
-  }
-
-  const recapPath = resolve(commandsDir, "recap.md");
-  const existed = existsSync(recapPath);
-  writeFileSync(recapPath, RECAP_SKILL_CONTENT);
-  return existed ? "updated" : "created";
-}
-
-// Skip if exists — users may customize this for their project (e.g. add roadmap, PR/Issue checks)
-function deploySessionStartSkill(claudeDir: string): "created" | "skipped" {
-  const commandsDir = resolve(claudeDir, "commands");
-  if (!existsSync(commandsDir)) {
-    mkdirSync(commandsDir, { recursive: true });
-  }
-
-  const sessionStartPath = resolve(commandsDir, "session-start.md");
-  if (existsSync(sessionStartPath)) {
-    return "skipped";
-  }
-  writeFileSync(sessionStartPath, SESSION_START_SKILL_CONTENT);
-  return "created";
-}
-
-function injectClaudeMdSection(claudeMdPath: string): boolean {
-  let content = "";
-  if (existsSync(claudeMdPath)) {
-    content = readFileSync(claudeMdPath, "utf-8");
-    if (content.includes(KIZUNA_SECTION_MARKER)) {
-      return false;
-    }
-  }
-
-  const section = buildClaudeMdSection();
-  const newContent = content.length > 0 ? content.trimEnd() + "\n" + section : section.trimStart();
-  writeFileSync(claudeMdPath, newContent);
-  return true;
-}
-
-interface HookEntry {
-  type: string;
-  command: string;
-}
-
-interface HookMatcher {
-  matcher: string;
-  hooks: HookEntry[];
-}
-
-interface McpServerEntry {
-  command: string;
-  args: string[];
-  env?: Record<string, string>;
-}
-
-interface ClaudeSettings {
-  hooks?: Record<string, HookMatcher[]>;
-  mcpServers?: Record<string, McpServerEntry>;
-  [key: string]: unknown;
-}
+import { injectClaudeMdSection } from "./setup/claude-md.js";
+import { deployRecapSkill, deploySessionStartSkill } from "./setup/skills.js";
+import { configureHooks, findMcpServerPath } from "./setup/hooks.js";
 
 export function findKizunaBin(): { bin: string; found: boolean } {
   try {
@@ -100,29 +19,6 @@ export function findKizunaBin(): { bin: string; found: boolean } {
     return { bin: `node ${cliJs}`, found: true };
   }
   return { bin: "kizuna", found: false };
-}
-
-function findMcpServerPath(): string {
-  const mcpMainJs = resolve(
-    fileURLToPath(import.meta.url),
-    "..",
-    "..",
-    "..",
-    "..",
-    "kizuna-mcp",
-    "dist",
-    "main.js",
-  );
-  if (existsSync(mcpMainJs)) {
-    return mcpMainJs;
-  }
-  try {
-    const result = execSync("which kizuna-mcp", { encoding: "utf-8" }).trim();
-    if (result) return result;
-  } catch {
-    // not in PATH
-  }
-  return mcpMainJs;
 }
 
 export function registerSetup(program: Command): void {
@@ -164,93 +60,11 @@ export function registerSetup(program: Command): void {
         pluginsJsonCreated = true;
       }
 
-      let settings: ClaudeSettings = {};
-      if (existsSync(settingsPath)) {
-        settings = JSON.parse(readFileSync(settingsPath, "utf-8")) as ClaudeSettings;
-      }
-
-      if (!settings.hooks) {
-        settings.hooks = {};
-      }
-
-      const hooks = settings.hooks;
-
-      const kizunaHooks = {
-        SessionStart: {
-          matcher: "",
-          hook: {
-            type: "command",
-            command: `${bin} hook session-start`,
-          },
-        },
-        SessionEnd: {
-          matcher: "",
-          hook: {
-            type: "command",
-            command: `${bin} hook session-end`,
-          },
-        },
-        UserPromptSubmit: {
-          matcher: "",
-          hook: {
-            type: "command",
-            command: `${bin} hook prompt-submit`,
-          },
-        },
-        Stop: {
-          matcher: "",
-          hook: {
-            type: "command",
-            command: `${bin} hook stop`,
-          },
-        },
-      };
-
-      for (const [event, config] of Object.entries(kizunaHooks)) {
-        if (!hooks[event]) {
-          hooks[event] = [];
-        }
-
-        const existingIdx = hooks[event]!.findIndex((m) =>
-          m.hooks.some(
-            (h) => h.command.includes("kizuna hook") || h.command.includes("cli.js hook"),
-          ),
-        );
-
-        if (existingIdx !== -1) {
-          hooks[event]![existingIdx] = {
-            matcher: config.matcher,
-            hooks: [config.hook],
-          };
-        } else {
-          hooks[event]!.push({
-            matcher: config.matcher,
-            hooks: [config.hook],
-          });
-        }
-      }
-
-      let mcpConfigured = false;
-      if (opts.withMcp) {
-        const mcpServerPath = findMcpServerPath();
-        const dbPath = resolve(kizunaDir, "memory.db");
-
-        if (!settings.mcpServers) {
-          settings.mcpServers = {};
-        }
-
-        settings.mcpServers["kizuna"] = {
-          command: "node",
-          args: [mcpServerPath],
-          env: {
-            KIZUNA_DB_PATH: dbPath,
-            KIZUNA_PROJECT_DIR: cwd,
-          },
-        };
-        mcpConfigured = true;
-      }
-
-      writeFileSync(settingsPath, JSON.stringify(settings, null, 2) + "\n");
+      const { mcpConfigured } = configureHooks(settingsPath, bin, {
+        withMcp: opts.withMcp,
+        cwd,
+        kizunaDir,
+      });
 
       const claudeMdPath = resolve(cwd, "CLAUDE.md");
       const injected = injectClaudeMdSection(claudeMdPath);
