@@ -894,6 +894,105 @@ describe("CLI", () => {
     });
   });
 
+  describe("validation", () => {
+    it("should reject --limit exceeding max for search", () => {
+      const db = seedDatabase(tempDir);
+      db.close();
+
+      const result = runCli(`search "test" --limit 1001 --cwd ${tempDir}`, tempDir);
+      expect(result.exitCode).toBe(1);
+      expect(result.stdout).toContain("--limit must be at most 1000");
+    });
+
+    it("should reject non-numeric --limit for search", () => {
+      const db = seedDatabase(tempDir);
+      db.close();
+
+      const result = runCli(`search "test" --limit abc --cwd ${tempDir}`, tempDir);
+      expect(result.exitCode).toBe(1);
+      expect(result.stdout).toContain("--limit must be a positive integer");
+    });
+
+    it("should reject --limit exceeding max for list", () => {
+      const db = seedDatabase(tempDir);
+      db.close();
+
+      const result = runCli(`list --limit 1001 --cwd ${tempDir}`, tempDir);
+      expect(result.exitCode).toBe(1);
+      expect(result.stdout).toContain("--limit must be at most 1000");
+    });
+
+    it("should reject --limit exceeding max for recap", () => {
+      const db = seedDatabase(tempDir);
+      db.close();
+
+      const result = runCli(`recap --limit 1001 --cwd ${tempDir}`, tempDir);
+      expect(result.exitCode).toBe(1);
+      expect(result.stdout).toContain("--limit must be at most 1000");
+    });
+
+    it("should reject --sessions exceeding max for recap", () => {
+      const db = seedDatabase(tempDir);
+      db.close();
+
+      const result = runCli(`recap --sessions 101 --cwd ${tempDir}`, tempDir);
+      expect(result.exitCode).toBe(1);
+      expect(result.stdout).toContain("--sessions must be at most 100");
+    });
+
+    it("should reject --last exceeding max for recap", () => {
+      const db = seedDatabase(tempDir);
+      db.close();
+
+      const result = runCli(`recap --last 101 --cwd ${tempDir}`, tempDir);
+      expect(result.exitCode).toBe(1);
+      expect(result.stdout).toContain("--last must be at most 100");
+    });
+
+    it("should reject zero --limit for search", () => {
+      const db = seedDatabase(tempDir);
+      db.close();
+
+      const result = runCli(`search "test" --limit 0 --cwd ${tempDir}`, tempDir);
+      expect(result.exitCode).toBe(1);
+      expect(result.stdout).toContain("--limit must be a positive integer");
+    });
+
+    it("should accept valid --limit for search", () => {
+      const db = seedDatabase(tempDir);
+      db.close();
+
+      const result = runCli(`search "SQLite" --limit 5 --cwd ${tempDir}`, tempDir);
+      expect(result.exitCode).toBe(0);
+    });
+
+    it("should accept valid --limit for list", () => {
+      const db = seedDatabase(tempDir);
+      db.close();
+
+      const result = runCli(`list --limit 5 --cwd ${tempDir}`, tempDir);
+      expect(result.exitCode).toBe(0);
+    });
+
+    it("should reject --older-than exceeding max for prune", () => {
+      const db = seedDatabase(tempDir);
+      db.close();
+
+      const result = runCli(`prune --older-than 3651 --cwd ${tempDir}`, tempDir);
+      expect(result.exitCode).toBe(1);
+      expect(result.stdout).toContain("--older-than must be at most 3650");
+    });
+
+    it("should reject non-numeric --older-than for prune", () => {
+      const db = seedDatabase(tempDir);
+      db.close();
+
+      const result = runCli(`prune --older-than abc --cwd ${tempDir}`, tempDir);
+      expect(result.exitCode).toBe(1);
+      expect(result.stdout).toContain("--older-than must be a non-negative integer");
+    });
+  });
+
   describe("prune", () => {
     it("should prune old chunks", () => {
       const db = seedDatabase(tempDir);

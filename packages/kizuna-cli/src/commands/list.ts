@@ -1,15 +1,20 @@
 import type { Command } from "commander";
 import { Database, loadConfig } from "@kizuna/core";
 import { resolveDbPath, dbExists } from "../db-path.js";
+import { createPositiveIntParser } from "../validators.js";
 
 export function registerList(program: Command): void {
   program
     .command("list")
     .description("List stored memory chunks")
     .option("--session <id>", "Filter by session ID")
-    .option("-n, --limit <number>", "Maximum results")
+    .option(
+      "-n, --limit <number>",
+      "Maximum results (1-1000)",
+      createPositiveIntParser("--limit", 1000),
+    )
     .option("--cwd <path>", "Project directory", process.cwd())
-    .action((opts: { session?: string; limit?: string; cwd: string }) => {
+    .action((opts: { session?: string; limit?: number; cwd: string }) => {
       if (!dbExists(opts.cwd)) {
         console.error("No Kizuna database found. Run 'kizuna setup' first.");
         process.exitCode = 1;
@@ -34,7 +39,7 @@ export function registerList(program: Command): void {
           }
           console.log(`${chunks.length} chunk(s) in session.`);
         } else {
-          const limit = opts.limit ? parseInt(opts.limit, 10) : config.display.listLimit;
+          const limit = opts.limit ?? config.display.listLimit;
           const rows = db.db
             .prepare(`SELECT * FROM chunks ORDER BY created_at DESC LIMIT ?`)
             .all(limit) as Array<{
