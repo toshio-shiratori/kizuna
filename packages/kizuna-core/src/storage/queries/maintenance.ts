@@ -1,6 +1,7 @@
 import type BetterSqlite3 from "better-sqlite3";
-import type { MaintenanceResult } from "../../index.js";
+import type { MaintenanceResult, MaintenanceRun } from "../../index.js";
 import type { MaintenanceRow } from "./types.js";
+import { maintenanceRowToRun } from "./types.js";
 
 export function insertMaintenanceRun(
   db: BetterSqlite3.Database,
@@ -19,12 +20,11 @@ export function insertMaintenanceRun(
   );
 }
 
-export function getLastMaintenanceRun(db: BetterSqlite3.Database): MaintenanceRow | null {
-  return (
-    (db.prepare("SELECT * FROM maintenance_runs ORDER BY ran_at DESC LIMIT 1").get() as
-      | MaintenanceRow
-      | undefined) ?? null
-  );
+export function getLastMaintenanceRun(db: BetterSqlite3.Database): MaintenanceRun | null {
+  const row = db.prepare("SELECT * FROM maintenance_runs ORDER BY ran_at DESC LIMIT 1").get() as
+    | MaintenanceRow
+    | undefined;
+  return row ? maintenanceRowToRun(row) : null;
 }
 
 export function deleteEmptySessions(db: BetterSqlite3.Database): number {

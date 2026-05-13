@@ -287,10 +287,10 @@ describe("Database", () => {
 
       const last = db.getLastMaintenanceRun();
       expect(last).not.toBeNull();
-      expect(last!.chunks_deleted).toBe(10);
-      expect(last!.sessions_deleted).toBe(2);
-      expect(last!.bytes_reclaimed).toBe(4096);
-      expect(last!.duration_ms).toBe(150);
+      expect(last!.chunksDeleted).toBe(10);
+      expect(last!.sessionsDeleted).toBe(2);
+      expect(last!.bytesReclaimed).toBe(4096);
+      expect(last!.durationMs).toBe(150);
     });
 
     it("returns null when no maintenance runs exist", () => {

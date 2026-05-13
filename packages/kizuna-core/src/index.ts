@@ -211,6 +211,15 @@ export interface Plugin {
 
 // ─── Maintenance Types ────────────────────────────────────
 
+export interface MaintenanceRun {
+  id: number;
+  ranAt: string;
+  chunksDeleted: number;
+  sessionsDeleted: number;
+  bytesReclaimed: number;
+  durationMs: number;
+}
+
 export interface MaintenanceResult {
   chunksDeleted: number;
   sessionsDeleted: number;

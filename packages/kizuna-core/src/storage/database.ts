@@ -5,10 +5,10 @@ import type {
   StoredChunk,
   SearchResult,
   MaintenanceResult,
+  MaintenanceRun,
   SessionPreview,
 } from "../index.js";
 import { runCoreMigrations } from "./migrator.js";
-import type { MaintenanceRow } from "./queries/types.js";
 import * as sessionQueries from "./queries/session.js";
 import * as chunkQueries from "./queries/chunk.js";
 import * as maintenanceQueries from "./queries/maintenance.js";
@@ -119,7 +119,7 @@ export class Database {
     maintenanceQueries.insertMaintenanceRun(this.db, result, ranAt);
   }
 
-  getLastMaintenanceRun(): MaintenanceRow | null {
+  getLastMaintenanceRun(): MaintenanceRun | null {
     return maintenanceQueries.getLastMaintenanceRun(this.db);
   }
 

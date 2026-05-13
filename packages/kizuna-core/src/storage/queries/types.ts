@@ -1,4 +1,4 @@
-import type { StoredChunk, Session } from "../../index.js";
+import type { StoredChunk, Session, MaintenanceRun } from "../../index.js";
 
 export interface ChunkRow {
   id: number;
@@ -64,5 +64,16 @@ export function sessionRowToSession(row: SessionRow): Session {
     endedAt: row.ended_at,
     transcriptPath: row.transcript_path,
     metadata: JSON.parse(row.metadata) as Record<string, unknown>,
+  };
+}
+
+export function maintenanceRowToRun(row: MaintenanceRow): MaintenanceRun {
+  return {
+    id: row.id,
+    ranAt: row.ran_at,
+    chunksDeleted: row.chunks_deleted,
+    sessionsDeleted: row.sessions_deleted,
+    bytesReclaimed: row.bytes_reclaimed,
+    durationMs: row.duration_ms,
   };
 }
