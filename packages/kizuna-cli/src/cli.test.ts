@@ -617,6 +617,270 @@ describe("CLI", () => {
       expect(result.exitCode).toBe(1);
       expect(result.stdout).toContain("Session not found");
     });
+
+    describe("--session prefix match", () => {
+      it("should match session by ID prefix", () => {
+        const kizunaDir = join(tempDir, ".kizuna");
+        mkdirSync(kizunaDir, { recursive: true });
+        const db = new Database(join(kizunaDir, "memory.db"));
+        db.insertSession({
+          id: "abc-def-123",
+          projectId: "test",
+          startedAt: "2025-06-01T10:00:00Z",
+          endedAt: null,
+          transcriptPath: null,
+          metadata: {},
+        });
+        db.insertChunk({
+          sessionId: "abc-def-123",
+          turnIndex: 0,
+          role: "user",
+          content: "Prefix match content",
+          metadata: {},
+        });
+        db.close();
+
+        const result = runCli(`recap --session abc-def --cwd ${tempDir}`, tempDir);
+        expect(result.exitCode).toBe(0);
+        expect(result.stdout).toContain("Prefix match content");
+      });
+
+      it("should show candidates when multiple sessions match prefix", () => {
+        const kizunaDir = join(tempDir, ".kizuna");
+        mkdirSync(kizunaDir, { recursive: true });
+        const db = new Database(join(kizunaDir, "memory.db"));
+        db.insertSession({
+          id: "abc-111",
+          projectId: "test",
+          startedAt: "2025-06-01T10:00:00Z",
+          endedAt: null,
+          transcriptPath: null,
+          metadata: {},
+        });
+        db.insertSession({
+          id: "abc-222",
+          projectId: "test",
+          startedAt: "2025-06-02T10:00:00Z",
+          endedAt: null,
+          transcriptPath: null,
+          metadata: {},
+        });
+        db.insertChunk({
+          sessionId: "abc-111",
+          turnIndex: 0,
+          role: "user",
+          content: "First match",
+          metadata: {},
+        });
+        db.insertChunk({
+          sessionId: "abc-222",
+          turnIndex: 0,
+          role: "user",
+          content: "Second match",
+          metadata: {},
+        });
+        db.close();
+
+        const result = runCli(`recap --session abc --cwd ${tempDir}`, tempDir);
+        expect(result.exitCode).toBe(0);
+        expect(result.stdout).toContain('Multiple sessions match prefix "abc"');
+        expect(result.stdout).toContain("abc-111");
+        expect(result.stdout).toContain("abc-222");
+        expect(result.stdout).toContain("Specify a longer prefix");
+      });
+
+      it("should report not found when prefix matches nothing", () => {
+        const kizunaDir = join(tempDir, ".kizuna");
+        mkdirSync(kizunaDir, { recursive: true });
+        const db = new Database(join(kizunaDir, "memory.db"));
+        db.close();
+
+        const result = runCli(`recap --session zzz --cwd ${tempDir}`, tempDir);
+        expect(result.exitCode).toBe(1);
+        expect(result.stdout).toContain("Session not found");
+      });
+    });
+
+    describe("--date option", () => {
+      it("should show sessions for a specific date", () => {
+        const kizunaDir = join(tempDir, ".kizuna");
+        mkdirSync(kizunaDir, { recursive: true });
+        const db = new Database(join(kizunaDir, "memory.db"));
+        db.insertSession({
+          id: "date-session-1",
+          projectId: "test",
+          startedAt: "2025-03-15T09:00:00Z",
+          endedAt: null,
+          transcriptPath: null,
+          metadata: {},
+        });
+        db.insertChunk({
+          sessionId: "date-session-1",
+          turnIndex: 0,
+          role: "user",
+          content: "Date filtered content",
+          metadata: {},
+        });
+        db.close();
+
+        const result = runCli(`recap --date 2025-03-15 --cwd ${tempDir}`, tempDir);
+        expect(result.exitCode).toBe(0);
+        expect(result.stdout).toContain("Date filtered content");
+      });
+
+      it("should show multiple sessions on the same date", () => {
+        const kizunaDir = join(tempDir, ".kizuna");
+        mkdirSync(kizunaDir, { recursive: true });
+        const db = new Database(join(kizunaDir, "memory.db"));
+        db.insertSession({
+          id: "date-multi-1",
+          projectId: "test",
+          startedAt: "2025-04-10T09:00:00Z",
+          endedAt: null,
+          transcriptPath: null,
+          metadata: {},
+        });
+        db.insertSession({
+          id: "date-multi-2",
+          projectId: "test",
+          startedAt: "2025-04-10T14:00:00Z",
+          endedAt: null,
+          transcriptPath: null,
+          metadata: {},
+        });
+        db.insertChunk({
+          sessionId: "date-multi-1",
+          turnIndex: 0,
+          role: "user",
+          content: "Morning session",
+          metadata: {},
+        });
+        db.insertChunk({
+          sessionId: "date-multi-2",
+          turnIndex: 0,
+          role: "user",
+          content: "Afternoon session",
+          metadata: {},
+        });
+        db.close();
+
+        const result = runCli(`recap --date 2025-04-10 --cwd ${tempDir}`, tempDir);
+        expect(result.exitCode).toBe(0);
+        expect(result.stdout).toContain("Sessions on 2025-04-10:");
+        expect(result.stdout).toContain("date-multi-1");
+        expect(result.stdout).toContain("date-multi-2");
+      });
+
+      it("should report no sessions when date has none", () => {
+        const kizunaDir = join(tempDir, ".kizuna");
+        mkdirSync(kizunaDir, { recursive: true });
+        const db = new Database(join(kizunaDir, "memory.db"));
+        db.close();
+
+        const result = runCli(`recap --date 2099-12-31 --cwd ${tempDir}`, tempDir);
+        expect(result.exitCode).toBe(0);
+        expect(result.stdout).toContain("No sessions with chunks found for 2099-12-31");
+      });
+
+      it("should reject invalid date format", () => {
+        const kizunaDir = join(tempDir, ".kizuna");
+        mkdirSync(kizunaDir, { recursive: true });
+        const db = new Database(join(kizunaDir, "memory.db"));
+        db.close();
+
+        const result = runCli(`recap --date 2025/03/15 --cwd ${tempDir}`, tempDir);
+        expect(result.exitCode).toBe(1);
+        expect(result.stdout).toContain("Invalid date format");
+      });
+    });
+
+    describe("--last option", () => {
+      it("should show the Nth most recent session", () => {
+        const kizunaDir = join(tempDir, ".kizuna");
+        mkdirSync(kizunaDir, { recursive: true });
+        const db = new Database(join(kizunaDir, "memory.db"));
+        db.insertSession({
+          id: "last-old",
+          projectId: "test",
+          startedAt: "2025-01-01T00:00:00Z",
+          endedAt: null,
+          transcriptPath: null,
+          metadata: {},
+        });
+        db.insertSession({
+          id: "last-new",
+          projectId: "test",
+          startedAt: "2025-01-02T00:00:00Z",
+          endedAt: null,
+          transcriptPath: null,
+          metadata: {},
+        });
+        db.insertChunk({
+          sessionId: "last-old",
+          turnIndex: 0,
+          role: "user",
+          content: "Older session content",
+          metadata: {},
+        });
+        db.insertChunk({
+          sessionId: "last-new",
+          turnIndex: 0,
+          role: "user",
+          content: "Newer session content",
+          metadata: {},
+        });
+        db.close();
+
+        // --last 1 should show the most recent
+        const result1 = runCli(`recap --last 1 --no-limit --cwd ${tempDir}`, tempDir);
+        expect(result1.exitCode).toBe(0);
+        expect(result1.stdout).toContain("Newer session content");
+        expect(result1.stdout).not.toContain("Older session content");
+
+        // --last 2 should show the second most recent
+        const result2 = runCli(`recap --last 2 --no-limit --cwd ${tempDir}`, tempDir);
+        expect(result2.exitCode).toBe(0);
+        expect(result2.stdout).toContain("Older session content");
+        expect(result2.stdout).not.toContain("Newer session content");
+      });
+
+      it("should report error when N exceeds available sessions", () => {
+        const kizunaDir = join(tempDir, ".kizuna");
+        mkdirSync(kizunaDir, { recursive: true });
+        const db = new Database(join(kizunaDir, "memory.db"));
+        db.insertSession({
+          id: "only-session",
+          projectId: "test",
+          startedAt: "2025-01-01T00:00:00Z",
+          endedAt: null,
+          transcriptPath: null,
+          metadata: {},
+        });
+        db.insertChunk({
+          sessionId: "only-session",
+          turnIndex: 0,
+          role: "user",
+          content: "Only content",
+          metadata: {},
+        });
+        db.close();
+
+        const result = runCli(`recap --last 5 --cwd ${tempDir}`, tempDir);
+        expect(result.exitCode).toBe(1);
+        expect(result.stdout).toContain("Only 1 session(s) with chunks available");
+      });
+
+      it("should reject invalid --last value", () => {
+        const kizunaDir = join(tempDir, ".kizuna");
+        mkdirSync(kizunaDir, { recursive: true });
+        const db = new Database(join(kizunaDir, "memory.db"));
+        db.close();
+
+        const result = runCli(`recap --last abc --cwd ${tempDir}`, tempDir);
+        expect(result.exitCode).toBe(1);
+        expect(result.stdout).toContain("--last must be a positive integer");
+      });
+    });
   });
 
   describe("prune", () => {
