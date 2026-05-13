@@ -62,6 +62,12 @@ export function registerRecap(program: Command): void {
     );
 }
 
+function isValidDate(dateStr: string): boolean {
+  const [y, m, d] = dateStr.split("-").map(Number) as [number, number, number];
+  const parsed = new Date(y, m - 1, d);
+  return parsed.getFullYear() === y && parsed.getMonth() === m - 1 && parsed.getDate() === d;
+}
+
 function resolveLimit(limitOpt: string | boolean, defaultLimit: number): number | null {
   if (limitOpt === false) return null;
   if (limitOpt === true) return defaultLimit;
@@ -139,7 +145,7 @@ function showSpecificSession(db: Database, sessionId: string, limit: number | nu
 }
 
 function showSessionsByDate(db: Database, date: string, limit: number | null): void {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !isValidDate(date)) {
     console.error("Invalid date format. Use YYYY-MM-DD.");
     process.exitCode = 1;
     return;

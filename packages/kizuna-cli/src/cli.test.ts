@@ -792,6 +792,17 @@ describe("CLI", () => {
         expect(result.exitCode).toBe(1);
         expect(result.stdout).toContain("Invalid date format");
       });
+
+      it("should reject semantically invalid date", () => {
+        const kizunaDir = join(tempDir, ".kizuna");
+        mkdirSync(kizunaDir, { recursive: true });
+        const db = new Database(join(kizunaDir, "memory.db"));
+        db.close();
+
+        const result = runCli(`recap --date 2025-02-30 --cwd ${tempDir}`, tempDir);
+        expect(result.exitCode).toBe(1);
+        expect(result.stdout).toContain("Invalid date format");
+      });
     });
 
     describe("--last option", () => {

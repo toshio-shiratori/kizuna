@@ -215,9 +215,10 @@ export class Database {
   }
 
   getSessionsByIdPrefix(prefix: string): Session[] {
+    const escaped = prefix.replace(/[%_]/g, "\\$&");
     const rows = this.db
-      .prepare(`SELECT * FROM sessions WHERE id LIKE ? || '%' ORDER BY started_at DESC`)
-      .all(prefix) as SessionRow[];
+      .prepare(`SELECT * FROM sessions WHERE id LIKE ? || '%' ESCAPE '\\' ORDER BY started_at DESC`)
+      .all(escaped) as SessionRow[];
     return rows.map(sessionRowToSession);
   }
 
