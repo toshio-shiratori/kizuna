@@ -44,6 +44,10 @@ function mergeDisplay(
     cleanupPreviewLength: intOrDefault(overrides.cleanupPreviewLength, base.cleanupPreviewLength),
     cleanupShowLimit: intOrDefault(overrides.cleanupShowLimit, base.cleanupShowLimit),
     recapChunkLimit: intOrDefault(overrides.recapChunkLimit, base.recapChunkLimit),
+    recapMaxContentLength: intOrDefault(
+      overrides.recapMaxContentLength,
+      base.recapMaxContentLength,
+    ),
     listLimit: intOrDefault(overrides.listLimit, base.listLimit),
   };
 }

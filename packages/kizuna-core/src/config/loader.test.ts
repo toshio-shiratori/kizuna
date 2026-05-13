@@ -145,7 +145,12 @@ describe("loadConfig", () => {
       join(tmpDir, ".kizuna", "config.json"),
       JSON.stringify({
         pipeline: { tokenBudget: 2500.9, maxResults: 7.3, minContentLength: 15.7 },
-        display: { previewLength: 150.5, cleanupShowLimit: 25.8, recapChunkLimit: 8.2 },
+        display: {
+          previewLength: 150.5,
+          cleanupShowLimit: 25.8,
+          recapChunkLimit: 8.2,
+          recapMaxContentLength: 750.3,
+        },
       }),
     );
 
@@ -156,6 +161,7 @@ describe("loadConfig", () => {
     expect(config.display.previewLength).toBe(150);
     expect(config.display.cleanupShowLimit).toBe(25);
     expect(config.display.recapChunkLimit).toBe(8);
+    expect(config.display.recapMaxContentLength).toBe(750);
   });
 
   it("allows float for halfLifeDays", () => {
@@ -167,6 +173,17 @@ describe("loadConfig", () => {
 
     const config = loadConfig(tmpDir, globalDir);
     expect(config.pipeline.halfLifeDays).toBe(14.5);
+  });
+
+  it("overrides recapMaxContentLength from config file", () => {
+    mkdirSync(join(tmpDir, ".kizuna"));
+    writeFileSync(
+      join(tmpDir, ".kizuna", "config.json"),
+      JSON.stringify({ display: { recapMaxContentLength: 1000 } }),
+    );
+
+    const config = loadConfig(tmpDir, globalDir);
+    expect(config.display.recapMaxContentLength).toBe(1000);
   });
 
   it("overrides listLimit from config file", () => {

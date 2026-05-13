@@ -10,6 +10,7 @@ export interface DisplayConfig {
   readonly cleanupPreviewLength: number;
   readonly cleanupShowLimit: number;
   readonly recapChunkLimit: number;
+  readonly recapMaxContentLength: number;
   readonly listLimit: number;
 }
 
@@ -30,6 +31,7 @@ export const DISPLAY_DEFAULTS: Readonly<DisplayConfig> = {
   cleanupPreviewLength: 50,
   cleanupShowLimit: 20,
   recapChunkLimit: 5,
+  recapMaxContentLength: 500,
   listLimit: 20,
 };
 

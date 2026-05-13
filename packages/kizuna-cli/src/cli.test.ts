@@ -892,6 +892,187 @@ describe("CLI", () => {
         expect(result.stdout).toContain("--last must be a positive integer");
       });
     });
+
+    describe("truncation", () => {
+      it("should truncate long assistant content by default", () => {
+        const kizunaDir = join(tempDir, ".kizuna");
+        mkdirSync(kizunaDir, { recursive: true });
+        const db = new Database(join(kizunaDir, "memory.db"));
+        db.insertSession({
+          id: "trunc-session",
+          projectId: "test",
+          startedAt: "2025-01-01T00:00:00Z",
+          endedAt: null,
+          transcriptPath: null,
+          metadata: {},
+        });
+        // Create content that exceeds default 500 chars
+        const longContent = "A".repeat(800);
+        db.insertChunk({
+          sessionId: "trunc-session",
+          turnIndex: 0,
+          role: "assistant",
+          content: longContent,
+          metadata: {},
+        });
+        db.close();
+
+        const result = runCli(`recap --session trunc-session --cwd ${tempDir}`, tempDir);
+        expect(result.exitCode).toBe(0);
+        expect(result.stdout).toContain("... (truncated, 800 chars total)");
+        expect(result.stdout).not.toContain("A".repeat(800));
+      });
+
+      it("should not truncate short assistant content", () => {
+        const kizunaDir = join(tempDir, ".kizuna");
+        mkdirSync(kizunaDir, { recursive: true });
+        const db = new Database(join(kizunaDir, "memory.db"));
+        db.insertSession({
+          id: "short-session",
+          projectId: "test",
+          startedAt: "2025-01-01T00:00:00Z",
+          endedAt: null,
+          transcriptPath: null,
+          metadata: {},
+        });
+        db.insertChunk({
+          sessionId: "short-session",
+          turnIndex: 0,
+          role: "assistant",
+          content: "Short response",
+          metadata: {},
+        });
+        db.close();
+
+        const result = runCli(`recap --session short-session --cwd ${tempDir}`, tempDir);
+        expect(result.exitCode).toBe(0);
+        expect(result.stdout).toContain("Short response");
+        expect(result.stdout).not.toContain("truncated");
+      });
+
+      it("should not truncate user content regardless of length", () => {
+        const kizunaDir = join(tempDir, ".kizuna");
+        mkdirSync(kizunaDir, { recursive: true });
+        const db = new Database(join(kizunaDir, "memory.db"));
+        db.insertSession({
+          id: "user-long-session",
+          projectId: "test",
+          startedAt: "2025-01-01T00:00:00Z",
+          endedAt: null,
+          transcriptPath: null,
+          metadata: {},
+        });
+        const longUserContent = "U".repeat(800);
+        db.insertChunk({
+          sessionId: "user-long-session",
+          turnIndex: 0,
+          role: "user",
+          content: longUserContent,
+          metadata: {},
+        });
+        db.close();
+
+        const result = runCli(`recap --session user-long-session --cwd ${tempDir}`, tempDir);
+        expect(result.exitCode).toBe(0);
+        expect(result.stdout).toContain(longUserContent);
+        expect(result.stdout).not.toContain("truncated");
+      });
+
+      it("should show full content with --verbose", () => {
+        const kizunaDir = join(tempDir, ".kizuna");
+        mkdirSync(kizunaDir, { recursive: true });
+        const db = new Database(join(kizunaDir, "memory.db"));
+        db.insertSession({
+          id: "verbose-session",
+          projectId: "test",
+          startedAt: "2025-01-01T00:00:00Z",
+          endedAt: null,
+          transcriptPath: null,
+          metadata: {},
+        });
+        const longContent = "V".repeat(800);
+        db.insertChunk({
+          sessionId: "verbose-session",
+          turnIndex: 0,
+          role: "assistant",
+          content: longContent,
+          metadata: {},
+        });
+        db.close();
+
+        const result = runCli(
+          `recap --session verbose-session --verbose --cwd ${tempDir}`,
+          tempDir,
+        );
+        expect(result.exitCode).toBe(0);
+        expect(result.stdout).toContain(longContent);
+        expect(result.stdout).not.toContain("truncated");
+      });
+
+      it("should show full content with -v shorthand", () => {
+        const kizunaDir = join(tempDir, ".kizuna");
+        mkdirSync(kizunaDir, { recursive: true });
+        const db = new Database(join(kizunaDir, "memory.db"));
+        db.insertSession({
+          id: "v-session",
+          projectId: "test",
+          startedAt: "2025-01-01T00:00:00Z",
+          endedAt: null,
+          transcriptPath: null,
+          metadata: {},
+        });
+        const longContent = "X".repeat(800);
+        db.insertChunk({
+          sessionId: "v-session",
+          turnIndex: 0,
+          role: "assistant",
+          content: longContent,
+          metadata: {},
+        });
+        db.close();
+
+        const result = runCli(`recap --session v-session -v --cwd ${tempDir}`, tempDir);
+        expect(result.exitCode).toBe(0);
+        expect(result.stdout).toContain(longContent);
+        expect(result.stdout).not.toContain("truncated");
+      });
+
+      it("should respect custom recapMaxContentLength config", () => {
+        const kizunaDir = join(tempDir, ".kizuna");
+        mkdirSync(kizunaDir, { recursive: true });
+        // Write custom config with small max length
+        writeFileSync(
+          join(kizunaDir, "config.json"),
+          JSON.stringify({ display: { recapMaxContentLength: 50 } }),
+        );
+        const db = new Database(join(kizunaDir, "memory.db"));
+        db.insertSession({
+          id: "config-session",
+          projectId: "test",
+          startedAt: "2025-01-01T00:00:00Z",
+          endedAt: null,
+          transcriptPath: null,
+          metadata: {},
+        });
+        // Content of exactly 100 chars should be truncated at 50
+        const content = "C".repeat(100);
+        db.insertChunk({
+          sessionId: "config-session",
+          turnIndex: 0,
+          role: "assistant",
+          content: content,
+          metadata: {},
+        });
+        db.close();
+
+        const result = runCli(`recap --session config-session --cwd ${tempDir}`, tempDir);
+        expect(result.exitCode).toBe(0);
+        expect(result.stdout).toContain("... (truncated, 100 chars total)");
+        expect(result.stdout).not.toContain("C".repeat(100));
+        // Should contain exactly 50 C's followed by truncation
+        expect(result.stdout).toContain("C".repeat(50) + "...");
+      });
+    });
   });
 
   describe("validation", () => {
