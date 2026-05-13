@@ -4,6 +4,7 @@ import { resolve } from "node:path";
 import { execSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { RECAP_SKILL_CONTENT } from "../templates/recap-skill.js";
+import { SESSION_START_SKILL_CONTENT } from "../templates/session-start-skill.js";
 
 const KIZUNA_SECTION_MARKER = "## Kizuna (Long-term Memory)";
 
@@ -22,15 +23,32 @@ Memories are captured and recalled automatically via hooks. For active queries:
 `;
 }
 
-function deployRecapSkill(claudeDir: string): boolean {
+// Always overwrite — kizuna-managed template that should stay in sync with the installed version
+function deployRecapSkill(claudeDir: string): "created" | "updated" {
   const commandsDir = resolve(claudeDir, "commands");
   if (!existsSync(commandsDir)) {
     mkdirSync(commandsDir, { recursive: true });
   }
 
   const recapPath = resolve(commandsDir, "recap.md");
+  const existed = existsSync(recapPath);
   writeFileSync(recapPath, RECAP_SKILL_CONTENT);
-  return true;
+  return existed ? "updated" : "created";
+}
+
+// Skip if exists — users may customize this for their project (e.g. add roadmap, PR/Issue checks)
+function deploySessionStartSkill(claudeDir: string): "created" | "skipped" {
+  const commandsDir = resolve(claudeDir, "commands");
+  if (!existsSync(commandsDir)) {
+    mkdirSync(commandsDir, { recursive: true });
+  }
+
+  const sessionStartPath = resolve(commandsDir, "session-start.md");
+  if (existsSync(sessionStartPath)) {
+    return "skipped";
+  }
+  writeFileSync(sessionStartPath, SESSION_START_SKILL_CONTENT);
+  return "created";
 }
 
 function injectClaudeMdSection(claudeMdPath: string): boolean {
@@ -237,7 +255,8 @@ export function registerSetup(program: Command): void {
       const claudeMdPath = resolve(cwd, "CLAUDE.md");
       const injected = injectClaudeMdSection(claudeMdPath);
 
-      deployRecapSkill(claudeDir);
+      const recapResult = deployRecapSkill(claudeDir);
+      const sessionStartResult = deploySessionStartSkill(claudeDir);
 
       console.log("Kizuna hooks configured:");
       console.log(`  Settings: ${settingsPath}`);
@@ -267,6 +286,15 @@ export function registerSetup(program: Command): void {
         console.log("CLAUDE.md: Kizuna section already present, skipped");
       }
       console.log("");
-      console.log(`Skill deployed: ${resolve(claudeDir, "commands", "recap.md")}`);
+      const recapPath = resolve(claudeDir, "commands", "recap.md");
+      console.log(
+        recapResult === "created" ? `Skill deployed: ${recapPath}` : `Skill updated: ${recapPath}`,
+      );
+      const sessionStartPath = resolve(claudeDir, "commands", "session-start.md");
+      console.log(
+        sessionStartResult === "created"
+          ? `Skill deployed: ${sessionStartPath}`
+          : `Skill skipped: ${sessionStartPath} (already exists)`,
+      );
     });
 }
