@@ -2,6 +2,7 @@ import type { Command } from "commander";
 import { Database, runMaintenance } from "@kizuna/core";
 import { resolveDbPath, dbExists } from "../db-path.js";
 import { createNonNegativeIntParser } from "../validators.js";
+import { formatBytes } from "../utils/format.js";
 
 export function registerPrune(program: Command): void {
   program
@@ -42,10 +43,4 @@ export function registerPrune(program: Command): void {
         db.close();
       }
     });
-}
-
-function formatBytes(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
