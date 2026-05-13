@@ -202,6 +202,26 @@ export class Database {
     }));
   }
 
+  getSessionsByDate(date: string): Session[] {
+    const rows = this.db
+      .prepare(
+        `SELECT s.* FROM sessions s
+         WHERE s.started_at LIKE ? || '%'
+         AND EXISTS (SELECT 1 FROM chunks c WHERE c.session_id = s.id)
+         ORDER BY s.started_at DESC`,
+      )
+      .all(date) as SessionRow[];
+    return rows.map(sessionRowToSession);
+  }
+
+  getSessionsByIdPrefix(prefix: string): Session[] {
+    const escaped = prefix.replace(/[%_]/g, "\\$&");
+    const rows = this.db
+      .prepare(`SELECT * FROM sessions WHERE id LIKE ? || '%' ESCAPE '\\' ORDER BY started_at DESC`)
+      .all(escaped) as SessionRow[];
+    return rows.map(sessionRowToSession);
+  }
+
   getMaxTurnIndex(sessionId: string): number | null {
     const row = this.db
       .prepare("SELECT MAX(turn_index) AS max_turn FROM chunks WHERE session_id = ?")
