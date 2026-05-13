@@ -3,17 +3,17 @@ import { resolve } from "node:path";
 import { execSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
-export interface HookEntry {
+interface HookEntry {
   type: string;
   command: string;
 }
 
-export interface HookMatcher {
+interface HookMatcher {
   matcher: string;
   hooks: HookEntry[];
 }
 
-export interface McpServerEntry {
+interface McpServerEntry {
   command: string;
   args: string[];
   env?: Record<string, string>;
