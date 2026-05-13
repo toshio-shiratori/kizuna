@@ -4,6 +4,7 @@ import { resolve } from "node:path";
 import { execSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { RECAP_SKILL_CONTENT } from "../templates/recap-skill.js";
+import { SESSION_START_SKILL_CONTENT } from "../templates/session-start-skill.js";
 
 const KIZUNA_SECTION_MARKER = "## Kizuna (Long-term Memory)";
 
@@ -30,6 +31,20 @@ function deployRecapSkill(claudeDir: string): boolean {
 
   const recapPath = resolve(commandsDir, "recap.md");
   writeFileSync(recapPath, RECAP_SKILL_CONTENT);
+  return true;
+}
+
+function deploySessionStartSkill(claudeDir: string): boolean {
+  const commandsDir = resolve(claudeDir, "commands");
+  if (!existsSync(commandsDir)) {
+    mkdirSync(commandsDir, { recursive: true });
+  }
+
+  const sessionStartPath = resolve(commandsDir, "session-start.md");
+  if (existsSync(sessionStartPath)) {
+    return false;
+  }
+  writeFileSync(sessionStartPath, SESSION_START_SKILL_CONTENT);
   return true;
 }
 
@@ -238,6 +253,7 @@ export function registerSetup(program: Command): void {
       const injected = injectClaudeMdSection(claudeMdPath);
 
       deployRecapSkill(claudeDir);
+      const sessionStartDeployed = deploySessionStartSkill(claudeDir);
 
       console.log("Kizuna hooks configured:");
       console.log(`  Settings: ${settingsPath}`);
@@ -268,5 +284,12 @@ export function registerSetup(program: Command): void {
       }
       console.log("");
       console.log(`Skill deployed: ${resolve(claudeDir, "commands", "recap.md")}`);
+      if (sessionStartDeployed) {
+        console.log(`Skill deployed: ${resolve(claudeDir, "commands", "session-start.md")}`);
+      } else {
+        console.log(
+          `Skill skipped: ${resolve(claudeDir, "commands", "session-start.md")} (already exists)`,
+        );
+      }
     });
 }
