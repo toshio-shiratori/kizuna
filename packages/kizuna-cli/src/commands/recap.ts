@@ -25,6 +25,7 @@ export function registerRecap(program: Command): void {
       createPositiveIntParser("--last", 100),
     )
     .option("-l, --list", "List sessions with chunk previews")
+    .option("-v, --verbose", "Show full content without truncation")
     .option("--cwd <path>", "Project directory", process.cwd())
     .action(
       (opts: {
@@ -35,6 +36,7 @@ export function registerRecap(program: Command): void {
         date?: string;
         last?: number;
         list?: boolean;
+        verbose?: boolean;
         cwd: string;
       }) => {
         const targetDir = opts.project ?? opts.cwd;
@@ -57,18 +59,19 @@ export function registerRecap(program: Command): void {
           }
           throw e;
         }
+        const maxContentLength = opts.verbose ? null : config.display.recapMaxContentLength;
         const db = new Database(resolveDbPath(targetDir));
         try {
           if (opts.list) {
             showSessionList(db);
           } else if (opts.date) {
-            showSessionsByDate(db, opts.date, chunkLimit);
+            showSessionsByDate(db, opts.date, chunkLimit, maxContentLength);
           } else if (opts.last !== undefined) {
-            showLastNthSession(db, opts.last, chunkLimit);
+            showLastNthSession(db, opts.last, chunkLimit, maxContentLength);
           } else if (opts.session) {
-            showSpecificSession(db, opts.session, chunkLimit);
+            showSpecificSession(db, opts.session, chunkLimit, maxContentLength);
           } else {
-            showLatestSessions(db, opts.sessions, chunkLimit);
+            showLatestSessions(db, opts.sessions, chunkLimit, maxContentLength);
           }
         } finally {
           db.close();
@@ -96,6 +99,35 @@ function resolveLimit(limitOpt: string | boolean, defaultLimit: number): number 
   return parsed;
 }
 
+/**
+ * Format chunk content for display, applying role-based truncation.
+ *
+ * - verbose mode (maxContentLength === null): full content for all roles
+ * - user role: shown in full (user prompts are typically short)
+ * - assistant role: truncated at maxContentLength with indicator
+ */
+export function formatChunkContent(
+  content: string,
+  role: string,
+  maxContentLength: number | null,
+): string {
+  if (maxContentLength === null) {
+    return content;
+  }
+
+  // User prompts are typically short; show them in full
+  if (role === "user") {
+    return content;
+  }
+
+  if (content.length <= maxContentLength) {
+    return content;
+  }
+
+  const truncated = content.slice(0, maxContentLength);
+  return `${truncated}... (truncated, ${content.length} chars total)`;
+}
+
 function showSessionList(db: Database): void {
   const previews = db.listSessionsWithPreview();
   if (previews.length === 0) {
@@ -111,7 +143,12 @@ function showSessionList(db: Database): void {
   }
 }
 
-function showLatestSessions(db: Database, count: number, limit: number | null): void {
+function showLatestSessions(
+  db: Database,
+  count: number,
+  limit: number | null,
+  maxContentLength: number | null,
+): void {
   const sessions = db.getLatestSessionsWithChunks(count);
   if (sessions.length === 0) {
     console.log("No sessions with chunks found.");
@@ -119,11 +156,16 @@ function showLatestSessions(db: Database, count: number, limit: number | null): 
   }
 
   for (const session of sessions) {
-    printSession(db, session.id, session.startedAt, session.projectId, limit);
+    printSession(db, session.id, session.startedAt, session.projectId, limit, maxContentLength);
   }
 }
 
-function showSpecificSession(db: Database, sessionId: string, limit: number | null): void {
+function showSpecificSession(
+  db: Database,
+  sessionId: string,
+  limit: number | null,
+  maxContentLength: number | null,
+): void {
   // Try exact match first
   const session = db.getSession(sessionId);
   if (session) {
@@ -132,7 +174,7 @@ function showSpecificSession(db: Database, sessionId: string, limit: number | nu
       console.log(`Session ${sessionId} has no chunks.`);
       return;
     }
-    printSession(db, session.id, session.startedAt, session.projectId, limit);
+    printSession(db, session.id, session.startedAt, session.projectId, limit, maxContentLength);
     return;
   }
 
@@ -151,7 +193,7 @@ function showSpecificSession(db: Database, sessionId: string, limit: number | nu
       console.log(`Session ${matched.id} has no chunks.`);
       return;
     }
-    printSession(db, matched.id, matched.startedAt, matched.projectId, limit);
+    printSession(db, matched.id, matched.startedAt, matched.projectId, limit, maxContentLength);
     return;
   }
 
@@ -164,7 +206,12 @@ function showSpecificSession(db: Database, sessionId: string, limit: number | nu
   console.log("\nSpecify a longer prefix to narrow down.");
 }
 
-function showSessionsByDate(db: Database, date: string, limit: number | null): void {
+function showSessionsByDate(
+  db: Database,
+  date: string,
+  limit: number | null,
+  maxContentLength: number | null,
+): void {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !isValidDate(date)) {
     console.error("Invalid date format. Use YYYY-MM-DD.");
     process.exitCode = 1;
@@ -179,7 +226,7 @@ function showSessionsByDate(db: Database, date: string, limit: number | null): v
 
   if (sessions.length === 1) {
     const session = sessions[0]!;
-    printSession(db, session.id, session.startedAt, session.projectId, limit);
+    printSession(db, session.id, session.startedAt, session.projectId, limit, maxContentLength);
     return;
   }
 
@@ -192,7 +239,12 @@ function showSessionsByDate(db: Database, date: string, limit: number | null): v
   }
 }
 
-function showLastNthSession(db: Database, n: number, limit: number | null): void {
+function showLastNthSession(
+  db: Database,
+  n: number,
+  limit: number | null,
+  maxContentLength: number | null,
+): void {
   const sessions = db.getLatestSessionsWithChunks(n);
   if (sessions.length < n) {
     console.error(`Only ${sessions.length} session(s) with chunks available.`);
@@ -201,7 +253,7 @@ function showLastNthSession(db: Database, n: number, limit: number | null): void
   }
 
   const session = sessions[n - 1]!;
-  printSession(db, session.id, session.startedAt, session.projectId, limit);
+  printSession(db, session.id, session.startedAt, session.projectId, limit, maxContentLength);
 }
 
 function printSession(
@@ -210,6 +262,7 @@ function printSession(
   startedAt: string,
   projectId: string,
   limit: number | null,
+  maxContentLength: number | null,
 ): void {
   let chunks = db.getChunksBySession(sessionId);
 
@@ -220,6 +273,7 @@ function printSession(
   console.log(`## Session: ${startedAt} (project: ${projectId})\n`);
 
   for (const chunk of chunks) {
-    console.log(`**${chunk.role}**: ${chunk.content}\n`);
+    const display = formatChunkContent(chunk.content, chunk.role, maxContentLength);
+    console.log(`**${chunk.role}**: ${display}\n`);
   }
 }
