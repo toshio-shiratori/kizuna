@@ -38,7 +38,13 @@ description: 品質検証の実行。型チェック・テスト・lint・フォ
    pnpm format:check
    ```
 
-5. **結果レポート**
+5. **未使用コード検出**
+
+   ```bash
+   pnpm knip
+   ```
+
+6. **結果レポート**
 
    ```
    ## 検証結果
@@ -46,6 +52,7 @@ description: 品質検証の実行。型チェック・テスト・lint・フォ
    - test: PASS/FAIL (N tests)
    - lint: PASS/FAIL
    - format: PASS/FAIL
+   - knip: PASS/FAIL
    ```
 
    - 失敗がある場合、エラー内容から原因を特定し修正案を提示
