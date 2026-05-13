@@ -1,4 +1,5 @@
-const FENCE = "```";
+const BACKTICK = "`";
+const FENCE = BACKTICK.repeat(3);
 
 export const SESSION_START_SKILL_CONTENT = [
   "---",
