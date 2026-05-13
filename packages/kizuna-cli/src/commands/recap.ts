@@ -1,28 +1,38 @@
 import type { Command } from "commander";
 import { Database, loadConfig } from "@kizuna/core";
 import { resolveDbPath, dbExists } from "../db-path.js";
+import { createPositiveIntParser } from "../validators.js";
 
 export function registerRecap(program: Command): void {
   program
     .command("recap")
     .description("Show session history for cross-team sharing")
     .option("--project <path>", "Target project directory (for cross-project sharing)")
-    .option("-n, --limit <number>", "Maximum chunks per session (from the end)")
     .option("--no-limit", "Show all chunks without limit")
-    .option("-s, --sessions <number>", "Number of recent sessions to show", "1")
+    .option("-n, --limit <number>", "Maximum chunks per session (from the end, 1-1000)")
+    .option(
+      "-s, --sessions <number>",
+      "Number of recent sessions to show (1-100)",
+      createPositiveIntParser("--sessions", 100),
+      1,
+    )
     .option("--session <id>", "Show a specific session by ID (supports prefix match)")
     .option("--date <date>", "Filter sessions by date (YYYY-MM-DD)")
-    .option("--last <n>", "Show the Nth most recent session")
+    .option(
+      "--last <n>",
+      "Show the Nth most recent session (1-100)",
+      createPositiveIntParser("--last", 100),
+    )
     .option("-l, --list", "List sessions with chunk previews")
     .option("--cwd <path>", "Project directory", process.cwd())
     .action(
       (opts: {
         project?: string;
         limit: string | boolean;
-        sessions: string;
+        sessions: number;
         session?: string;
         date?: string;
-        last?: string;
+        last?: number;
         list?: boolean;
         cwd: string;
       }) => {
@@ -36,24 +46,22 @@ export function registerRecap(program: Command): void {
 
         const config = loadConfig(targetDir);
         const chunkLimit = resolveLimit(opts.limit, config.display.recapChunkLimit);
+        if (chunkLimit === "error") {
+          process.exitCode = 1;
+          return;
+        }
         const db = new Database(resolveDbPath(targetDir));
         try {
           if (opts.list) {
             showSessionList(db);
           } else if (opts.date) {
             showSessionsByDate(db, opts.date, chunkLimit);
-          } else if (opts.last) {
+          } else if (opts.last !== undefined) {
             showLastNthSession(db, opts.last, chunkLimit);
           } else if (opts.session) {
             showSpecificSession(db, opts.session, chunkLimit);
           } else {
-            const count = parseInt(opts.sessions, 10);
-            if (Number.isNaN(count) || count <= 0) {
-              console.error("--sessions must be a positive integer.");
-              process.exitCode = 1;
-              return;
-            }
-            showLatestSessions(db, count, chunkLimit);
+            showLatestSessions(db, opts.sessions, chunkLimit);
           }
         } finally {
           db.close();
@@ -68,12 +76,19 @@ function isValidDate(dateStr: string): boolean {
   return parsed.getFullYear() === y && parsed.getMonth() === m - 1 && parsed.getDate() === d;
 }
 
-function resolveLimit(limitOpt: string | boolean, defaultLimit: number): number | null {
+function resolveLimit(limitOpt: string | boolean, defaultLimit: number): number | null | "error" {
   if (limitOpt === false) return null;
   if (limitOpt === true) return defaultLimit;
-  const limit = parseInt(limitOpt as string, 10);
-  if (Number.isNaN(limit) || limit <= 0) return defaultLimit;
-  return limit;
+  const parsed = parseInt(limitOpt as string, 10);
+  if (Number.isNaN(parsed) || parsed <= 0) {
+    console.error("--limit must be a positive integer.");
+    return "error";
+  }
+  if (parsed > 1000) {
+    console.error(`--limit must be at most 1000 (got ${parsed}).`);
+    return "error";
+  }
+  return parsed;
 }
 
 function showSessionList(db: Database): void {
@@ -172,14 +187,7 @@ function showSessionsByDate(db: Database, date: string, limit: number | null): v
   }
 }
 
-function showLastNthSession(db: Database, nStr: string, limit: number | null): void {
-  const n = parseInt(nStr, 10);
-  if (Number.isNaN(n) || n <= 0) {
-    console.error("--last must be a positive integer.");
-    process.exitCode = 1;
-    return;
-  }
-
+function showLastNthSession(db: Database, n: number, limit: number | null): void {
   const sessions = db.getLatestSessionsWithChunks(n);
   if (sessions.length < n) {
     console.error(`Only ${sessions.length} session(s) with chunks available.`);
