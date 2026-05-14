@@ -8,6 +8,7 @@ import { registerPrune } from "./commands/prune.js";
 import { registerHook } from "./commands/hook.js";
 import { registerCleanup } from "./commands/cleanup.js";
 import { registerRecap } from "./commands/recap.js";
+import { registerPlugin } from "./commands/plugin.js";
 
 const program = new Command();
 
@@ -21,5 +22,6 @@ registerPrune(program);
 registerHook(program);
 registerCleanup(program);
 registerRecap(program);
+registerPlugin(program);
 
 program.parse();
