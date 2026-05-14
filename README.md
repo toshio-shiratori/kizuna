@@ -115,6 +115,26 @@ Kizuna supports plugins that hook into the capture, search, and inject pipelines
 
 - **pii-sanitizer** -- Automatically redacts API keys, tokens, and secrets before storage
 - **multi-repo-sharing** -- Enables memory sharing across repositories via shared namespaces
+- **hybrid-search** -- Combines FTS5 lexical search with vector similarity for better recall
+- **openapi-awareness** -- Injects relevant OpenAPI endpoint information into context
+
+#### Managing plugins
+
+```bash
+kizuna plugin list              # Show available plugins and their status
+kizuna plugin info <name>       # Show details, options, and usage examples
+kizuna plugin enable <name>     # Enable a plugin (with options if needed)
+kizuna plugin disable <name>    # Disable a plugin
+```
+
+#### Enabling all plugins (for Claude Code CLI)
+
+When asking Claude Code to set up plugins, use a prompt like:
+
+> Run `kizuna plugin list` to check available plugins.
+> For each disabled plugin, run `kizuna plugin info <name>` to check required options, then enable it with `kizuna plugin enable`.
+> For openapi-awareness, find the OpenAPI spec file in this repository and pass it via `--spec`.
+> For multi-repo-sharing, use `--namespace <team-name>` to share memories across related repositories.
 
 See [Plugin API documentation](docs/05-plugin-api.md) for writing custom plugins.
 
