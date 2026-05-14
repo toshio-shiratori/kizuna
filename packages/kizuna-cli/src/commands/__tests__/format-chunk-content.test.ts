@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { formatChunkContent } from "./recap.js";
+import { formatChunkContent } from "../recap.js";
 
 describe("formatChunkContent", () => {
   describe("verbose mode (maxContentLength === null)", () => {

@@ -28,7 +28,7 @@ describe("findKizunaBin", () => {
   });
 
   async function loadFindKizunaBin() {
-    const mod = await import("./setup.js");
+    const mod = await import("../setup.js");
     return mod.findKizunaBin;
   }
 
