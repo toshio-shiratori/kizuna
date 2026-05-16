@@ -1,7 +1,7 @@
 {
   "name": "@kizuna/plugin-multi-repo-sharing",
   "version": "0.1.0",
-  "description": "Kizuna plugin that enables memory sharing across repositories via namespaces",
+  "description": "Kizuna plugin that enables cross-repository memory search via federated queries",
   "license": "MIT",
   "author": "Toshio Shiratori (@toshio-shiratori)",
   "repository": {
@@ -32,10 +32,13 @@
     "test": "vitest run"
   },
   "peerDependencies": {
-    "@kizuna/core": "workspace:*"
+    "@kizuna/core": "workspace:*",
+    "better-sqlite3": "^11.0.0"
   },
   "devDependencies": {
     "@kizuna/core": "workspace:*",
+    "@types/better-sqlite3": "^7.6.0",
+    "better-sqlite3": "^11.0.0",
     "typescript": "^5.8.0",
     "vitest": "^3.1.0"
   },

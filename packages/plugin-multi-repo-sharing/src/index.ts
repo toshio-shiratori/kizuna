@@ -1,83 +1,284 @@
+import BetterSqlite3 from "better-sqlite3";
+import { preprocessQuery } from "@kizuna/core";
 import type {
   Plugin,
-  RawChunk,
   SearchQuery,
   SearchResult,
+  StoredChunk,
   PluginContext,
   Migration,
 } from "@kizuna/core";
 
+export interface RepoReference {
+  name: string;
+  dbPath: string;
+}
+
 export interface MultiRepoSharingOptions {
-  namespace?: string;
+  references?: RepoReference[];
+}
+
+interface FtsRow {
+  id: number;
+  session_id: string;
+  turn_index: number;
+  role: "user" | "assistant";
+  content: string;
+  token_count: number;
+  importance: number;
+  created_at: string;
+  metadata: string;
+  bm25_score: number;
+  time_decay: number;
 }
 
 const PLUGIN_NAME = "@kizuna/plugin-multi-repo-sharing";
+const DEFAULT_HALF_LIFE_DAYS = 30;
 
-export const multiRepoSharing: Plugin = {
-  name: PLUGIN_NAME,
-  version: "0.0.0",
-  description: "Enables memory sharing across repositories via namespaces",
+/**
+ * Normalize scores within a result set to [0, 1] using min-max normalization.
+ * If all scores are identical, all are normalized to 1.0.
+ */
+export function normalizeScores(results: SearchResult[]): SearchResult[] {
+  if (results.length === 0) return results;
 
-  migrations(): Migration[] {
-    return [
-      {
-        version: 1,
-        description: "Add index for namespace queries",
-        up: `
-          CREATE INDEX IF NOT EXISTS idx_chunks_metadata_namespace
-            ON chunks(json_extract(metadata, '$."${PLUGIN_NAME}".namespace'));
-        `,
-        down: `DROP INDEX IF EXISTS idx_chunks_metadata_namespace;`,
-      },
-    ];
-  },
+  let min = Infinity;
+  let max = -Infinity;
+  for (const r of results) {
+    if (r.score < min) min = r.score;
+    if (r.score > max) max = r.score;
+  }
 
-  beforeCapture(chunk: RawChunk, ctx: PluginContext): RawChunk {
-    const options = ctx.config.options as MultiRepoSharingOptions;
-    return {
-      ...chunk,
-      metadata: {
-        ...chunk.metadata,
-        [PLUGIN_NAME]: {
-          repoId: ctx.projectConfig.id,
-          namespace: options.namespace ?? null,
-        },
-      },
-    };
-  },
+  const range = max - min;
+  if (range === 0) {
+    return results.map((r) => ({ ...r, score: 1.0 }));
+  }
 
-  beforeSearch(query: SearchQuery, ctx: PluginContext): SearchQuery {
-    const options = ctx.config.options as MultiRepoSharingOptions;
-    const namespaces = [ctx.projectConfig.id];
-    if (options.namespace) {
-      namespaces.push(options.namespace);
+  return results.map((r) => ({
+    ...r,
+    score: (r.score - min) / range,
+  }));
+}
+
+function rowToStoredChunk(row: FtsRow): StoredChunk {
+  return {
+    id: row.id,
+    sessionId: row.session_id,
+    turnIndex: row.turn_index,
+    role: row.role,
+    content: row.content,
+    tokenCount: row.token_count,
+    importance: row.importance,
+    createdAt: row.created_at,
+    metadata: JSON.parse(row.metadata) as Record<string, unknown>,
+  };
+}
+
+/**
+ * Query a read-only database for FTS5 search results.
+ * The query is executed against the chunks_fts index using the same scoring
+ * formula as the core search pipeline (BM25 * time_decay * importance_boost).
+ */
+export function queryRemoteDb(
+  db: BetterSqlite3.Database,
+  ftsQuery: string,
+  limit: number,
+  halfLifeDays: number,
+): SearchResult[] {
+  const rows = db
+    .prepare(
+      `SELECT
+         c.*,
+         bm25(chunks_fts) AS bm25_score,
+         exp(-0.693 * (julianday('now') - julianday(c.created_at)) / ?) AS time_decay
+       FROM chunks_fts
+       JOIN chunks c ON chunks_fts.rowid = c.id
+       WHERE chunks_fts MATCH ?
+       ORDER BY (bm25(chunks_fts) * exp(-0.693 * (julianday('now') - julianday(c.created_at)) / ?) * (1.0 + c.importance / 10.0)) DESC
+       LIMIT ?`,
+    )
+    .all(halfLifeDays, ftsQuery, halfLifeDays, limit) as FtsRow[];
+
+  return rows.map((row) => ({
+    chunk: rowToStoredChunk(row),
+    score: Math.abs(row.bm25_score) * row.time_decay * (1.0 + row.importance / 10.0),
+  }));
+}
+
+/**
+ * Check if a database file has the expected FTS5 schema for chunk search.
+ */
+export function hasCompatibleSchema(db: BetterSqlite3.Database): boolean {
+  try {
+    const row = db
+      .prepare(
+        `SELECT count(*) AS cnt FROM sqlite_master
+         WHERE type = 'table' AND name = 'chunks_fts'`,
+      )
+      .get() as { cnt: number };
+    return row.cnt > 0;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Query referenced databases and return annotated, normalized results.
+ *
+ * Opens each referenced database in read-only mode, executes the FTS5 query,
+ * and annotates results with the reference name as source.
+ * Databases that are inaccessible or have incompatible schemas are skipped
+ * with a warning log.
+ */
+export function queryReferences(
+  references: RepoReference[],
+  ftsQuery: string,
+  limit: number,
+  halfLifeDays: number,
+  logger: PluginContext["logger"],
+): SearchResult[] {
+  const allResults: SearchResult[] = [];
+
+  for (const ref of references) {
+    try {
+      const remoteDb = new BetterSqlite3(ref.dbPath, { readonly: true });
+      try {
+        if (!hasCompatibleSchema(remoteDb)) {
+          logger.warn(`Skipping reference "${ref.name}": incompatible schema at ${ref.dbPath}`);
+          continue;
+        }
+        const remoteResults = queryRemoteDb(remoteDb, ftsQuery, limit, halfLifeDays);
+        // Normalize remote results independently per database
+        const normalized = normalizeScores(remoteResults);
+        for (const r of normalized) {
+          allResults.push({
+            ...r,
+            annotations: {
+              ...r.annotations,
+              source: ref.name,
+            },
+          });
+        }
+      } finally {
+        remoteDb.close();
+      }
+    } catch (err) {
+      logger.warn(
+        `Skipping reference "${ref.name}": ${err instanceof Error ? err.message : String(err)}`,
+      );
     }
-    return {
-      ...query,
-      filters: {
-        ...query.filters,
-        namespaces,
-      },
-    };
-  },
+  }
 
-  afterSearch(results: SearchResult[]): SearchResult[] {
-    return results.map((result) => {
-      const pluginMeta = (result.chunk.metadata as Record<string, unknown>)[PLUGIN_NAME];
-      const isShared =
-        pluginMeta !== null &&
-        pluginMeta !== undefined &&
-        typeof pluginMeta === "object" &&
-        "namespace" in pluginMeta &&
-        pluginMeta.namespace !== null;
+  return allResults;
+}
 
-      return {
-        ...result,
-        annotations: {
-          ...result.annotations,
-          isShared,
+/**
+ * Create the multi-repo-sharing plugin instance.
+ *
+ * Uses a factory function to maintain closure-scoped state for passing the
+ * search query from beforeSearch to afterSearch. The plugin uses:
+ *
+ * - beforeSearch: captures query text and limit for federated fan-out
+ * - afterSearch: queries referenced databases, normalizes scores, and merges
+ *
+ * No beforeCapture hook is needed (no namespace metadata tagging).
+ */
+export function createMultiRepoSharing(): Plugin {
+  // Closure-scoped state to pass query from beforeSearch to afterSearch.
+  // This is safe because search operations are sequential in Kizuna's
+  // hook-based architecture (UserPromptSubmit runs synchronously per prompt).
+  let lastQueryText: string | null = null;
+  let lastQueryLimit: number = 10;
+
+  return {
+    name: PLUGIN_NAME,
+    version: "0.1.0",
+    description: "Enables cross-repository memory search via federated queries",
+
+    migrations(): Migration[] {
+      // Keep the existing migration for backward compatibility with databases
+      // that already have the index. No new migrations are needed for the
+      // federated search approach.
+      return [
+        {
+          version: 1,
+          description: "Add index for namespace queries (legacy, kept for compatibility)",
+          up: `
+            CREATE INDEX IF NOT EXISTS idx_chunks_metadata_namespace
+              ON chunks(json_extract(metadata, '$."${PLUGIN_NAME}".namespace'));
+          `,
+          down: `DROP INDEX IF EXISTS idx_chunks_metadata_namespace;`,
         },
-      };
-    });
-  },
-};
+      ];
+    },
+
+    beforeSearch(query: SearchQuery): SearchQuery {
+      // Capture query text for use in afterSearch.
+      // We store the raw text; FTS preprocessing is done in afterSearch
+      // using the same preprocessQuery function as the core pipeline.
+      lastQueryText = query.text;
+      lastQueryLimit = query.limit;
+      return query;
+    },
+
+    afterSearch(results: SearchResult[], ctx: PluginContext): SearchResult[] {
+      // Capture and clear query state immediately for defensive correctness
+      const queryText = lastQueryText;
+      const queryLimit = lastQueryLimit;
+      lastQueryText = null;
+
+      const options = ctx.config.options as MultiRepoSharingOptions;
+      const references = options.references;
+      if (!references || references.length === 0) {
+        return results;
+      }
+
+      // Annotate local results with source information
+      const annotatedLocal = results.map((r) => ({
+        ...r,
+        annotations: {
+          ...r.annotations,
+          source: "local",
+        },
+      }));
+
+      if (!queryText) {
+        return annotatedLocal;
+      }
+
+      // Preprocess the query for FTS5 (CJK n-gram support)
+      const ftsQuery = preprocessQuery(queryText);
+      if (ftsQuery.length === 0) {
+        return annotatedLocal;
+      }
+
+      // Query referenced databases
+      const remoteResults = queryReferences(
+        references,
+        ftsQuery,
+        queryLimit,
+        DEFAULT_HALF_LIFE_DAYS,
+        ctx.logger,
+      );
+
+      if (remoteResults.length === 0) {
+        return annotatedLocal;
+      }
+
+      // Normalize local results independently
+      const normalizedLocal = normalizeScores(annotatedLocal);
+
+      // Merge normalized local and remote results, sort by score descending
+      const merged = [...normalizedLocal, ...remoteResults];
+      merged.sort((a, b) => b.score - a.score);
+
+      return merged.slice(0, queryLimit);
+    },
+  };
+}
+
+/**
+ * Pre-configured plugin instance for backward compatibility.
+ * For new code, prefer createMultiRepoSharing() which returns a fresh instance.
+ */
+export const multiRepoSharing: Plugin = createMultiRepoSharing();
