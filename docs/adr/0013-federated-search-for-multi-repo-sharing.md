@@ -6,7 +6,7 @@
 
 ## Context
 
-The current `multi-repo-sharing` plugin uses a shared database approach: multiple repositories write to and read from a single SQLite file via a configured `dbPath`. This was the initial design (validated in Phase 3 as a reference plugin; see ADR-0005), but real-world deployment to P-BANK (a frontend/backend multi-repository project) revealed structural problems that go beyond implementation bugs.
+The current `multi-repo-sharing` plugin uses a shared database approach: multiple repositories write to and read from a single SQLite file via a configured `dbPath`. This was the initial design (validated in Phase 3 as a reference plugin; see ADR-0005), but real-world deployment to a frontend/backend multi-repository project revealed structural problems that go beyond implementation bugs.
 
 ### Problems with the shared database approach
 
@@ -39,8 +39,8 @@ Configuration schema:
     "multi-repo-sharing": {
       "references": [
         {
-          "name": "p-bank-backend",
-          "dbPath": "/path/to/p-bank-api/.kizuna/memory.db"
+          "name": "backend-api",
+          "dbPath": "/path/to/other-project/.kizuna/memory.db"
         }
       ]
     }
