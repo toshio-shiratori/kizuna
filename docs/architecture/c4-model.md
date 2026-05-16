@@ -70,7 +70,7 @@ graph TB
 
         CORE["⚙️ kizuna-core<br/>(Memory Engine)<br/><br/>better-sqlite3 only<br/><br/>Storage, Pipelines,<br/>Plugin Manager, Config"]
 
-        subgraph plugins["Plugins (optional)"]
+        subgraph plugins["Plugins (optional, shown: 2 of several)"]
             PII["🔒 plugin-pii-sanitizer<br/><br/>Redacts API keys,<br/>tokens, secrets<br/>before storage"]
             MULTI["🌐 plugin-multi-repo-sharing<br/><br/>Shared SQLite for<br/>cross-repo memories<br/>with namespace filtering"]
         end
@@ -103,6 +103,7 @@ graph TB
 | **kizuna-core**               | TypeScript, better-sqlite3  | Generic memory engine: storage layer, pipelines (capture, search, inject, maintain), plugin manager, configuration      |
 | **plugin-pii-sanitizer**      | TypeScript                  | Redacts API keys, tokens, and secrets from chunks before storage via `beforeCapture` hook                               |
 | **plugin-multi-repo-sharing** | TypeScript                  | Enables cross-repository memory sharing via a shared SQLite file with namespace-based filtering                         |
+| *(and others)*                | TypeScript                  | Additional plugins include hybrid-search (FTS5 + sqlite-vec), openapi-awareness, etc.                                   |
 | **SQLite**                    | SQLite + FTS5 (trigram)     | Persistent storage for sessions, chunks, FTS index, maintenance metadata, and plugin KV store                           |
 
 ### Dependency Rules
