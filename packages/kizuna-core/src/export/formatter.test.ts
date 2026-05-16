@@ -108,6 +108,51 @@ describe("formatMarkdown", () => {
     const output = formatMarkdown(data);
     expect(output).toContain("- **Filters**: (none)");
   });
+
+  it("includes role filter in filter display", () => {
+    const data = createTestData();
+    data.meta.filters = { role: "assistant", limit: 100 };
+
+    const output = formatMarkdown(data);
+    expect(output).toContain("role=assistant");
+  });
+
+  it("includes minImportance filter in filter display", () => {
+    const data = createTestData();
+    data.meta.filters = { minImportance: 5, limit: 100 };
+
+    const output = formatMarkdown(data);
+    expect(output).toContain("minImportance=5");
+  });
+
+  it("includes session filter in filter display", () => {
+    const data = createTestData();
+    data.meta.filters = { session: ["sess-001", "sess-002"], limit: 100 };
+
+    const output = formatMarkdown(data);
+    expect(output).toContain("session=sess-001,sess-002");
+  });
+
+  it("omits metadata when noMetadata is true", () => {
+    const data = createTestData();
+    const output = formatMarkdown(data, { noMetadata: true });
+
+    // Title is present
+    expect(output).toContain("# Kizuna Memory Export");
+    // Project metadata is not present
+    expect(output).not.toContain("- **Project**:");
+    expect(output).not.toContain("- **Exported**:");
+    expect(output).not.toContain("- **Chunks**:");
+    expect(output).not.toContain("- **Date range**:");
+    expect(output).not.toContain("- **Filters**:");
+    // Chunk headers are not present
+    expect(output).not.toContain("## [");
+    // Content is still present
+    expect(output).toContain("This is the assistant response.");
+    expect(output).toContain("Hello, how are you?");
+    // Separators are present
+    expect(output).toContain("---");
+  });
 });
 
 describe("formatJson", () => {
@@ -165,6 +210,32 @@ describe("formatJson", () => {
     expect(parsed.meta.chunkCount).toBe(0);
     expect(parsed.meta.dateRange).toBeNull();
     expect(parsed.chunks).toEqual([]);
+  });
+
+  it("omits metadata field from chunks when noMetadata is true", () => {
+    const data = createTestData();
+    const output = formatJson(data, { noMetadata: true });
+    const parsed = JSON.parse(output);
+
+    for (const chunk of parsed.chunks) {
+      expect(chunk.metadata).toBeUndefined();
+      // Other fields should still be present
+      expect(chunk.id).toBeDefined();
+      expect(chunk.sessionId).toBeDefined();
+      expect(chunk.role).toBeDefined();
+      expect(chunk.content).toBeDefined();
+      expect(chunk.importance).toBeDefined();
+      expect(chunk.createdAt).toBeDefined();
+    }
+  });
+
+  it("includes metadata field when noMetadata is false", () => {
+    const data = createTestData();
+    const output = formatJson(data, { noMetadata: false });
+    const parsed = JSON.parse(output);
+
+    expect(parsed.chunks[0].metadata).toEqual({ tool: "search" });
+    expect(parsed.chunks[1].metadata).toEqual({});
   });
 });
 

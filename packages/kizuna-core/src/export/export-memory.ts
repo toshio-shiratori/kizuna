@@ -22,6 +22,14 @@ export interface ExportOptions {
   projectId?: string;
   /** Reference time for relative date resolution (default: now) */
   now?: Date;
+  /** Filter by chunk role */
+  role?: "user" | "assistant";
+  /** Minimum importance threshold (0-10) */
+  minImportance?: number;
+  /** Filter by session IDs */
+  sessionIds?: string[];
+  /** Omit metadata from output */
+  noMetadata?: boolean;
 }
 
 const DEFAULT_LIMIT = 100;
@@ -53,19 +61,30 @@ export async function exportMemory(db: Database, options: ExportOptions = {}): P
       filters: {
         createdAfter: resolvedSince,
         createdBefore: resolvedUntil,
+        sessionIds: options.sessionIds,
+        minImportance: options.minImportance,
       },
     });
     chunks = results.map((r) => r.chunk);
+
+    // Post-query filter: role (not supported by SearchFilters)
+    if (options.role) {
+      chunks = chunks.filter((c) => c.role === options.role);
+    }
   } else {
     // Chronological retrieval (newest first)
     chunks = listChunksChronological(db, {
       since: resolvedSince,
       until: resolvedUntil,
       limit,
+      role: options.role,
+      minImportance: options.minImportance,
+      sessionIds: options.sessionIds,
     });
   }
 
   // Build export data
+  const noMetadata = options.noMetadata ?? false;
   const exportData = buildExportData(chunks, {
     projectId,
     now,
@@ -74,16 +93,22 @@ export async function exportMemory(db: Database, options: ExportOptions = {}): P
       until: options.until,
       query: options.query,
       limit,
+      role: options.role,
+      minImportance: options.minImportance,
+      session: options.sessionIds,
     },
   });
 
-  return formatExport(exportData, format);
+  return formatExport(exportData, format, { noMetadata });
 }
 
 interface ListOptions {
   since?: string;
   until?: string;
   limit: number;
+  role?: "user" | "assistant";
+  minImportance?: number;
+  sessionIds?: string[];
 }
 
 function listChunksChronological(db: Database, options: ListOptions): StoredChunk[] {
@@ -97,6 +122,19 @@ function listChunksChronological(db: Database, options: ListOptions): StoredChun
   if (options.until) {
     conditions.push("created_at <= ?");
     params.push(options.until);
+  }
+  if (options.role) {
+    conditions.push("role = ?");
+    params.push(options.role);
+  }
+  if (options.minImportance !== undefined) {
+    conditions.push("importance >= ?");
+    params.push(options.minImportance);
+  }
+  if (options.sessionIds && options.sessionIds.length > 0) {
+    const placeholders = options.sessionIds.map(() => "?").join(",");
+    conditions.push(`session_id IN (${placeholders})`);
+    params.push(...options.sessionIds);
   }
 
   const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
