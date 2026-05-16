@@ -1,6 +1,6 @@
 # 0014. CLI plugin config command for structured options
 
-**Status**: Proposed
+**Status**: Accepted
 
 **Date**: 2026-05-16
 
