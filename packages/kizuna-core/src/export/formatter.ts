@@ -7,6 +7,13 @@ export interface ExportFilters {
   until?: string;
   query?: string;
   limit?: number;
+  role?: string;
+  minImportance?: number;
+  session?: string[];
+}
+
+export interface FormatOptions {
+  noMetadata?: boolean;
 }
 
 export interface ExportMeta {
@@ -25,33 +32,41 @@ export interface ExportData {
 /**
  * Format export data as Markdown according to ADR-0015.
  */
-export function formatMarkdown(data: ExportData): string {
-  const { meta, chunks } = data;
+export function formatMarkdown(data: ExportData, options?: FormatOptions): string {
+  const { chunks } = data;
   const lines: string[] = [];
+  const noMetadata = options?.noMetadata ?? false;
 
   lines.push("# Kizuna Memory Export");
   lines.push("");
-  lines.push(`- **Project**: ${meta.projectId}`);
-  lines.push(`- **Exported**: ${meta.exportedAt}`);
-  lines.push(`- **Chunks**: ${meta.chunkCount}`);
 
-  if (meta.dateRange) {
-    lines.push(`- **Date range**: ${meta.dateRange.from} — ${meta.dateRange.to}`);
-  } else {
-    lines.push("- **Date range**: (none)");
+  if (!noMetadata) {
+    const { meta } = data;
+    lines.push(`- **Project**: ${meta.projectId}`);
+    lines.push(`- **Exported**: ${meta.exportedAt}`);
+    lines.push(`- **Chunks**: ${meta.chunkCount}`);
+
+    if (meta.dateRange) {
+      lines.push(`- **Date range**: ${meta.dateRange.from} — ${meta.dateRange.to}`);
+    } else {
+      lines.push("- **Date range**: (none)");
+    }
+
+    lines.push(`- **Filters**: ${formatFiltersMarkdown(meta.filters)}`);
+    lines.push("");
   }
 
-  lines.push(`- **Filters**: ${formatFiltersMarkdown(meta.filters)}`);
-  lines.push("");
   lines.push("---");
 
   for (const chunk of chunks) {
     lines.push("");
-    const shortSessionId = chunk.sessionId.slice(0, 8);
-    lines.push(
-      `## [${chunk.createdAt}] ${chunk.role} (session: ${shortSessionId}, importance: ${chunk.importance})`,
-    );
-    lines.push("");
+    if (!noMetadata) {
+      const shortSessionId = chunk.sessionId.slice(0, 8);
+      lines.push(
+        `## [${chunk.createdAt}] ${chunk.role} (session: ${shortSessionId}, importance: ${chunk.importance})`,
+      );
+      lines.push("");
+    }
     lines.push(chunk.content);
     lines.push("");
     lines.push("---");
@@ -75,6 +90,15 @@ function formatFiltersMarkdown(filters: ExportFilters): string {
   if (filters.limit !== undefined) {
     parts.push(`limit=${filters.limit}`);
   }
+  if (filters.role) {
+    parts.push(`role=${filters.role}`);
+  }
+  if (filters.minImportance !== undefined) {
+    parts.push(`minImportance=${filters.minImportance}`);
+  }
+  if (filters.session && filters.session.length > 0) {
+    parts.push(`session=${filters.session.join(",")}`);
+  }
 
   return parts.length > 0 ? parts.join(", ") : "(none)";
 }
@@ -82,7 +106,9 @@ function formatFiltersMarkdown(filters: ExportFilters): string {
 /**
  * Format export data as JSON according to ADR-0015.
  */
-export function formatJson(data: ExportData): string {
+export function formatJson(data: ExportData, options?: FormatOptions): string {
+  const noMetadata = options?.noMetadata ?? false;
+
   const output = {
     meta: {
       projectId: data.meta.projectId,
@@ -91,15 +117,27 @@ export function formatJson(data: ExportData): string {
       dateRange: data.meta.dateRange,
       filters: data.meta.filters,
     },
-    chunks: data.chunks.map((chunk) => ({
-      id: chunk.id,
-      sessionId: chunk.sessionId,
-      role: chunk.role,
-      content: chunk.content,
-      importance: chunk.importance,
-      createdAt: chunk.createdAt,
-      metadata: chunk.metadata,
-    })),
+    chunks: data.chunks.map((chunk) => {
+      if (noMetadata) {
+        return {
+          id: chunk.id,
+          sessionId: chunk.sessionId,
+          role: chunk.role,
+          content: chunk.content,
+          importance: chunk.importance,
+          createdAt: chunk.createdAt,
+        };
+      }
+      return {
+        id: chunk.id,
+        sessionId: chunk.sessionId,
+        role: chunk.role,
+        content: chunk.content,
+        importance: chunk.importance,
+        createdAt: chunk.createdAt,
+        metadata: chunk.metadata,
+      };
+    }),
   };
 
   return JSON.stringify(output, null, 2) + "\n";
@@ -108,11 +146,15 @@ export function formatJson(data: ExportData): string {
 /**
  * Format export data in the specified format.
  */
-export function formatExport(data: ExportData, format: ExportFormat): string {
+export function formatExport(
+  data: ExportData,
+  format: ExportFormat,
+  options?: FormatOptions,
+): string {
   switch (format) {
     case "markdown":
-      return formatMarkdown(data);
+      return formatMarkdown(data, options);
     case "json":
-      return formatJson(data);
+      return formatJson(data, options);
   }
 }

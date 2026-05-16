@@ -42,6 +42,7 @@ export type {
   ExportFilters,
   ExportMeta,
   ExportData,
+  FormatOptions,
 } from "./export/index.js";
 export { parseRelativeDate, isRelativeDate, resolveDateInput } from "./export/index.js";
 export { formatMarkdown, formatJson, formatExport } from "./export/index.js";

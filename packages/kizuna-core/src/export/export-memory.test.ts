@@ -169,6 +169,163 @@ describe("exportMemory", () => {
       limit: 50,
     });
   });
+
+  it("filters by --role user", async () => {
+    const output = await exportMemory(db, {
+      role: "user",
+      format: "json",
+      projectId: "test-project",
+      now: new Date("2025-06-20T12:00:00.000Z"),
+    });
+
+    const parsed = JSON.parse(output);
+    expect(parsed.chunks.length).toBe(2);
+    for (const chunk of parsed.chunks) {
+      expect(chunk.role).toBe("user");
+    }
+  });
+
+  it("filters by --role assistant", async () => {
+    const output = await exportMemory(db, {
+      role: "assistant",
+      format: "json",
+      projectId: "test-project",
+      now: new Date("2025-06-20T12:00:00.000Z"),
+    });
+
+    const parsed = JSON.parse(output);
+    expect(parsed.chunks.length).toBe(1);
+    expect(parsed.chunks[0].role).toBe("assistant");
+  });
+
+  it("filters by --minImportance", async () => {
+    const output = await exportMemory(db, {
+      minImportance: 5,
+      format: "json",
+      projectId: "test-project",
+      now: new Date("2025-06-20T12:00:00.000Z"),
+    });
+
+    const parsed = JSON.parse(output);
+    expect(parsed.chunks.length).toBe(2);
+    for (const chunk of parsed.chunks) {
+      expect(chunk.importance).toBeGreaterThanOrEqual(5);
+    }
+  });
+
+  it("filters by --minImportance with high threshold returns fewer results", async () => {
+    const output = await exportMemory(db, {
+      minImportance: 7,
+      format: "json",
+      projectId: "test-project",
+      now: new Date("2025-06-20T12:00:00.000Z"),
+    });
+
+    const parsed = JSON.parse(output);
+    expect(parsed.chunks.length).toBe(1);
+    expect(parsed.chunks[0].importance).toBe(7);
+  });
+
+  it("filters by --sessionIds", async () => {
+    // Add a second session with chunks
+    db.insertSession({
+      id: "test-session-002",
+      projectId: "test-project",
+      startedAt: "2025-06-16T10:00:00.000Z",
+      endedAt: "2025-06-16T11:00:00.000Z",
+      transcriptPath: null,
+      metadata: {},
+    });
+    db.insertChunk({
+      sessionId: "test-session-002",
+      turnIndex: 0,
+      role: "user",
+      content: "A chunk in session 2.",
+      metadata: {},
+      importance: 6,
+      createdAt: "2025-06-16T10:00:00.000Z",
+    });
+
+    const output = await exportMemory(db, {
+      sessionIds: ["test-session-002"],
+      format: "json",
+      projectId: "test-project",
+      now: new Date("2025-06-20T12:00:00.000Z"),
+    });
+
+    const parsed = JSON.parse(output);
+    expect(parsed.chunks.length).toBe(1);
+    expect(parsed.chunks[0].sessionId).toBe("test-session-002");
+  });
+
+  it("applies --noMetadata in markdown format", async () => {
+    const output = await exportMemory(db, {
+      noMetadata: true,
+      format: "markdown",
+      projectId: "test-project",
+      now: new Date("2025-06-20T12:00:00.000Z"),
+    });
+
+    // Should have title
+    expect(output).toContain("# Kizuna Memory Export");
+    // Should NOT have metadata lines
+    expect(output).not.toContain("- **Project**:");
+    expect(output).not.toContain("- **Exported**:");
+    expect(output).not.toContain("- **Filters**:");
+    // Should NOT have chunk headers
+    expect(output).not.toContain("## [");
+    // Should still have content
+    expect(output).toContain("SQLite");
+  });
+
+  it("applies --noMetadata in JSON format", async () => {
+    const output = await exportMemory(db, {
+      noMetadata: true,
+      format: "json",
+      projectId: "test-project",
+      now: new Date("2025-06-20T12:00:00.000Z"),
+    });
+
+    const parsed = JSON.parse(output);
+    // Chunks should not have metadata field
+    for (const chunk of parsed.chunks) {
+      expect(chunk.metadata).toBeUndefined();
+    }
+    // But should still have other fields
+    expect(parsed.chunks[0].content).toBeDefined();
+    expect(parsed.chunks[0].role).toBeDefined();
+  });
+
+  it("combines role and minImportance filters", async () => {
+    const output = await exportMemory(db, {
+      role: "user",
+      minImportance: 5,
+      format: "json",
+      projectId: "test-project",
+      now: new Date("2025-06-20T12:00:00.000Z"),
+    });
+
+    const parsed = JSON.parse(output);
+    expect(parsed.chunks.length).toBe(1);
+    expect(parsed.chunks[0].role).toBe("user");
+    expect(parsed.chunks[0].importance).toBeGreaterThanOrEqual(5);
+  });
+
+  it("includes new filters in metadata", async () => {
+    const output = await exportMemory(db, {
+      role: "assistant",
+      minImportance: 3,
+      sessionIds: ["test-session-001"],
+      format: "json",
+      projectId: "test-project",
+      now: new Date("2025-06-20T12:00:00.000Z"),
+    });
+
+    const parsed = JSON.parse(output);
+    expect(parsed.meta.filters.role).toBe("assistant");
+    expect(parsed.meta.filters.minImportance).toBe(3);
+    expect(parsed.meta.filters.session).toEqual(["test-session-001"]);
+  });
 });
 
 function seedTestData(db: Database): void {
