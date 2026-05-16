@@ -86,11 +86,13 @@ What becomes easier? What becomes harder? What new constraints are introduced?
 | [0010](./0010-vacuum-in-maintenance.md)                   | Run VACUUM in maintenance cycle                    | Accepted |
 | [0011](./0011-actionable-memory-injection.md)             | Use action directives in memory injection          | Accepted |
 | [0012](./0012-no-sqlite-vec-for-vector-search.md)         | Do not use sqlite-vec for vector similarity search | Accepted |
-| [0013](./0013-federated-search-for-multi-repo-sharing.md) | Federated search for multi-repo memory sharing     | Proposed |
+| [0013](./0013-federated-search-for-multi-repo-sharing.md) | Federated search for multi-repo memory sharing     | Accepted |
+| [0014](./0014-cli-plugin-config-command.md)               | CLI plugin config command for structured options   | Proposed |
+| [0015](./0015-memory-export-functionality.md)             | Memory export functionality                        | Proposed |
 
 ## How to Add a New ADR
 
-1. Identify the next available number (currently 0014)
+1. Identify the next available number (currently 0016)
 2. Create `NNNN-short-title.md` in this directory
 3. Follow the format above
 4. Status starts as "Proposed"
