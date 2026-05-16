@@ -33,7 +33,7 @@ export function registerExport(program: Command): void {
       createNonNegativeIntParser("--min-importance", 10),
     )
     .option("--session <id>", "Filter by session ID (repeatable)", collectOption, [])
-    .option("--no-metadata", "Omit chunk metadata from output")
+    .option("--no-metadata", "Omit per-chunk metadata and headers from output")
     .option("--cwd <path>", "Project directory", process.cwd())
     .action(
       async (opts: {
@@ -126,9 +126,21 @@ function validateRole(input?: string): "user" | "assistant" | null {
   return null;
 }
 
+function getClipboardCommand(): string | null {
+  switch (process.platform) {
+    case "darwin":
+      return "pbcopy";
+    case "win32":
+      return "clip";
+    default:
+      return "xclip -selection clipboard";
+  }
+}
+
 function copyToClipboard(text: string): boolean {
+  const command = getClipboardCommand();
+  if (!command) return false;
   try {
-    const command = process.platform === "darwin" ? "pbcopy" : "xclip -selection clipboard";
     execSync(command, { input: text, stdio: ["pipe", "ignore", "ignore"] });
     return true;
   } catch {
