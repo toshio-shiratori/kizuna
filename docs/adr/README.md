@@ -72,24 +72,25 @@ What becomes easier? What becomes harder? What new constraints are introduced?
 
 ## Index of ADRs
 
-| ID                                                | Title                                              | Status   |
-| ------------------------------------------------- | -------------------------------------------------- | -------- |
-| [0001](./0001-use-sqlite.md)                      | Use SQLite as the storage backend                  | Accepted |
-| [0002](./0002-use-typescript.md)                  | Use TypeScript as the implementation language      | Accepted |
-| [0003](./0003-use-monorepo.md)                    | Use pnpm workspaces monorepo structure             | Accepted |
-| [0004](./0004-use-mise.md)                        | Use mise for development environment management    | Accepted |
-| [0005](./0005-plugin-architecture.md)             | Adopt a plugin architecture for extensibility      | Accepted |
-| [0006](./0006-mit-license.md)                     | Use MIT license                                    | Accepted |
-| [0007](./0007-no-llm-in-core.md)                  | No LLM dependency in the core                      | Accepted |
-| [0008](./0008-hook-based-capture.md)              | Use Claude Code hooks for capture and recall       | Accepted |
-| [0009](./0009-fts5-with-cjk-ngram.md)             | Use FTS5 trigram tokenizer with CJK n-gram         | Accepted |
-| [0010](./0010-vacuum-in-maintenance.md)           | Run VACUUM in maintenance cycle                    | Accepted |
-| [0011](./0011-actionable-memory-injection.md)     | Use action directives in memory injection          | Accepted |
-| [0012](./0012-no-sqlite-vec-for-vector-search.md) | Do not use sqlite-vec for vector similarity search | Accepted |
+| ID                                                        | Title                                              | Status   |
+| --------------------------------------------------------- | -------------------------------------------------- | -------- |
+| [0001](./0001-use-sqlite.md)                              | Use SQLite as the storage backend                  | Accepted |
+| [0002](./0002-use-typescript.md)                          | Use TypeScript as the implementation language      | Accepted |
+| [0003](./0003-use-monorepo.md)                            | Use pnpm workspaces monorepo structure             | Accepted |
+| [0004](./0004-use-mise.md)                                | Use mise for development environment management    | Accepted |
+| [0005](./0005-plugin-architecture.md)                     | Adopt a plugin architecture for extensibility      | Accepted |
+| [0006](./0006-mit-license.md)                             | Use MIT license                                    | Accepted |
+| [0007](./0007-no-llm-in-core.md)                          | No LLM dependency in the core                      | Accepted |
+| [0008](./0008-hook-based-capture.md)                      | Use Claude Code hooks for capture and recall       | Accepted |
+| [0009](./0009-fts5-with-cjk-ngram.md)                     | Use FTS5 trigram tokenizer with CJK n-gram         | Accepted |
+| [0010](./0010-vacuum-in-maintenance.md)                   | Run VACUUM in maintenance cycle                    | Accepted |
+| [0011](./0011-actionable-memory-injection.md)             | Use action directives in memory injection          | Accepted |
+| [0012](./0012-no-sqlite-vec-for-vector-search.md)         | Do not use sqlite-vec for vector similarity search | Accepted |
+| [0013](./0013-federated-search-for-multi-repo-sharing.md) | Federated search for multi-repo memory sharing     | Proposed |
 
 ## How to Add a New ADR
 
-1. Identify the next available number (currently 0013)
+1. Identify the next available number (currently 0014)
 2. Create `NNNN-short-title.md` in this directory
 3. Follow the format above
 4. Status starts as "Proposed"
