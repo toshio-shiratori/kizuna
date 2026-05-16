@@ -33,15 +33,15 @@ export const PLUGIN_REGISTRY: readonly PluginDef[] = [
     packageName: "@kizuna/plugin-multi-repo-sharing",
     dirName: "plugin-multi-repo-sharing",
     description: "Share memories across repositories",
-    detail: "Tag memories with a namespace so multiple repositories can share context.",
+    detail: "Enable cross-repository memory search via federated queries.",
     options: [
       {
         flag: "--namespace <name>",
-        description: "Namespace for shared memories",
+        description: "Namespace for shared memories (deprecated)",
         required: false,
       },
     ],
-    example: "kizuna plugin enable multi-repo-sharing --namespace my-team",
+    example: "kizuna plugin enable multi-repo-sharing",
   },
   {
     shortName: "hybrid-search",

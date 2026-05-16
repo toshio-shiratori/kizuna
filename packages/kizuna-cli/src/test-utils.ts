@@ -1,27 +1,34 @@
 import { mkdtempSync, rmSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { execSync } from "node:child_process";
+import { spawnSync } from "node:child_process";
 import { Database, captureTranscript } from "@kizuna/core";
 
 const TSX_BIN = join(import.meta.dirname, "..", "node_modules", ".bin", "tsx");
 const CLI_PATH = join(import.meta.dirname, "cli.ts");
 
-export function runCli(args: string, cwd: string): { stdout: string; exitCode: number } {
-  try {
-    const stdout = execSync(`${TSX_BIN} ${CLI_PATH} ${args}`, {
-      cwd,
-      encoding: "utf-8",
-      env: { ...process.env, NODE_NO_WARNINGS: "1" },
-    });
-    return { stdout, exitCode: 0 };
-  } catch (err) {
-    const e = err as { stdout?: string; stderr?: string; status?: number };
-    return {
-      stdout: (e.stdout ?? "") + (e.stderr ?? ""),
-      exitCode: e.status ?? 1,
-    };
+export function runCli(
+  args: string,
+  cwd: string,
+): { stdout: string; stderr: string; exitCode: number } {
+  const result = spawnSync(`${TSX_BIN} ${CLI_PATH} ${args}`, {
+    cwd,
+    encoding: "utf-8",
+    env: { ...process.env, NODE_NO_WARNINGS: "1" },
+    stdio: ["pipe", "pipe", "pipe"],
+    shell: true,
+  });
+
+  const stdout = result.stdout ?? "";
+  const stderr = result.stderr ?? "";
+  const exitCode = result.status ?? 1;
+
+  if (exitCode !== 0) {
+    // Keep backward compatibility: combine stdout + stderr for exitCode != 0
+    return { stdout: stdout + stderr, stderr, exitCode };
   }
+
+  return { stdout, stderr, exitCode };
 }
 
 export function seedDatabase(cwd: string): Database {

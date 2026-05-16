@@ -50,6 +50,9 @@ export function registerEnable(pluginCmd: Command): void {
         }
       } else if (name === "multi-repo-sharing") {
         if (opts.namespace !== undefined) {
+          console.error(
+            'Warning: --namespace is deprecated. Use "kizuna plugin config multi-repo-sharing add-reference <name> <path>" instead.',
+          );
           options.namespace = opts.namespace;
         }
       } else if (name === "hybrid-search") {
@@ -67,9 +70,15 @@ export function registerEnable(pluginCmd: Command): void {
         }
       }
 
+      const existingOptions = config.plugins[distPath]?.options;
+      const mergedOptions =
+        Object.keys(options).length > 0 ? { ...existingOptions, ...options } : existingOptions;
+
       config.plugins[distPath] = {
         enabled: true,
-        ...(Object.keys(options).length > 0 ? { options } : {}),
+        ...(mergedOptions && Object.keys(mergedOptions).length > 0
+          ? { options: mergedOptions }
+          : {}),
       };
       writePluginsJson(cwd, config);
 

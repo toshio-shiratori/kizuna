@@ -58,6 +58,7 @@ kizuna plugin enable multi-repo-sharing --reference backend-api:/path/to/db
 ```
 
 Rejected because:
+
 - Overloads `enable` with configuration management (violates single responsibility)
 - Requires full re-specification of all references on every `enable` call (or introduces `enable --add-reference` which is semantically confusing — you're not "enabling" anything)
 - The colon delimiter conflicts with Windows drive letters (`C:\...`)
@@ -66,6 +67,7 @@ Rejected because:
 ### Alternative 2: Interactive configuration wizard
 
 A `kizuna plugin setup multi-repo-sharing` that prompts for references interactively. Rejected because:
+
 - Kizuna hooks run non-interactively (stdin is consumed by hook input)
 - Scripting and automation become difficult
 - Inconsistent with the rest of the CLI's non-interactive design
@@ -73,6 +75,7 @@ A `kizuna plugin setup multi-repo-sharing` that prompts for references interacti
 ### Alternative 3: Direct `plugins.json` editing with `kizuna plugin edit`
 
 Open `plugins.json` in `$EDITOR`. Rejected because:
+
 - Doesn't reduce the error surface (users still write raw JSON)
 - No validation feedback
 - Not scriptable
@@ -80,6 +83,7 @@ Open `plugins.json` in `$EDITOR`. Rejected because:
 ### Why `git remote`-style commands
 
 The `git remote add/remove/show` pattern is well-established among the target audience (developers using CLI tools daily). It provides:
+
 - Predictable command discovery (`config --help` lists subcommands)
 - Composability in scripts (`kizuna plugin config multi-repo-sharing add-reference ...`)
 - Natural mapping to CRUD operations on a named collection
