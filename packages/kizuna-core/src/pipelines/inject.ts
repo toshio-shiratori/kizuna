@@ -28,9 +28,14 @@ const SEPARATOR_TOKENS = estimateTokens(SEPARATOR);
 const ATTRIBUTION_TOKENS = estimateTokens(ATTRIBUTION_INSTRUCTION);
 
 function formatChunkBlock(result: SearchResult): string {
-  const { chunk } = result;
+  const { chunk, annotations } = result;
   const date = chunk.createdAt.split("T")[0];
-  return `### [${date}] ${chunk.role}\n\n${chunk.content}\n`;
+  const source = annotations?.source;
+  const suffix =
+    typeof source === "string" && source.length > 0 && source !== "local"
+      ? ` (from: ${source})`
+      : "";
+  return `### [${date}] ${chunk.role}${suffix}\n\n${chunk.content}\n`;
 }
 
 export function formatContext(results: SearchResult[], tokenBudget: number): InjectResult {

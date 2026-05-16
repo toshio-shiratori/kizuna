@@ -17,6 +17,7 @@ describe("formatContext", () => {
       createdAt: string;
       importance: number;
       score: number;
+      annotations: Record<string, unknown>;
     }> = {},
   ): SearchResult {
     return {
@@ -32,6 +33,7 @@ describe("formatContext", () => {
         metadata: {},
       },
       score: overrides.score ?? 1.0,
+      ...(overrides.annotations !== undefined && { annotations: overrides.annotations }),
     };
   }
 
@@ -126,6 +128,27 @@ describe("formatContext", () => {
     const withoutAttribution = formatContext(results, tightBudget);
     expect(withoutAttribution.context).not.toContain("which memories you considered");
     expect(withoutAttribution.chunksUsed).toBe(1);
+  });
+
+  it("displays source attribution when annotations.source is a non-local string", () => {
+    const results = [makeResult("Cross-repo memory.", { annotations: { source: "backend-api" } })];
+    const result = formatContext(results, 2000);
+    expect(result.context).toContain("(from: backend-api)");
+    expect(result.context).toContain("[2025-06-01] assistant (from: backend-api)");
+  });
+
+  it("does not display source attribution when annotations.source is local", () => {
+    const results = [makeResult("Local memory.", { annotations: { source: "local" } })];
+    const result = formatContext(results, 2000);
+    expect(result.context).not.toContain("(from:");
+    expect(result.context).toContain("[2025-06-01] assistant\n");
+  });
+
+  it("does not display source attribution when annotations are undefined", () => {
+    const results = [makeResult("No annotations memory.")];
+    const result = formatContext(results, 2000);
+    expect(result.context).not.toContain("(from:");
+    expect(result.context).toContain("[2025-06-01] assistant\n");
   });
 });
 
