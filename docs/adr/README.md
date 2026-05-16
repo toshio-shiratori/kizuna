@@ -88,7 +88,7 @@ What becomes easier? What becomes harder? What new constraints are introduced?
 | [0012](./0012-no-sqlite-vec-for-vector-search.md)         | Do not use sqlite-vec for vector similarity search | Accepted |
 | [0013](./0013-federated-search-for-multi-repo-sharing.md) | Federated search for multi-repo memory sharing     | Accepted |
 | [0014](./0014-cli-plugin-config-command.md)               | CLI plugin config command for structured options   | Accepted |
-| [0015](./0015-memory-export-functionality.md)             | Memory export functionality                        | Proposed |
+| [0015](./0015-memory-export-functionality.md)             | Memory export functionality                        | Accepted |
 
 ## How to Add a New ADR
 

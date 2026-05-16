@@ -1,6 +1,6 @@
 # 0015. Memory export functionality
 
-**Status**: Proposed
+**Status**: Accepted
 
 **Date**: 2026-05-16
 
