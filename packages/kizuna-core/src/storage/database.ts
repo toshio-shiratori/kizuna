@@ -13,16 +13,25 @@ import * as sessionQueries from "./queries/session.js";
 import * as chunkQueries from "./queries/chunk.js";
 import * as maintenanceQueries from "./queries/maintenance.js";
 
+export interface DatabaseOptions {
+  readonly?: boolean;
+}
+
 export class Database {
   readonly db: BetterSqlite3.Database;
 
-  constructor(dbPath: string) {
-    this.db = new BetterSqlite3(dbPath);
-    this.db.pragma("journal_mode = WAL");
-    this.db.pragma("synchronous = NORMAL");
-    this.db.pragma("busy_timeout = 5000");
-    this.db.pragma("foreign_keys = ON");
-    runCoreMigrations(this.db);
+  constructor(dbPath: string, options?: DatabaseOptions) {
+    if (options?.readonly) {
+      this.db = new BetterSqlite3(dbPath, { readonly: true });
+      this.db.pragma("busy_timeout = 5000");
+    } else {
+      this.db = new BetterSqlite3(dbPath);
+      this.db.pragma("journal_mode = WAL");
+      this.db.pragma("synchronous = NORMAL");
+      this.db.pragma("busy_timeout = 5000");
+      this.db.pragma("foreign_keys = ON");
+      runCoreMigrations(this.db);
+    }
   }
 
   close(): void {

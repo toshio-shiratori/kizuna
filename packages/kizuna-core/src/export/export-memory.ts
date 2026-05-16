@@ -30,6 +30,8 @@ export interface ExportOptions {
   sessionIds?: string[];
   /** Omit metadata from output */
   noMetadata?: boolean;
+  /** Cross-project reference name (for metadata) */
+  project?: string;
 }
 
 const DEFAULT_LIMIT = 100;
@@ -96,6 +98,7 @@ export async function exportMemory(db: Database, options: ExportOptions = {}): P
       role: options.role,
       minImportance: options.minImportance,
       session: options.sessionIds,
+      project: options.project,
     },
   });
 
