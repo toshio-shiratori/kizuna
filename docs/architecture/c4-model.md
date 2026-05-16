@@ -96,15 +96,15 @@ graph TB
 
 ### Container List
 
-| Container                     | Technology                  | Responsibility                                                                                                          |
-| ----------------------------- | --------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| Container                     | Technology                  | Responsibility                                                                                                                          |
+| ----------------------------- | --------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
 | **kizuna-cli**                | TypeScript, commander       | CLI commands (setup, search, list, prune, stats, cleanup, recap, plugin) and hook handlers (SessionEnd, UserPromptSubmit, SessionStart) |
-| **kizuna-mcp**                | TypeScript, MCP SDK (stdio) | MCP server exposing tools (kizuna_search, kizuna_save, kizuna_list, kizuna_delete) for active agent queries             |
-| **kizuna-core**               | TypeScript, better-sqlite3  | Generic memory engine: storage layer, pipelines (capture, search, inject, maintain), plugin manager, configuration      |
-| **plugin-pii-sanitizer**      | TypeScript                  | Redacts API keys, tokens, and secrets from chunks before storage via `beforeCapture` hook                               |
-| **plugin-multi-repo-sharing** | TypeScript                  | Enables cross-repository memory sharing via a shared SQLite file with namespace-based filtering                         |
-| *(and others)*                | TypeScript                  | Additional plugins include hybrid-search (FTS5 + sqlite-vec), openapi-awareness, etc.                                   |
-| **SQLite**                    | SQLite + FTS5 (trigram)     | Persistent storage for sessions, chunks, FTS index, maintenance metadata, and plugin KV store                           |
+| **kizuna-mcp**                | TypeScript, MCP SDK (stdio) | MCP server exposing tools (kizuna_search, kizuna_save, kizuna_list, kizuna_delete) for active agent queries                             |
+| **kizuna-core**               | TypeScript, better-sqlite3  | Generic memory engine: storage layer, pipelines (capture, search, inject, maintain), plugin manager, configuration                      |
+| **plugin-pii-sanitizer**      | TypeScript                  | Redacts API keys, tokens, and secrets from chunks before storage via `beforeCapture` hook                                               |
+| **plugin-multi-repo-sharing** | TypeScript                  | Enables cross-repository memory sharing via a shared SQLite file with namespace-based filtering                                         |
+| _(and others)_                | TypeScript                  | Additional plugins include hybrid-search (FTS5 + sqlite-vec), openapi-awareness, etc.                                                   |
+| **SQLite**                    | SQLite + FTS5 (trigram)     | Persistent storage for sessions, chunks, FTS index, maintenance metadata, and plugin KV store                                           |
 
 ### Dependency Rules
 
