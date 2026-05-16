@@ -10,6 +10,7 @@ export interface ExportFilters {
   role?: string;
   minImportance?: number;
   session?: string[];
+  project?: string;
 }
 
 export interface FormatOptions {
@@ -78,6 +79,9 @@ export function formatMarkdown(data: ExportData, options?: FormatOptions): strin
 function formatFiltersMarkdown(filters: ExportFilters): string {
   const parts: string[] = [];
 
+  if (filters.project) {
+    parts.push(`project=${filters.project}`);
+  }
   if (filters.since) {
     parts.push(`since=${filters.since}`);
   }

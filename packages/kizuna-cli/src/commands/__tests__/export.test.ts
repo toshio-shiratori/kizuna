@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { readFileSync } from "node:fs";
+import { readFileSync, mkdirSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
 import { runCli, seedDatabase, createTempDir, removeTempDir } from "../../test-utils.js";
 
 describe("export command", () => {
@@ -290,5 +291,143 @@ describe("export command", () => {
     expect(parsed.meta.filters.role).toBe("assistant");
     expect(parsed.meta.filters.minImportance).toBe(3);
     expect(parsed.meta.filters.session).toEqual(["test-session-001"]);
+  });
+});
+
+describe("export --project (multi-repo)", () => {
+  let mainDir: string;
+  let refDir: string;
+
+  beforeEach(() => {
+    mainDir = createTempDir();
+    refDir = createTempDir();
+
+    // Seed the referenced project's database
+    const db = seedDatabase(refDir);
+    db.close();
+  });
+
+  afterEach(() => {
+    removeTempDir(mainDir);
+    removeTempDir(refDir);
+  });
+
+  function setupPluginsJson(
+    cwd: string,
+    references: Array<{ name: string; dbPath: string }>,
+  ): void {
+    const kizunaDir = join(cwd, ".kizuna");
+    mkdirSync(kizunaDir, { recursive: true });
+    const pluginsJson = {
+      plugins: {
+        "/path/to/plugin-multi-repo-sharing/dist/index.js": {
+          enabled: true,
+          options: { references },
+        },
+      },
+    };
+    writeFileSync(join(kizunaDir, "plugins.json"), JSON.stringify(pluginsJson, null, 2));
+  }
+
+  it("should export from a referenced project database", () => {
+    const refDbPath = join(refDir, ".kizuna", "memory.db");
+    setupPluginsJson(mainDir, [{ name: "backend-api", dbPath: refDbPath }]);
+
+    const result = runCli(`export --project backend-api --format json --cwd ${mainDir}`, mainDir);
+    expect(result.exitCode).toBe(0);
+
+    const parsed = JSON.parse(result.stdout);
+    expect(parsed.meta.projectId).toBe("backend-api");
+    expect(parsed.meta.chunkCount).toBeGreaterThan(0);
+    expect(parsed.meta.filters.project).toBe("backend-api");
+  });
+
+  it("should export from referenced project in markdown format", () => {
+    const refDbPath = join(refDir, ".kizuna", "memory.db");
+    setupPluginsJson(mainDir, [{ name: "backend-api", dbPath: refDbPath }]);
+
+    const result = runCli(`export --project backend-api --cwd ${mainDir}`, mainDir);
+    expect(result.exitCode).toBe(0);
+
+    expect(result.stdout).toContain("# Kizuna Memory Export");
+    expect(result.stdout).toContain("- **Project**: backend-api");
+    expect(result.stdout).toContain("project=backend-api");
+  });
+
+  it("should error when project name is not found in references", () => {
+    setupPluginsJson(mainDir, [
+      { name: "backend-api", dbPath: join(refDir, ".kizuna", "memory.db") },
+    ]);
+
+    const result = runCli(`export --project unknown-project --cwd ${mainDir}`, mainDir);
+    expect(result.exitCode).toBe(1);
+    expect(result.stdout).toContain('Project "unknown-project" not found');
+    expect(result.stdout).toContain("multi-repo-sharing plugin references");
+  });
+
+  it("should error when plugin is not configured", () => {
+    // No plugins.json at all
+    const kizunaDir = join(mainDir, ".kizuna");
+    mkdirSync(kizunaDir, { recursive: true });
+
+    const result = runCli(`export --project backend-api --cwd ${mainDir}`, mainDir);
+    expect(result.exitCode).toBe(1);
+    expect(result.stdout).toContain('Project "backend-api" not found');
+  });
+
+  it("should error when referenced DB does not exist", () => {
+    setupPluginsJson(mainDir, [{ name: "backend-api", dbPath: "/nonexistent/path/memory.db" }]);
+
+    const result = runCli(`export --project backend-api --cwd ${mainDir}`, mainDir);
+    expect(result.exitCode).toBe(1);
+    expect(result.stdout).toContain('Database not found for project "backend-api"');
+  });
+
+  it("should skip disabled plugins when resolving project", () => {
+    const refDbPath = join(refDir, ".kizuna", "memory.db");
+    const kizunaDir = join(mainDir, ".kizuna");
+    mkdirSync(kizunaDir, { recursive: true });
+    const pluginsJson = {
+      plugins: {
+        "/path/to/plugin-multi-repo-sharing/dist/index.js": {
+          enabled: false,
+          options: { references: [{ name: "backend-api", dbPath: refDbPath }] },
+        },
+      },
+    };
+    writeFileSync(join(kizunaDir, "plugins.json"), JSON.stringify(pluginsJson, null, 2));
+
+    const result = runCli(`export --project backend-api --cwd ${mainDir}`, mainDir);
+    expect(result.exitCode).toBe(1);
+    expect(result.stdout).toContain('Project "backend-api" not found');
+  });
+
+  it("should combine --project with other filters", () => {
+    const refDbPath = join(refDir, ".kizuna", "memory.db");
+    setupPluginsJson(mainDir, [{ name: "backend-api", dbPath: refDbPath }]);
+
+    const result = runCli(
+      `export --project backend-api --role assistant --format json --cwd ${mainDir}`,
+      mainDir,
+    );
+    expect(result.exitCode).toBe(0);
+
+    const parsed = JSON.parse(result.stdout);
+    expect(parsed.meta.projectId).toBe("backend-api");
+    for (const chunk of parsed.chunks) {
+      expect(chunk.role).toBe("assistant");
+    }
+  });
+
+  it("should not require local database when --project is used", () => {
+    // mainDir has no .kizuna/memory.db, only plugins.json
+    const refDbPath = join(refDir, ".kizuna", "memory.db");
+    setupPluginsJson(mainDir, [{ name: "backend-api", dbPath: refDbPath }]);
+
+    const result = runCli(`export --project backend-api --format json --cwd ${mainDir}`, mainDir);
+    expect(result.exitCode).toBe(0);
+
+    const parsed = JSON.parse(result.stdout);
+    expect(parsed.meta.chunkCount).toBeGreaterThan(0);
   });
 });

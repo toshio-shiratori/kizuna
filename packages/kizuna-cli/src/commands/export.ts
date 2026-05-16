@@ -1,11 +1,12 @@
 import type { Command } from "commander";
-import { writeFileSync } from "node:fs";
+import { existsSync, writeFileSync } from "node:fs";
 import { execSync } from "node:child_process";
 import { Database, exportMemory } from "@kizuna/core";
 import type { ExportFormat } from "@kizuna/core";
 import { resolveDbPath, dbExists } from "../db-path.js";
 import { createPositiveIntParser, createNonNegativeIntParser } from "../validators.js";
 import { getProjectId } from "../hooks/shared.js";
+import { readPluginsJson } from "./plugin/plugins-json.js";
 
 function collectOption(value: string, previous: string[]): string[] {
   return [...previous, value];
@@ -33,6 +34,7 @@ export function registerExport(program: Command): void {
       createNonNegativeIntParser("--min-importance", 10),
     )
     .option("--session <id>", "Filter by session ID (repeatable)", collectOption, [])
+    .option("--project <name>", "Export from a referenced project (multi-repo-sharing plugin)")
     .option("--no-metadata", "Omit per-chunk metadata and headers from output")
     .option("--cwd <path>", "Project directory", process.cwd())
     .action(
@@ -47,15 +49,10 @@ export function registerExport(program: Command): void {
         role?: string;
         minImportance?: number;
         session: string[];
+        project?: string;
         metadata: boolean;
         cwd: string;
       }) => {
-        if (!dbExists(opts.cwd)) {
-          console.error("No Kizuna database found. Run 'kizuna setup' first.");
-          process.exitCode = 1;
-          return;
-        }
-
         // Validate format option
         const format = validateFormat(opts.format);
         if (!format) {
@@ -72,7 +69,38 @@ export function registerExport(program: Command): void {
           return;
         }
 
-        const db = new Database(resolveDbPath(opts.cwd));
+        // Resolve database path
+        let dbPath: string;
+        let projectId: string;
+
+        if (opts.project) {
+          const resolved = resolveProjectReference(opts.cwd, opts.project);
+          if (!resolved) {
+            console.error(
+              `Project "${opts.project}" not found in multi-repo-sharing plugin references. ` +
+                `Check .kizuna/plugins.json configuration.`,
+            );
+            process.exitCode = 1;
+            return;
+          }
+          if (!existsSync(resolved.dbPath)) {
+            console.error(`Database not found for project "${opts.project}": ${resolved.dbPath}`);
+            process.exitCode = 1;
+            return;
+          }
+          dbPath = resolved.dbPath;
+          projectId = resolved.name;
+        } else {
+          if (!dbExists(opts.cwd)) {
+            console.error("No Kizuna database found. Run 'kizuna setup' first.");
+            process.exitCode = 1;
+            return;
+          }
+          dbPath = resolveDbPath(opts.cwd);
+          projectId = getProjectId(opts.cwd);
+        }
+
+        const db = new Database(dbPath, opts.project ? { readonly: true } : undefined);
         try {
           const output = await exportMemory(db, {
             since: opts.since,
@@ -80,11 +108,12 @@ export function registerExport(program: Command): void {
             query: opts.query,
             format,
             limit: opts.limit ?? 100,
-            projectId: getProjectId(opts.cwd),
+            projectId,
             role: role ?? undefined,
             minImportance: opts.minImportance,
             sessionIds: opts.session.length > 0 ? opts.session : undefined,
             noMetadata: !opts.metadata,
+            project: opts.project,
           });
 
           // Output destination
@@ -146,4 +175,26 @@ function copyToClipboard(text: string): boolean {
   } catch {
     return false;
   }
+}
+
+interface ResolvedProject {
+  name: string;
+  dbPath: string;
+}
+
+function resolveProjectReference(cwd: string, projectName: string): ResolvedProject | null {
+  const pluginsJson = readPluginsJson(cwd);
+
+  for (const [, entry] of Object.entries(pluginsJson.plugins)) {
+    if (!entry.enabled) continue;
+    const options = entry.options as
+      | { references?: Array<{ name: string; dbPath: string }> }
+      | undefined;
+    if (!options?.references) continue;
+
+    const ref = options.references.find((r) => r.name === projectName);
+    if (ref) return ref;
+  }
+
+  return null;
 }
