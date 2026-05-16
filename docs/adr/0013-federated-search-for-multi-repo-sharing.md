@@ -10,7 +10,7 @@ The current `multi-repo-sharing` plugin uses a shared database approach: multipl
 
 ### Problems with the shared database approach
 
-1. **Conflict with local-first principles**: The shared database requires manual `dbPath` configuration pointing to a common SQLite file. This deviates from `kizuna setup`'s zero-configuration philosophy and ADR-0001's "single file" benefit — each project should own its own database without external coordination.
+1. **Conflict with local-first principles**: The shared database requires manual `dbPath` configuration pointing to a common SQLite file. This deviates from `kizuna setup`'s zero-configuration philosophy. Note that ADR-0001 mentions shared filesystem use as a benefit of the single-file design, but does not endorse co-mingling multiple projects' data in a single database.
 
 2. **Physical co-mingling**: Multiple projects' memories reside in one SQLite file. This makes deletion, backup, and privacy boundaries difficult to manage. Removing one project's memories requires careful filtering rather than simply deleting a file.
 
@@ -85,7 +85,6 @@ Federated search aligns best with Kizuna's existing design:
 - Write contention eliminated (each project writes only to its own database)
 - Asymmetric references are naturally expressed
 - Privacy boundaries are clear (stop referencing a database to stop seeing its memories)
-- No migration needed for existing single-project setups
 - Simpler mental model: "my database, plus I can read theirs"
 
 ### Negative
