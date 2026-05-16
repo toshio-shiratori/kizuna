@@ -400,77 +400,74 @@ export default {
 
 ## Example Plugin: multi-repo-sharing
 
-A plugin that scopes memories by project ID and shared namespace:
+A plugin that enables cross-repository memory search via federated queries.
+Each project keeps its own database while referencing other projects'
+databases as read-only search targets. Uses a factory function to maintain
+closure-scoped state for passing query context between hooks.
 
 ```typescript
 import type { Plugin } from "@kizuna/core";
 
-interface Options {
-  namespace?: string;
+interface RepoReference {
+  name: string;
+  dbPath: string;
 }
 
-export default {
-  name: "@kizuna/plugin-multi-repo-sharing",
-  version: "1.0.0",
-  description: "Enables memory sharing across repositories via namespaces",
+interface Options {
+  references?: RepoReference[];
+  halfLifeDays?: number;
+}
 
-  migrations() {
-    return [
-      {
-        version: 1,
-        description: "Add indexes for namespace queries",
-        up: `
-          CREATE INDEX IF NOT EXISTS idx_chunks_metadata_namespace
-            ON chunks(json_extract(metadata, '$."@kizuna/plugin-multi-repo-sharing".namespace'));
-        `,
-      },
-    ];
-  },
+export function createMultiRepoSharing(): Plugin {
+  // Closure-scoped state to pass query from beforeSearch to afterSearch
+  let lastQueryText: string | null = null;
+  let lastQueryLimit: number = 10;
 
-  beforeCapture(chunk, ctx) {
-    const options = ctx.config.options as Options;
-    return {
-      ...chunk,
-      metadata: {
-        ...chunk.metadata,
-        [this.name]: {
-          repoId: ctx.projectConfig.id,
-          namespace: options.namespace ?? null,
-        },
-      },
-    };
-  },
+  return {
+    name: "@kizuna/plugin-multi-repo-sharing",
+    version: "0.1.0",
+    description: "Enables cross-repository memory search via federated queries",
 
-  beforeSearch(query, ctx) {
-    const options = ctx.config.options as Options;
-    const namespaces = [ctx.projectConfig.id];
-    if (options.namespace) {
-      namespaces.push(options.namespace);
-    }
-    return {
-      ...query,
-      filters: {
-        ...query.filters,
-        namespaces,
-      },
-    };
-  },
+    beforeSearch(query) {
+      // Capture query text for federated fan-out in afterSearch
+      lastQueryText = query.text;
+      lastQueryLimit = query.limit;
+      return query;
+    },
 
-  afterSearch(results, ctx) {
-    return results.map((result) => {
-      const ns = (result.chunk.metadata as Record<string, unknown>)[this.name];
-      const isShared = ns && typeof ns === "object" && "namespace" in ns && ns.namespace !== null;
+    afterSearch(results, ctx) {
+      const queryText = lastQueryText;
+      const queryLimit = lastQueryLimit;
+      lastQueryText = null;
 
-      return {
-        ...result,
-        annotations: {
-          ...result.annotations,
-          isShared,
-        },
-      };
-    });
-  },
-} satisfies Plugin;
+      const options = ctx.config.options as Options;
+      const references = options.references;
+      if (!references || references.length === 0) return results;
+
+      // Annotate local results with source
+      const annotatedLocal = results.map((r) => ({
+        ...r,
+        annotations: { ...r.annotations, source: "local" },
+      }));
+
+      if (!queryText) return annotatedLocal;
+
+      // Query each referenced database (read-only), normalize scores,
+      // merge with local results, and return top results by score
+      const remoteResults = queryReferences(
+        references,
+        queryText,
+        queryLimit,
+        options.halfLifeDays ?? 30,
+        ctx.logger,
+      );
+
+      const merged = [...normalizeScores(annotatedLocal), ...remoteResults];
+      merged.sort((a, b) => b.score - a.score);
+      return merged.slice(0, queryLimit);
+    },
+  };
+}
 ```
 
 ## Plugin Configuration Example
@@ -482,7 +479,6 @@ A project enabling both plugins:
 {
   "project": {
     "id": "my-frontend-app",
-    "sharedNamespace": "my-org-shared",
   },
   "plugins": [
     {
@@ -494,7 +490,13 @@ A project enabling both plugins:
       "name": "@kizuna/plugin-multi-repo-sharing",
       "enabled": true,
       "options": {
-        "namespace": "my-org-shared",
+        "references": [
+          {
+            "name": "backend-api",
+            "dbPath": "/path/to/backend-api/.kizuna/memory.db",
+          },
+        ],
+        "halfLifeDays": 14,
       },
     },
   ],

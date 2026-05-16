@@ -16,6 +16,7 @@ export interface RepoReference {
 
 export interface MultiRepoSharingOptions {
   references?: RepoReference[];
+  halfLifeDays?: number;
 }
 
 interface FtsRow {
@@ -34,6 +35,7 @@ interface FtsRow {
 
 const PLUGIN_NAME = "@kizuna/plugin-multi-repo-sharing";
 const DEFAULT_HALF_LIFE_DAYS = 30;
+const MAX_RECOMMENDED_REFERENCES = 5;
 
 /**
  * Normalize scores within a result set to [0, 1] using min-max normalization.
@@ -233,6 +235,12 @@ export function createMultiRepoSharing(): Plugin {
         return results;
       }
 
+      if (references.length > MAX_RECOMMENDED_REFERENCES) {
+        ctx.logger.warn(
+          `${references.length} references configured (recommended max: ${MAX_RECOMMENDED_REFERENCES}). Search latency may increase.`,
+        );
+      }
+
       // Annotate local results with source information
       const annotatedLocal = results.map((r) => ({
         ...r,
@@ -253,11 +261,12 @@ export function createMultiRepoSharing(): Plugin {
       }
 
       // Query referenced databases
+      const halfLifeDays = options.halfLifeDays ?? DEFAULT_HALF_LIFE_DAYS;
       const remoteResults = queryReferences(
         references,
         ftsQuery,
         queryLimit,
-        DEFAULT_HALF_LIFE_DAYS,
+        halfLifeDays,
         ctx.logger,
       );
 

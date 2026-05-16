@@ -59,9 +59,12 @@ Each search result is annotated with a `source` field in its `annotations`:
 
 ## Options
 
-| Option       | Type              | Description                                                                |
-| ------------ | ----------------- | -------------------------------------------------------------------------- |
-| `references` | `RepoReference[]` | List of other projects' databases to search. Each has `name` and `dbPath`. |
+| Option         | Type              | Default | Description                                                                |
+| -------------- | ----------------- | ------- | -------------------------------------------------------------------------- |
+| `references`   | `RepoReference[]` | `[]`    | List of other projects' databases to search. Each has `name` and `dbPath`. |
+| `halfLifeDays` | `number`          | `30`    | Half-life (in days) for time-decay scoring of referenced results.          |
+
+The recommended maximum number of references is **5**. Configuring more than 5 references will trigger a warning log and may increase search latency, as each reference opens a separate read-only database connection per search request.
 
 ### RepoReference
 
