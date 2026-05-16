@@ -152,7 +152,7 @@ describe("plugin command", () => {
       expect(entry.options.specPath).toMatch(/^\//);
     });
 
-    it("should enable multi-repo-sharing with --namespace", () => {
+    it("should enable multi-repo-sharing with --namespace and show deprecation warning", () => {
       const kizunaDir = join(tempDir, ".kizuna");
       mkdirSync(kizunaDir, { recursive: true });
       writeFileSync(join(kizunaDir, "plugins.json"), JSON.stringify({ plugins: {} }));
@@ -163,6 +163,8 @@ describe("plugin command", () => {
       );
       expect(result.exitCode).toBe(0);
       expect(result.stdout).toContain("multi-repo-sharing enabled");
+      expect(result.stderr).toContain("Warning: --namespace is deprecated");
+      expect(result.stderr).toContain("kizuna plugin config multi-repo-sharing add-reference");
 
       const config = JSON.parse(readFileSync(join(kizunaDir, "plugins.json"), "utf-8"));
       expect(config.plugins[distKey("multi-repo-sharing")]).toEqual({
@@ -235,6 +237,34 @@ describe("plugin command", () => {
       const result = runCli(`plugin enable openapi-awareness --cwd ${tempDir}`, tempDir);
       expect(result.exitCode).toBe(1);
       expect(result.stdout).toContain("Missing required option: --spec");
+    });
+
+    it("should preserve existing options when re-enabling without flags", () => {
+      const kizunaDir = join(tempDir, ".kizuna");
+      mkdirSync(kizunaDir, { recursive: true });
+      writeFileSync(
+        join(kizunaDir, "plugins.json"),
+        JSON.stringify({
+          plugins: {
+            [distKey("multi-repo-sharing")]: {
+              enabled: true,
+              options: {
+                references: [{ name: "backend", dbPath: "/path/to/db" }],
+                halfLifeDays: 14,
+              },
+            },
+          },
+        }),
+      );
+
+      const result = runCli(`plugin enable multi-repo-sharing --cwd ${tempDir}`, tempDir);
+      expect(result.exitCode).toBe(0);
+
+      const config = JSON.parse(readFileSync(join(kizunaDir, "plugins.json"), "utf-8"));
+      const entry = config.plugins[distKey("multi-repo-sharing")];
+      expect(entry.enabled).toBe(true);
+      expect(entry.options.references).toEqual([{ name: "backend", dbPath: "/path/to/db" }]);
+      expect(entry.options.halfLifeDays).toBe(14);
     });
 
     it("should remove legacy key when enabling with new key", () => {
@@ -336,6 +366,262 @@ describe("plugin command", () => {
       const result = runCli(`plugin disable nonexistent --cwd ${tempDir}`, tempDir);
       expect(result.exitCode).toBe(1);
       expect(result.stdout).toContain("Unknown plugin: nonexistent");
+    });
+  });
+
+  describe("plugin config", () => {
+    it("should error when plugin is not enabled", () => {
+      const kizunaDir = join(tempDir, ".kizuna");
+      mkdirSync(kizunaDir, { recursive: true });
+      writeFileSync(join(kizunaDir, "plugins.json"), JSON.stringify({ plugins: {} }));
+
+      const result = runCli(
+        `plugin config multi-repo-sharing list-references --cwd ${tempDir}`,
+        tempDir,
+      );
+      expect(result.exitCode).toBe(1);
+      expect(result.stderr).toContain(
+        'Plugin "multi-repo-sharing" is not enabled. Run "kizuna plugin enable multi-repo-sharing" first.',
+      );
+    });
+
+    it("should add a reference to the references array", () => {
+      const kizunaDir = join(tempDir, ".kizuna");
+      mkdirSync(kizunaDir, { recursive: true });
+      writeFileSync(
+        join(kizunaDir, "plugins.json"),
+        JSON.stringify({
+          plugins: { [distKey("multi-repo-sharing")]: { enabled: true } },
+        }),
+      );
+
+      // Use tempDir itself as the path so it exists
+      const result = runCli(
+        `plugin config multi-repo-sharing add-reference backend ${tempDir} --cwd ${tempDir}`,
+        tempDir,
+      );
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).toContain('Reference "backend" added.');
+
+      const config = JSON.parse(readFileSync(join(kizunaDir, "plugins.json"), "utf-8"));
+      const refs = config.plugins[distKey("multi-repo-sharing")].options.references;
+      expect(refs).toHaveLength(1);
+      expect(refs[0].name).toBe("backend");
+      expect(refs[0].dbPath).toContain(tempDir);
+    });
+
+    it("should update existing reference by name", () => {
+      const kizunaDir = join(tempDir, ".kizuna");
+      mkdirSync(kizunaDir, { recursive: true });
+      writeFileSync(
+        join(kizunaDir, "plugins.json"),
+        JSON.stringify({
+          plugins: {
+            [distKey("multi-repo-sharing")]: {
+              enabled: true,
+              options: { references: [{ name: "backend", dbPath: "/old/path" }] },
+            },
+          },
+        }),
+      );
+
+      const result = runCli(
+        `plugin config multi-repo-sharing add-reference backend ${tempDir} --cwd ${tempDir}`,
+        tempDir,
+      );
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).toContain('Reference "backend" added.');
+
+      const config = JSON.parse(readFileSync(join(kizunaDir, "plugins.json"), "utf-8"));
+      const refs = config.plugins[distKey("multi-repo-sharing")].options.references;
+      expect(refs).toHaveLength(1);
+      expect(refs[0].dbPath).toContain(tempDir);
+    });
+
+    it("should warn on non-existent path but proceed", () => {
+      const kizunaDir = join(tempDir, ".kizuna");
+      mkdirSync(kizunaDir, { recursive: true });
+      writeFileSync(
+        join(kizunaDir, "plugins.json"),
+        JSON.stringify({
+          plugins: { [distKey("multi-repo-sharing")]: { enabled: true } },
+        }),
+      );
+
+      const result = runCli(
+        `plugin config multi-repo-sharing add-reference backend /nonexistent/path/db --cwd ${tempDir}`,
+        tempDir,
+      );
+      expect(result.exitCode).toBe(0);
+      expect(result.stderr).toContain("Warning: path does not exist");
+      expect(result.stdout).toContain('Reference "backend" added.');
+    });
+
+    it("should remove a reference by name", () => {
+      const kizunaDir = join(tempDir, ".kizuna");
+      mkdirSync(kizunaDir, { recursive: true });
+      writeFileSync(
+        join(kizunaDir, "plugins.json"),
+        JSON.stringify({
+          plugins: {
+            [distKey("multi-repo-sharing")]: {
+              enabled: true,
+              options: {
+                references: [
+                  { name: "backend", dbPath: "/path/a" },
+                  { name: "frontend", dbPath: "/path/b" },
+                ],
+              },
+            },
+          },
+        }),
+      );
+
+      const result = runCli(
+        `plugin config multi-repo-sharing remove-reference backend --cwd ${tempDir}`,
+        tempDir,
+      );
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).toContain('Reference "backend" removed.');
+
+      const config = JSON.parse(readFileSync(join(kizunaDir, "plugins.json"), "utf-8"));
+      const refs = config.plugins[distKey("multi-repo-sharing")].options.references;
+      expect(refs).toHaveLength(1);
+      expect(refs[0].name).toBe("frontend");
+    });
+
+    it("should error when removing a non-existent reference", () => {
+      const kizunaDir = join(tempDir, ".kizuna");
+      mkdirSync(kizunaDir, { recursive: true });
+      writeFileSync(
+        join(kizunaDir, "plugins.json"),
+        JSON.stringify({
+          plugins: {
+            [distKey("multi-repo-sharing")]: {
+              enabled: true,
+              options: { references: [] },
+            },
+          },
+        }),
+      );
+
+      const result = runCli(
+        `plugin config multi-repo-sharing remove-reference nonexistent --cwd ${tempDir}`,
+        tempDir,
+      );
+      expect(result.exitCode).toBe(1);
+      expect(result.stderr).toContain('Reference "nonexistent" not found.');
+    });
+
+    it("should list current references", () => {
+      const kizunaDir = join(tempDir, ".kizuna");
+      mkdirSync(kizunaDir, { recursive: true });
+      writeFileSync(
+        join(kizunaDir, "plugins.json"),
+        JSON.stringify({
+          plugins: {
+            [distKey("multi-repo-sharing")]: {
+              enabled: true,
+              options: {
+                references: [
+                  { name: "backend", dbPath: "/path/to/backend/memory.db" },
+                  { name: "frontend", dbPath: "/path/to/frontend/memory.db" },
+                ],
+              },
+            },
+          },
+        }),
+      );
+
+      const result = runCli(
+        `plugin config multi-repo-sharing list-references --cwd ${tempDir}`,
+        tempDir,
+      );
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).toContain("backend\t/path/to/backend/memory.db");
+      expect(result.stdout).toContain("frontend\t/path/to/frontend/memory.db");
+    });
+
+    it("should show (none) when references are empty", () => {
+      const kizunaDir = join(tempDir, ".kizuna");
+      mkdirSync(kizunaDir, { recursive: true });
+      writeFileSync(
+        join(kizunaDir, "plugins.json"),
+        JSON.stringify({
+          plugins: {
+            [distKey("multi-repo-sharing")]: { enabled: true },
+          },
+        }),
+      );
+
+      const result = runCli(
+        `plugin config multi-repo-sharing list-references --cwd ${tempDir}`,
+        tempDir,
+      );
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).toContain("(none)");
+    });
+
+    it("should set a scalar value", () => {
+      const kizunaDir = join(tempDir, ".kizuna");
+      mkdirSync(kizunaDir, { recursive: true });
+      writeFileSync(
+        join(kizunaDir, "plugins.json"),
+        JSON.stringify({
+          plugins: { [distKey("multi-repo-sharing")]: { enabled: true } },
+        }),
+      );
+
+      const result = runCli(
+        `plugin config multi-repo-sharing set halfLifeDays 30 --cwd ${tempDir}`,
+        tempDir,
+      );
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).toContain('Set "halfLifeDays" = 30');
+
+      const config = JSON.parse(readFileSync(join(kizunaDir, "plugins.json"), "utf-8"));
+      expect(config.plugins[distKey("multi-repo-sharing")].options.halfLifeDays).toBe(30);
+    });
+
+    it("should convert numeric strings to numbers", () => {
+      const kizunaDir = join(tempDir, ".kizuna");
+      mkdirSync(kizunaDir, { recursive: true });
+      writeFileSync(
+        join(kizunaDir, "plugins.json"),
+        JSON.stringify({
+          plugins: { [distKey("multi-repo-sharing")]: { enabled: true } },
+        }),
+      );
+
+      const result = runCli(
+        `plugin config multi-repo-sharing set alpha 0.7 --cwd ${tempDir}`,
+        tempDir,
+      );
+      expect(result.exitCode).toBe(0);
+
+      const config = JSON.parse(readFileSync(join(kizunaDir, "plugins.json"), "utf-8"));
+      expect(config.plugins[distKey("multi-repo-sharing")].options.alpha).toBe(0.7);
+    });
+
+    it("should keep string values that are not numeric", () => {
+      const kizunaDir = join(tempDir, ".kizuna");
+      mkdirSync(kizunaDir, { recursive: true });
+      writeFileSync(
+        join(kizunaDir, "plugins.json"),
+        JSON.stringify({
+          plugins: { [distKey("multi-repo-sharing")]: { enabled: true } },
+        }),
+      );
+
+      const result = runCli(
+        `plugin config multi-repo-sharing set namespace my-team --cwd ${tempDir}`,
+        tempDir,
+      );
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).toContain('Set "namespace" = "my-team"');
+
+      const config = JSON.parse(readFileSync(join(kizunaDir, "plugins.json"), "utf-8"));
+      expect(config.plugins[distKey("multi-repo-sharing")].options.namespace).toBe("my-team");
     });
   });
 
