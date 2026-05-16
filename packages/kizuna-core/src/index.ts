@@ -35,6 +35,16 @@ export { runMaintenance } from "./pipelines/maintenance.js";
 export type { MaintenanceOptions } from "./pipelines/maintenance.js";
 export { findLowQualityChunks, cleanupChunks } from "./pipelines/cleanup.js";
 export type { CleanupResult, CleanupTarget } from "./pipelines/cleanup.js";
+export { exportMemory } from "./export/index.js";
+export type {
+  ExportOptions,
+  ExportFormat,
+  ExportFilters,
+  ExportMeta,
+  ExportData,
+} from "./export/index.js";
+export { parseRelativeDate, isRelativeDate, resolveDateInput } from "./export/index.js";
+export { formatMarkdown, formatJson, formatExport } from "./export/index.js";
 
 // ─── Storage Types ────────────────────────────────────────
 
