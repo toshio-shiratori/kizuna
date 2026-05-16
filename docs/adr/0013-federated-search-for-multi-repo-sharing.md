@@ -1,6 +1,6 @@
 # 0013. Federated search for multi-repo memory sharing
 
-**Status**: Proposed
+**Status**: Accepted
 
 **Date**: 2026-05-16
 
