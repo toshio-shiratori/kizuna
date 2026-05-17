@@ -2,6 +2,12 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { existsSync, readFileSync, mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { runCli, createTempDir, removeTempDir } from "../../test-utils.js";
+import { resolvePluginDistPath, PLUGIN_REGISTRY } from "../plugin/registry.js";
+
+function distKey(shortName: string): string {
+  const def = PLUGIN_REGISTRY.find((p) => p.shortName === shortName)!;
+  return resolvePluginDistPath(def);
+}
 
 describe("setup command", () => {
   let tempDir: string;
@@ -171,5 +177,30 @@ describe("setup command", () => {
     const mcpServers = settings["mcpServers"] as Record<string, unknown>;
     const keys = Object.keys(mcpServers);
     expect(keys.filter((k) => k === "kizuna")).toHaveLength(1);
+  });
+
+  it("should run plugin migrations when plugins.json already has enabled plugins", () => {
+    const kizunaDir = join(tempDir, ".kizuna");
+    mkdirSync(kizunaDir, { recursive: true });
+    writeFileSync(
+      join(kizunaDir, "plugins.json"),
+      JSON.stringify({
+        plugins: {
+          [distKey("pii-sanitizer")]: { enabled: true },
+        },
+      }),
+    );
+
+    const result = runCli(`setup --cwd ${tempDir}`, tempDir);
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toContain("Kizuna hooks configured");
+    expect(result.stdout).toContain("Plugin migrations: 1 plugin(s) initialized.");
+  });
+
+  it("should not run plugin migrations when plugins.json is newly created", () => {
+    const result = runCli(`setup --cwd ${tempDir}`, tempDir);
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toContain("Kizuna hooks configured");
+    expect(result.stdout).not.toContain("Plugin migrations:");
   });
 });
