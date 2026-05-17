@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { mkdirSync, writeFileSync, readFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
+import { Database } from "@kizuna/core";
 import { runCli, createTempDir, removeTempDir } from "../../test-utils.js";
 import { resolvePluginDistPath, PLUGIN_REGISTRY, findPluginByKey } from "../plugin/registry.js";
 
@@ -622,6 +623,174 @@ describe("plugin command", () => {
 
       const config = JSON.parse(readFileSync(join(kizunaDir, "plugins.json"), "utf-8"));
       expect(config.plugins[distKey("multi-repo-sharing")].options.namespace).toBe("my-team");
+    });
+  });
+
+  describe("plugin enable (migration)", () => {
+    it("should run migrations after enabling a plugin", () => {
+      const kizunaDir = join(tempDir, ".kizuna");
+      mkdirSync(kizunaDir, { recursive: true });
+      writeFileSync(join(kizunaDir, "plugins.json"), JSON.stringify({ plugins: {} }));
+
+      const result = runCli(`plugin enable pii-sanitizer --cwd ${tempDir}`, tempDir);
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).toContain("pii-sanitizer enabled");
+      expect(result.stdout).toContain("Plugin migrations executed successfully.");
+    });
+
+    it("should run migrations on re-enable without errors", () => {
+      const kizunaDir = join(tempDir, ".kizuna");
+      mkdirSync(kizunaDir, { recursive: true });
+      writeFileSync(join(kizunaDir, "plugins.json"), JSON.stringify({ plugins: {} }));
+
+      const first = runCli(`plugin enable pii-sanitizer --cwd ${tempDir}`, tempDir);
+      expect(first.exitCode).toBe(0);
+      expect(first.stdout).toContain("Plugin migrations executed successfully.");
+
+      const second = runCli(`plugin enable pii-sanitizer --cwd ${tempDir}`, tempDir);
+      expect(second.exitCode).toBe(0);
+      expect(second.stdout).toContain("pii-sanitizer enabled");
+      expect(second.stdout).toContain("Plugin migrations executed successfully.");
+    });
+  });
+
+  describe("plugin enable (hybrid-search migration)", () => {
+    it("should create hybrid_search_embeddings table on enable", () => {
+      const kizunaDir = join(tempDir, ".kizuna");
+      mkdirSync(kizunaDir, { recursive: true });
+      writeFileSync(join(kizunaDir, "plugins.json"), JSON.stringify({ plugins: {} }));
+
+      const result = runCli(`plugin enable hybrid-search --cwd ${tempDir}`, tempDir);
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).toContain("hybrid-search enabled");
+      expect(result.stdout).toContain("Plugin migrations executed successfully.");
+
+      const dbPath = join(kizunaDir, "memory.db");
+      expect(existsSync(dbPath)).toBe(true);
+
+      const db = new Database(dbPath, { readonly: true });
+      try {
+        const tables = db.db
+          .prepare(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name='hybrid_search_embeddings'",
+          )
+          .all() as { name: string }[];
+        expect(tables).toHaveLength(1);
+
+        const versions = db.db
+          .prepare(
+            "SELECT component, version FROM schema_versions WHERE component='@kizuna/plugin-hybrid-search'",
+          )
+          .all() as { component: string; version: number }[];
+        expect(versions.length).toBeGreaterThanOrEqual(1);
+      } finally {
+        db.close();
+      }
+    });
+  });
+
+  describe("plugin init (hybrid-search migration)", () => {
+    it("should create hybrid_search_embeddings table via init", () => {
+      const kizunaDir = join(tempDir, ".kizuna");
+      mkdirSync(kizunaDir, { recursive: true });
+      writeFileSync(
+        join(kizunaDir, "plugins.json"),
+        JSON.stringify({
+          plugins: {
+            [distKey("hybrid-search")]: { enabled: true },
+          },
+        }),
+      );
+
+      const result = runCli(`plugin init --cwd ${tempDir}`, tempDir);
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).toContain("Plugin migrations complete.");
+
+      const dbPath = join(kizunaDir, "memory.db");
+      const db = new Database(dbPath, { readonly: true });
+      try {
+        const tables = db.db
+          .prepare(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name='hybrid_search_embeddings'",
+          )
+          .all() as { name: string }[];
+        expect(tables).toHaveLength(1);
+      } finally {
+        db.close();
+      }
+    });
+  });
+
+  describe("plugin init", () => {
+    it("should run migrations for enabled plugins", () => {
+      const kizunaDir = join(tempDir, ".kizuna");
+      mkdirSync(kizunaDir, { recursive: true });
+      writeFileSync(
+        join(kizunaDir, "plugins.json"),
+        JSON.stringify({
+          plugins: {
+            [distKey("pii-sanitizer")]: { enabled: true },
+          },
+        }),
+      );
+
+      const result = runCli(`plugin init --cwd ${tempDir}`, tempDir);
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).toContain("Plugin migrations complete. 1 plugin(s) initialized.");
+    });
+
+    it("should report when no plugins are enabled", () => {
+      const kizunaDir = join(tempDir, ".kizuna");
+      mkdirSync(kizunaDir, { recursive: true });
+      writeFileSync(join(kizunaDir, "plugins.json"), JSON.stringify({ plugins: {} }));
+
+      const result = runCli(`plugin init --cwd ${tempDir}`, tempDir);
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).toContain("No enabled plugins found. Nothing to do.");
+    });
+
+    it("should report when no plugins.json exists", () => {
+      const result = runCli(`plugin init --cwd ${tempDir}`, tempDir);
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).toContain("No enabled plugins found. Nothing to do.");
+    });
+
+    it("should handle disabled plugins gracefully", () => {
+      const kizunaDir = join(tempDir, ".kizuna");
+      mkdirSync(kizunaDir, { recursive: true });
+      writeFileSync(
+        join(kizunaDir, "plugins.json"),
+        JSON.stringify({
+          plugins: {
+            [distKey("pii-sanitizer")]: { enabled: false },
+          },
+        }),
+      );
+
+      const result = runCli(`plugin init --cwd ${tempDir}`, tempDir);
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).toContain("No enabled plugins found. Nothing to do.");
+    });
+
+    it("should be idempotent on repeated runs", () => {
+      const kizunaDir = join(tempDir, ".kizuna");
+      mkdirSync(kizunaDir, { recursive: true });
+      writeFileSync(
+        join(kizunaDir, "plugins.json"),
+        JSON.stringify({
+          plugins: {
+            [distKey("pii-sanitizer")]: { enabled: true },
+          },
+        }),
+      );
+
+      const first = runCli(`plugin init --cwd ${tempDir}`, tempDir);
+      expect(first.exitCode).toBe(0);
+      expect(first.stdout).toContain("Plugin migrations complete. 1 plugin(s) initialized.");
+
+      const second = runCli(`plugin init --cwd ${tempDir}`, tempDir);
+      expect(second.exitCode).toBe(0);
+      expect(second.stdout).toContain("Plugin migrations complete. 1 plugin(s) initialized.");
     });
   });
 

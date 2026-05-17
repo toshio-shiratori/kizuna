@@ -2,6 +2,7 @@ import type { Command } from "commander";
 import { resolve } from "node:path";
 import { findPlugin, findPluginByKey, resolvePluginDistPath } from "./registry.js";
 import { readPluginsJson, writePluginsJson } from "./plugins-json.js";
+import { runPluginMigrationsForProject } from "./run-migrations.js";
 
 export function registerEnable(pluginCmd: Command): void {
   pluginCmd
@@ -13,7 +14,7 @@ export function registerEnable(pluginCmd: Command): void {
     .option("--alpha <number>", "Balance between FTS5 and vector (0.0-1.0)")
     .option("--max-results <n>", "Maximum number of matched endpoints")
     .allowUnknownOption(false)
-    .action((name: string, opts: Record<string, string | undefined>) => {
+    .action(async (name: string, opts: Record<string, string | undefined>) => {
       const cwd = resolve(opts.cwd ?? process.cwd());
       const plugin = findPlugin(name);
       if (!plugin) {
@@ -83,5 +84,14 @@ export function registerEnable(pluginCmd: Command): void {
       writePluginsJson(cwd, config);
 
       console.log(`${name} enabled`);
+
+      const result = await runPluginMigrationsForProject(cwd, { silent: true });
+      if (result.ran) {
+        if (result.failedCount > 0) {
+          console.error(`Plugin migrations: ${result.failedCount} plugin(s) failed to initialize.`);
+        } else {
+          console.log("Plugin migrations executed successfully.");
+        }
+      }
     });
 }

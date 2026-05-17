@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 import { injectClaudeMdSection } from "./setup/claude-md.js";
 import { deployRecapSkill, deploySessionStartSkill } from "./setup/skills.js";
 import { configureHooks, findMcpServerPath } from "./setup/hooks.js";
+import { runPluginMigrationsForProject } from "./plugin/run-migrations.js";
 
 export function findKizunaBin(): { bin: string; found: boolean } {
   try {
@@ -27,7 +28,7 @@ export function registerSetup(program: Command): void {
     .description("Configure Claude Code hooks for the current project")
     .option("--cwd <path>", "Project directory", process.cwd())
     .option("--with-mcp", "Also configure MCP server in settings")
-    .action((opts: { cwd: string; withMcp?: boolean }) => {
+    .action(async (opts: { cwd: string; withMcp?: boolean }) => {
       const cwd = resolve(opts.cwd);
       const claudeDir = resolve(cwd, ".claude");
       const settingsPath = resolve(claudeDir, "settings.json");
@@ -110,5 +111,19 @@ export function registerSetup(program: Command): void {
           ? `Skill deployed: ${sessionStartPath}`
           : `Skill skipped: ${sessionStartPath} (already exists)`,
       );
+
+      if (!pluginsJsonCreated) {
+        const migrationResult = await runPluginMigrationsForProject(cwd, { silent: true });
+        if (migrationResult.ran) {
+          console.log("");
+          if (migrationResult.failedCount > 0) {
+            console.error(
+              `Plugin migrations: ${migrationResult.failedCount} of ${migrationResult.pluginCount} plugin(s) failed.`,
+            );
+          } else {
+            console.log(`Plugin migrations: ${migrationResult.pluginCount} plugin(s) initialized.`);
+          }
+        }
+      }
     });
 }

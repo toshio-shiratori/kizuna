@@ -88,7 +88,7 @@ export function findPlugin(name: string): PluginDef | undefined {
 
 export function resolvePluginDistPath(plugin: PluginDef): string {
   const cliDir = resolve(fileURLToPath(import.meta.url), "..", "..", "..");
-  return resolve(cliDir, "..", plugin.dirName, "dist", "index.js");
+  return resolve(cliDir, "..", "..", plugin.dirName, "dist", "index.js");
 }
 
 export function findPluginByKey(key: string): PluginDef | undefined {
