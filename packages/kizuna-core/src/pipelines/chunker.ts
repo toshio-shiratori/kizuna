@@ -8,6 +8,13 @@ const SKILL_DEFINITION_PATTERNS: RegExp[] = [
   /^---\s*\nname:\s*.+\ndescription:\s*.+\n---\s*\n\n## When to Use/m,
   /^## When to Use\n[\s\S]*?## Steps\n/m,
   /^## When to Use\n[\s\S]*?## How to Use/m,
+  /^## Autonomy\n[\s\S]*?## Steps\n/,
+  /^## (?:Input|Steps)\n[\s\S]*?## Autonomy\n/,
+  /^## Steps\n[\s\S]*?## Decision Rules\n/,
+];
+
+const CONTINUATION_PATTERNS: RegExp[] = [
+  /^This session is being continued from a previous conversation/m,
 ];
 
 const BOILERPLATE_PATTERNS: RegExp[] = [
@@ -24,6 +31,7 @@ export function isLowQualityContent(content: string): boolean {
   if (trimmed.length < MIN_CONTENT_LENGTH) return true;
   if (BOILERPLATE_PATTERNS.some((p) => p.test(trimmed))) return true;
   if (SKILL_DEFINITION_PATTERNS.some((p) => p.test(trimmed))) return true;
+  if (CONTINUATION_PATTERNS.some((p) => p.test(trimmed))) return true;
   return false;
 }
 
