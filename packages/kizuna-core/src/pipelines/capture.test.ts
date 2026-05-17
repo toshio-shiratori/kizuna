@@ -985,4 +985,127 @@ describe("isLowQualityContent", () => {
       ),
     ).toBe(false);
   });
+
+  it("detects /do-issue style skill template with ## Autonomy section", () => {
+    const doIssueTemplate = [
+      "## Autonomy",
+      "",
+      "このスキルはすべてのステップを **承認なしで自律実行** する。",
+      "コミット、プッシュ、PR 作成を含め、ユーザーへの確認待ちは行わない。",
+      "",
+      "## Steps",
+      "",
+      "### 1. Issue 読み込みとブランチ作成",
+      "",
+      "```bash",
+      "gh issue view 153",
+      "```",
+    ].join("\n");
+    expect(isLowQualityContent(doIssueTemplate)).toBe(true);
+  });
+
+  it("detects skill template fragment with ## Input + ## Autonomy", () => {
+    const fragment = [
+      "## Input",
+      "",
+      "- `153` — GitHub Issue 番号（例: `114`）",
+      "",
+      "## Autonomy",
+      "",
+      "このスキルはすべてのステップを承認なしで自律実行する。",
+    ].join("\n");
+    expect(isLowQualityContent(fragment)).toBe(true);
+  });
+
+  it("detects skill template fragment with ## Steps + ## Decision Rules", () => {
+    const fragment = [
+      "## Steps",
+      "",
+      "### 1. Issue 読み込みとブランチ作成",
+      "",
+      "```bash",
+      "gh issue view 153",
+      "```",
+      "",
+      "## Decision Rules",
+      "",
+      "- Issue のスコープが明らかに大きすぎる場合、着手前にユーザーに確認する",
+    ].join("\n");
+    expect(isLowQualityContent(fragment)).toBe(true);
+  });
+
+  it("detects context continuation header", () => {
+    const continuationHeader = [
+      "This session is being continued from a previous conversation. Here is a summary of that conversation:",
+      "",
+      "The user was working on implementing authentication flow for the frontend.",
+      "They completed the login page and were starting on the signup flow.",
+    ].join("\n");
+    expect(isLowQualityContent(continuationHeader)).toBe(true);
+  });
+
+  it("detects context continuation header variant (context window limit)", () => {
+    const continuationVariant =
+      "This session is being continued from a previous conversation that may have been interrupted by a context window limit. IMPORTANT: Before starting any work, review the conversation summary below.";
+    expect(isLowQualityContent(continuationVariant)).toBe(true);
+  });
+
+  it("does not flag engineering content that mentions 'steps' or 'decision'", () => {
+    expect(
+      isLowQualityContent(
+        "The migration has 3 steps: first create the table, then migrate data, finally drop the old column.",
+      ),
+    ).toBe(false);
+    expect(
+      isLowQualityContent(
+        "## Steps to reproduce\n\n1. Click login\n2. Enter credentials\n3. Submit form",
+      ),
+    ).toBe(false);
+    expect(
+      isLowQualityContent("We need to make a decision about the authentication provider."),
+    ).toBe(false);
+  });
+
+  it("does not flag content that mentions 'autonomy' in a discussion context", () => {
+    expect(
+      isLowQualityContent(
+        "The agent should have some level of autonomy when handling routine tasks.",
+      ),
+    ).toBe(false);
+  });
+
+  it("does not flag content that mentions 'continued' in a discussion context", () => {
+    expect(
+      isLowQualityContent("The discussion continued with a review of the database schema changes."),
+    ).toBe(false);
+  });
+
+  it("does not flag content that discusses skill template design mid-chunk", () => {
+    const discussion = [
+      "I designed a new skill template. It has the following sections:",
+      "",
+      "## Autonomy",
+      "The skill runs without approval.",
+      "",
+      "## Steps",
+      "Step 1: Do this",
+    ].join("\n");
+    expect(isLowQualityContent(discussion)).toBe(false);
+  });
+
+  it("does not flag engineering doc with ## Steps + ## Decision Rules mid-content", () => {
+    const doc = [
+      "Some project context about the migration plan.",
+      "",
+      "## Steps",
+      "",
+      "1. Create the table",
+      "2. Migrate data",
+      "",
+      "## Decision Rules",
+      "",
+      "We decided to use approach A.",
+    ].join("\n");
+    expect(isLowQualityContent(doc)).toBe(false);
+  });
 });
