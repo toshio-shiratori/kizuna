@@ -34,7 +34,12 @@ export type { InjectOptions, InjectResult } from "./pipelines/inject.js";
 export { estimateTokens } from "./pipelines/chunker.js";
 export { runMaintenance } from "./pipelines/maintenance.js";
 export type { MaintenanceOptions } from "./pipelines/maintenance.js";
-export { findLowQualityChunks, cleanupChunks } from "./pipelines/cleanup.js";
+export {
+  findLowQualityChunks,
+  findChunksByQuery,
+  executeCleanup,
+  cleanupChunks,
+} from "./pipelines/cleanup.js";
 export type { CleanupResult, CleanupTarget } from "./pipelines/cleanup.js";
 export { exportMemory } from "./export/index.js";
 export type {

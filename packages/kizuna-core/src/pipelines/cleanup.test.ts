@@ -3,7 +3,12 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { Database } from "../storage/database.js";
-import { findLowQualityChunks, cleanupChunks } from "./cleanup.js";
+import {
+  findLowQualityChunks,
+  findChunksByQuery,
+  executeCleanup,
+  cleanupChunks,
+} from "./cleanup.js";
 import type { Session, RawChunk } from "../index.js";
 
 function makeTempDb(): { db: Database; dir: string } {
@@ -341,5 +346,195 @@ describe("cleanupChunks", () => {
     const remaining = db.getChunksBySession("session-1");
     expect(remaining).toHaveLength(1);
     expect(remaining[0]!.content).toBe("このプロジェクトの認証フローを実装する必要があります");
+  });
+});
+
+describe("findChunksByQuery", () => {
+  let db: Database;
+  let dir: string;
+
+  beforeEach(() => {
+    ({ db, dir } = makeTempDb());
+    db.insertSession(makeSession());
+  });
+
+  afterEach(() => {
+    db.close();
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  it("finds chunks matching an English query", () => {
+    db.insertChunk(makeChunk({ turnIndex: 0, content: "implement the authentication module" }));
+    db.insertChunk(makeChunk({ turnIndex: 1, content: "database connection setup guide" }));
+    db.insertChunk(makeChunk({ turnIndex: 2, content: "authentication flow design notes" }));
+
+    const targets = findChunksByQuery(db, "authentication");
+    expect(targets).toHaveLength(2);
+    expect(targets.map((t) => t.content)).toEqual(
+      expect.arrayContaining([
+        "implement the authentication module",
+        "authentication flow design notes",
+      ]),
+    );
+  });
+
+  it("finds chunks matching a Japanese query", () => {
+    db.insertChunk(makeChunk({ turnIndex: 0, content: "認証フローを実装してください" }));
+    db.insertChunk(makeChunk({ turnIndex: 1, content: "データベース接続の設定方法" }));
+    db.insertChunk(makeChunk({ turnIndex: 2, content: "認証モジュールのテスト結果" }));
+
+    const targets = findChunksByQuery(db, "認証フロー");
+    expect(targets.length).toBeGreaterThanOrEqual(1);
+    const contents = targets.map((t) => t.content);
+    expect(contents).toContain("認証フローを実装してください");
+  });
+
+  it("returns empty array when no chunks match", () => {
+    db.insertChunk(makeChunk({ turnIndex: 0, content: "database connection setup guide" }));
+
+    const targets = findChunksByQuery(db, "authentication");
+    expect(targets).toHaveLength(0);
+  });
+
+  it("returns empty array for empty query", () => {
+    db.insertChunk(makeChunk({ turnIndex: 0, content: "some content for testing" }));
+
+    const targets = findChunksByQuery(db, "");
+    expect(targets).toHaveLength(0);
+  });
+
+  it("returns empty array when database has no chunks", () => {
+    const targets = findChunksByQuery(db, "anything");
+    expect(targets).toHaveLength(0);
+  });
+
+  it("returns all matching chunks without limit", () => {
+    for (let i = 0; i < 25; i++) {
+      db.insertChunk(
+        makeChunk({ turnIndex: i, content: `authentication module test case number ${i}` }),
+      );
+    }
+
+    const targets = findChunksByQuery(db, "authentication");
+    expect(targets).toHaveLength(25);
+  });
+
+  it("returns correct CleanupTarget fields", () => {
+    db.insertChunk(
+      makeChunk({
+        turnIndex: 0,
+        role: "assistant",
+        content: "implement the authentication module for testing",
+      }),
+    );
+
+    const targets = findChunksByQuery(db, "authentication");
+    expect(targets).toHaveLength(1);
+    const target = targets[0]!;
+    expect(target.id).toBeGreaterThan(0);
+    expect(target.content).toBe("implement the authentication module for testing");
+    expect(target.role).toBe("assistant");
+    expect(target.sessionId).toBe("session-1");
+    expect(target.createdAt).toBeTruthy();
+  });
+});
+
+describe("executeCleanup", () => {
+  let db: Database;
+  let dir: string;
+
+  beforeEach(() => {
+    ({ db, dir } = makeTempDb());
+    db.insertSession(makeSession());
+  });
+
+  afterEach(() => {
+    db.close();
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  it("returns zero counts for empty targets", () => {
+    const result = executeCleanup(db, []);
+    expect(result.chunksDeleted).toBe(0);
+    expect(result.sessionsDeleted).toBe(0);
+    expect(result.bytesReclaimed).toBe(0);
+    expect(result.durationMs).toBeGreaterThanOrEqual(0);
+  });
+
+  it("deletes specified targets", () => {
+    const chunk1 = db.insertChunk(
+      makeChunk({ turnIndex: 0, content: "content to delete for cleanup" }),
+    );
+    db.insertChunk(makeChunk({ turnIndex: 1, content: "content to keep in database" }));
+
+    const targets = [
+      {
+        id: chunk1.id,
+        content: chunk1.content,
+        role: chunk1.role,
+        sessionId: chunk1.sessionId,
+        createdAt: chunk1.createdAt,
+      },
+    ];
+
+    const result = executeCleanup(db, targets);
+    expect(result.chunksDeleted).toBe(1);
+
+    const remaining = db.getChunksBySession("session-1");
+    expect(remaining).toHaveLength(1);
+    expect(remaining[0]!.content).toBe("content to keep in database");
+  });
+
+  it("deletes sessions that become empty", () => {
+    db.insertSession(makeSession({ id: "session-2" }));
+
+    const chunk1 = db.insertChunk(
+      makeChunk({ turnIndex: 0, content: "only chunk in session one" }),
+    );
+    db.insertChunk(
+      makeChunk({
+        sessionId: "session-2",
+        turnIndex: 0,
+        content: "chunk in session two survives",
+      }),
+    );
+
+    const targets = [
+      {
+        id: chunk1.id,
+        content: chunk1.content,
+        role: chunk1.role,
+        sessionId: chunk1.sessionId,
+        createdAt: chunk1.createdAt,
+      },
+    ];
+
+    const result = executeCleanup(db, targets);
+    expect(result.chunksDeleted).toBe(1);
+    expect(result.sessionsDeleted).toBe(1);
+
+    expect(db.getSession("session-1")).toBeNull();
+    expect(db.getSession("session-2")).not.toBeNull();
+  });
+
+  it("returns non-negative bytesReclaimed and durationMs", () => {
+    const chunk = db.insertChunk(
+      makeChunk({ turnIndex: 0, content: "content that will be deleted" }),
+    );
+
+    const targets = [
+      {
+        id: chunk.id,
+        content: chunk.content,
+        role: chunk.role,
+        sessionId: chunk.sessionId,
+        createdAt: chunk.createdAt,
+      },
+    ];
+
+    const result = executeCleanup(db, targets);
+    expect(result.bytesReclaimed).toBeGreaterThanOrEqual(0);
+    expect(result.durationMs).toBeGreaterThanOrEqual(0);
+    expect(Number.isInteger(result.durationMs)).toBe(true);
   });
 });
