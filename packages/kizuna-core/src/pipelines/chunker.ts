@@ -26,12 +26,27 @@ const BOILERPLATE_PATTERNS: RegExp[] = [
   /^Running session (start|end) (check|hook)\.?$/i,
 ];
 
-export function isLowQualityContent(content: string): boolean {
+function matchesUserPattern(content: string, pattern: string): boolean {
+  if (pattern.startsWith("^")) {
+    try {
+      return new RegExp(pattern).test(content);
+    } catch {
+      console.error(`kizuna: invalid noise pattern regex: ${pattern}`);
+      return false;
+    }
+  }
+  return content.includes(pattern);
+}
+
+export function isLowQualityContent(content: string, userPatterns?: readonly string[]): boolean {
   const trimmed = content.trim();
   if (trimmed.length < MIN_CONTENT_LENGTH) return true;
   if (BOILERPLATE_PATTERNS.some((p) => p.test(trimmed))) return true;
   if (SKILL_DEFINITION_PATTERNS.some((p) => p.test(trimmed))) return true;
   if (CONTINUATION_PATTERNS.some((p) => p.test(trimmed))) return true;
+  if (userPatterns && userPatterns.length > 0) {
+    if (userPatterns.some((p) => matchesUserPattern(trimmed, p))) return true;
+  }
   return false;
 }
 

@@ -197,6 +197,98 @@ describe("loadConfig", () => {
     expect(config.display.listLimit).toBe(50);
   });
 
+  describe("noisePatterns", () => {
+    it("returns empty array by default", () => {
+      const config = loadConfig(tmpDir, globalDir);
+      expect(config.pipeline.noisePatterns).toEqual([]);
+    });
+
+    it("reads noisePatterns from project config", () => {
+      mkdirSync(join(tmpDir, ".kizuna"));
+      writeFileSync(
+        join(tmpDir, ".kizuna", "config.json"),
+        JSON.stringify({ pipeline: { noisePatterns: ["frontend-design", "Update Config"] } }),
+      );
+
+      const config = loadConfig(tmpDir, globalDir);
+      expect(config.pipeline.noisePatterns).toEqual(["frontend-design", "Update Config"]);
+    });
+
+    it("reads noisePatterns from global config", () => {
+      writeFileSync(
+        join(globalDir, "config.json"),
+        JSON.stringify({ pipeline: { noisePatterns: ["global-noise"] } }),
+      );
+
+      const config = loadConfig(tmpDir, globalDir);
+      expect(config.pipeline.noisePatterns).toEqual(["global-noise"]);
+    });
+
+    it("project noisePatterns override global entirely (no concat)", () => {
+      writeFileSync(
+        join(globalDir, "config.json"),
+        JSON.stringify({ pipeline: { noisePatterns: ["global-pattern"] } }),
+      );
+      mkdirSync(join(tmpDir, ".kizuna"));
+      writeFileSync(
+        join(tmpDir, ".kizuna", "config.json"),
+        JSON.stringify({ pipeline: { noisePatterns: ["project-pattern"] } }),
+      );
+
+      const config = loadConfig(tmpDir, globalDir);
+      expect(config.pipeline.noisePatterns).toEqual(["project-pattern"]);
+    });
+
+    it("uses global noisePatterns when project does not define them", () => {
+      writeFileSync(
+        join(globalDir, "config.json"),
+        JSON.stringify({ pipeline: { noisePatterns: ["global-only"] } }),
+      );
+      mkdirSync(join(tmpDir, ".kizuna"));
+      writeFileSync(
+        join(tmpDir, ".kizuna", "config.json"),
+        JSON.stringify({ pipeline: { tokenBudget: 5000 } }),
+      );
+
+      const config = loadConfig(tmpDir, globalDir);
+      expect(config.pipeline.noisePatterns).toEqual(["global-only"]);
+      expect(config.pipeline.tokenBudget).toBe(5000);
+    });
+
+    it("falls back to default when noisePatterns is not an array", () => {
+      mkdirSync(join(tmpDir, ".kizuna"));
+      writeFileSync(
+        join(tmpDir, ".kizuna", "config.json"),
+        JSON.stringify({ pipeline: { noisePatterns: "not-an-array" } }),
+      );
+
+      const config = loadConfig(tmpDir, globalDir);
+      expect(config.pipeline.noisePatterns).toEqual([]);
+    });
+
+    it("falls back to base when array contains non-string elements", () => {
+      mkdirSync(join(tmpDir, ".kizuna"));
+      writeFileSync(
+        join(tmpDir, ".kizuna", "config.json"),
+        JSON.stringify({ pipeline: { noisePatterns: ["valid", 123] } }),
+      );
+
+      const config = loadConfig(tmpDir, globalDir);
+      expect(config.pipeline.noisePatterns).toEqual([]);
+    });
+
+    it("accepts regex-style patterns in noisePatterns", () => {
+      mkdirSync(join(tmpDir, ".kizuna"));
+      writeFileSync(
+        join(tmpDir, ".kizuna", "config.json"),
+        JSON.stringify({ pipeline: { noisePatterns: ["^## Custom Skill Template"] } }),
+      );
+
+      const config = loadConfig(tmpDir, globalDir);
+      expect(config.pipeline.noisePatterns).toEqual(["^## Custom Skill Template"]);
+    });
+  });
+
   describe("global config", () => {
     it("applies global config when no project config exists", () => {
       writeFileSync(

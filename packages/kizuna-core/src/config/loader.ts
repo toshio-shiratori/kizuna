@@ -23,6 +23,12 @@ function numOrDefault(value: unknown, fallback: number): number {
   return isPositiveNumber(value) ? value : fallback;
 }
 
+function stringArrayOrDefault(value: unknown, fallback: readonly string[]): readonly string[] {
+  if (!Array.isArray(value)) return fallback;
+  const filtered = value.filter((item): item is string => typeof item === "string");
+  return filtered.length === value.length ? filtered : fallback;
+}
+
 function mergePipeline(
   overrides: Partial<Record<string, unknown>>,
   base: PipelineConfig,
@@ -32,6 +38,7 @@ function mergePipeline(
     maxResults: intOrDefault(overrides.maxResults, base.maxResults),
     halfLifeDays: numOrDefault(overrides.halfLifeDays, base.halfLifeDays),
     minContentLength: intOrDefault(overrides.minContentLength, base.minContentLength),
+    noisePatterns: stringArrayOrDefault(overrides.noisePatterns, base.noisePatterns),
   };
 }
 

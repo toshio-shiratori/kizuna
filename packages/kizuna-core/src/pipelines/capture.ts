@@ -17,13 +17,15 @@ export interface CaptureOptions {
   transcriptPath?: string;
   transcriptContent?: string;
   pluginManager?: PluginManager;
+  noisePatterns?: readonly string[];
 }
 
 export async function captureTranscript(
   db: Database,
   options: CaptureOptions,
 ): Promise<CaptureResult> {
-  const { sessionId, projectId, transcriptPath, transcriptContent, pluginManager } = options;
+  const { sessionId, projectId, transcriptPath, transcriptContent, pluginManager, noisePatterns } =
+    options;
 
   const turns = transcriptPath
     ? parseTranscriptFile(transcriptPath)
@@ -57,7 +59,7 @@ export async function captureTranscript(
         continue;
       }
 
-      if (isLowQualityContent(chunk.content)) {
+      if (isLowQualityContent(chunk.content, noisePatterns)) {
         chunksSkipped++;
         continue;
       }
