@@ -31,7 +31,7 @@ function matchesUserPattern(content: string, pattern: string): boolean {
     try {
       return new RegExp(pattern).test(content);
     } catch {
-      console.error(`kizuna: invalid noise pattern regex: ${pattern}`);
+      console.warn(`kizuna: invalid noise pattern regex: ${pattern}`);
       return false;
     }
   }

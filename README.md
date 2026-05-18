@@ -72,6 +72,7 @@ Settings are merged in order: **built-in defaults < global config < project conf
     "tokenBudget": 3000, // Max tokens for memory injection (default: 2000)
     "maxResults": 15, // Max search results (default: 10)
     "halfLifeDays": 45, // Time decay half-life in days (default: 30)
+    "noisePatterns": ["frontend-design", "^## Custom Skill Template"], // User-defined noise filters (default: [])
   },
   "display": {
     "listLimit": 30, // Default limit for list commands (default: 20)

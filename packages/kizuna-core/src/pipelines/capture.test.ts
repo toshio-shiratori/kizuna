@@ -1213,11 +1213,11 @@ describe("isLowQualityContent", () => {
       ).toBe(false);
     });
 
-    it("skips invalid regex with console.error warning", () => {
-      const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    it("skips invalid regex with console.warn warning", () => {
+      const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
       expect(isLowQualityContent("Some valid content here", ["^[invalid"])).toBe(false);
-      expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining("invalid noise pattern regex"));
-      errorSpy.mockRestore();
+      expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining("invalid noise pattern regex"));
+      warnSpy.mockRestore();
     });
 
     it("matches any of multiple user patterns", () => {
