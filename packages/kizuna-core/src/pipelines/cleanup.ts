@@ -25,7 +25,10 @@ interface AllChunkRow {
   created_at: string;
 }
 
-export function findLowQualityChunks(db: Database): CleanupTarget[] {
+export function findLowQualityChunks(
+  db: Database,
+  noisePatterns?: readonly string[],
+): CleanupTarget[] {
   const rows = db.db
     .prepare("SELECT id, content, role, session_id, created_at FROM chunks")
     .all() as AllChunkRow[];
@@ -33,7 +36,7 @@ export function findLowQualityChunks(db: Database): CleanupTarget[] {
   const targets: CleanupTarget[] = [];
   for (const row of rows) {
     const sanitized = sanitizeContent(row.content);
-    if (sanitized.length === 0 || isLowQualityContent(sanitized)) {
+    if (sanitized.length === 0 || isLowQualityContent(sanitized, noisePatterns)) {
       targets.push({
         id: row.id,
         content: row.content,
@@ -46,10 +49,10 @@ export function findLowQualityChunks(db: Database): CleanupTarget[] {
   return targets;
 }
 
-export function cleanupChunks(db: Database): CleanupResult {
+export function cleanupChunks(db: Database, noisePatterns?: readonly string[]): CleanupResult {
   const start = performance.now();
 
-  const targets = findLowQualityChunks(db);
+  const targets = findLowQualityChunks(db, noisePatterns);
   if (targets.length === 0) {
     return {
       chunksDeleted: 0,

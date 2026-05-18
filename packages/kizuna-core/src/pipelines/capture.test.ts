@@ -762,6 +762,83 @@ describe("captureTranscript", () => {
     expect(chunks).toHaveLength(1);
     expect(chunks[0]!.role).toBe("assistant");
   });
+
+  it("skips chunks matching user-defined noise patterns", async () => {
+    const content = [
+      makeTranscriptLine({
+        type: "assistant",
+        uuid: "a1",
+        timestamp: "2025-01-01T00:00:00.000Z",
+        message: { role: "assistant", content: "frontend-design skill output here" },
+      }),
+      makeTranscriptLine({
+        type: "assistant",
+        uuid: "a2",
+        timestamp: "2025-01-01T00:00:01.000Z",
+        message: { role: "assistant", content: "Here is the actual implementation plan." },
+      }),
+    ].join("\n");
+
+    const result = await captureTranscript(db, {
+      sessionId: "sess-noise",
+      projectId: "proj-1",
+      transcriptContent: content,
+      noisePatterns: ["frontend-design"],
+    });
+
+    expect(result.chunksStored).toBe(1);
+    expect(result.chunksSkipped).toBe(1);
+    const chunks = db.getChunksBySession("sess-noise");
+    expect(chunks).toHaveLength(1);
+    expect(chunks[0]!.content).toContain("actual implementation plan");
+  });
+
+  it("skips chunks matching user-defined regex noise patterns", async () => {
+    const content = [
+      makeTranscriptLine({
+        type: "assistant",
+        uuid: "a1",
+        timestamp: "2025-01-01T00:00:00.000Z",
+        message: { role: "assistant", content: "## Custom Skill Template\nSome template content" },
+      }),
+      makeTranscriptLine({
+        type: "user",
+        uuid: "u1",
+        timestamp: "2025-01-01T00:00:01.000Z",
+        message: { role: "user", content: "Please implement the auth module" },
+      }),
+    ].join("\n");
+
+    const result = await captureTranscript(db, {
+      sessionId: "sess-regex-noise",
+      projectId: "proj-1",
+      transcriptContent: content,
+      noisePatterns: ["^## Custom Skill Template"],
+    });
+
+    expect(result.chunksStored).toBe(1);
+    expect(result.chunksSkipped).toBe(1);
+    const chunks = db.getChunksBySession("sess-regex-noise");
+    expect(chunks).toHaveLength(1);
+    expect(chunks[0]!.content).toContain("auth module");
+  });
+
+  it("captures normally when noisePatterns is not provided", async () => {
+    const content = makeTranscriptLine({
+      type: "assistant",
+      uuid: "a1",
+      timestamp: "2025-01-01T00:00:00.000Z",
+      message: { role: "assistant", content: "frontend-design skill output here" },
+    });
+
+    const result = await captureTranscript(db, {
+      sessionId: "sess-no-patterns",
+      projectId: "proj-1",
+      transcriptContent: content,
+    });
+
+    expect(result.chunksStored).toBe(1);
+  });
 });
 
 describe("sanitizeContent", () => {
@@ -1107,5 +1184,65 @@ describe("isLowQualityContent", () => {
       "We decided to use approach A.",
     ].join("\n");
     expect(isLowQualityContent(doc)).toBe(false);
+  });
+
+  describe("user-defined noise patterns", () => {
+    it("matches substring pattern", () => {
+      expect(
+        isLowQualityContent("This is a frontend-design skill template", ["frontend-design"]),
+      ).toBe(true);
+    });
+
+    it("does not match when substring is absent", () => {
+      expect(
+        isLowQualityContent("This is a backend service implementation", ["frontend-design"]),
+      ).toBe(false);
+    });
+
+    it("matches regex pattern starting with ^", () => {
+      expect(
+        isLowQualityContent("## Custom Skill Template\nSome content", [
+          "^## Custom Skill Template",
+        ]),
+      ).toBe(true);
+    });
+
+    it("regex pattern with ^ only matches at start of trimmed content", () => {
+      expect(
+        isLowQualityContent("Some prefix ## Custom Skill Template", ["^## Custom Skill Template"]),
+      ).toBe(false);
+    });
+
+    it("skips invalid regex with console.warn warning", () => {
+      const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+      expect(isLowQualityContent("Some valid content here", ["^[invalid"])).toBe(false);
+      expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining("invalid noise pattern regex"));
+      warnSpy.mockRestore();
+    });
+
+    it("matches any of multiple user patterns", () => {
+      expect(
+        isLowQualityContent("Update Config Skill definition here", [
+          "frontend-design",
+          "Update Config Skill",
+        ]),
+      ).toBe(true);
+    });
+
+    it("still applies built-in patterns when user patterns are provided", () => {
+      expect(isLowQualityContent("OK", ["frontend-design"])).toBe(true);
+      expect(isLowQualityContent("セッション開始チェックを実行します。", ["frontend-design"])).toBe(
+        true,
+      );
+    });
+
+    it("works with empty user patterns array (no effect)", () => {
+      expect(isLowQualityContent("Normal content that should pass", [])).toBe(false);
+    });
+
+    it("works when userPatterns is undefined (backward compatible)", () => {
+      expect(isLowQualityContent("Normal content that should pass")).toBe(false);
+      expect(isLowQualityContent("OK")).toBe(true);
+    });
   });
 });

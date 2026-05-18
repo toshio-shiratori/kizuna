@@ -18,10 +18,11 @@ export function registerCleanup(program: Command): void {
 
       const config = loadConfig(opts.cwd);
       const { cleanupPreviewLength, cleanupShowLimit } = config.display;
+      const { noisePatterns } = config.pipeline;
       const db = new Database(resolveDbPath(opts.cwd));
       try {
         if (opts.dryRun) {
-          const targets = findLowQualityChunks(db);
+          const targets = findLowQualityChunks(db, noisePatterns);
           if (targets.length === 0) {
             console.log("No low-quality chunks found. Database is clean.");
             return;
@@ -40,7 +41,7 @@ export function registerCleanup(program: Command): void {
           console.log("");
           console.log("Run without --dry-run to delete.");
         } else {
-          const result = cleanupChunks(db);
+          const result = cleanupChunks(db, noisePatterns);
           if (result.chunksDeleted === 0) {
             console.log("No low-quality chunks found. Database is clean.");
             return;

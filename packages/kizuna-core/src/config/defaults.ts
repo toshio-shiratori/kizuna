@@ -3,6 +3,7 @@ export interface PipelineConfig {
   readonly maxResults: number;
   readonly halfLifeDays: number;
   readonly minContentLength: number;
+  readonly noisePatterns: readonly string[];
 }
 
 export interface DisplayConfig {
@@ -24,6 +25,7 @@ export const PIPELINE_DEFAULTS: Readonly<PipelineConfig> = {
   maxResults: 10,
   halfLifeDays: 30,
   minContentLength: 10,
+  noisePatterns: [],
 };
 
 export const DISPLAY_DEFAULTS: Readonly<DisplayConfig> = {
