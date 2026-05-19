@@ -118,8 +118,21 @@ export class Database {
 
   // ─── Search ───────────────────────────────────────────
 
-  searchChunks(query: string, limit: number = 10, halfLifeDays: number = 30): SearchResult[] {
-    return chunkQueries.searchChunks(this.db, query, limit, halfLifeDays);
+  searchChunks(
+    query: string,
+    limit: number = 10,
+    halfLifeDays: number = 30,
+    likePatterns: string[] = [],
+  ): SearchResult[] {
+    return chunkQueries.searchChunks(this.db, query, limit, halfLifeDays, likePatterns);
+  }
+
+  searchChunksLikeOnly(
+    likePatterns: string[],
+    limit: number = 10,
+    halfLifeDays: number = 30,
+  ): SearchResult[] {
+    return chunkQueries.searchChunksLikeOnly(this.db, likePatterns, limit, halfLifeDays);
   }
 
   // ─── Maintenance ──────────────────────────────────────

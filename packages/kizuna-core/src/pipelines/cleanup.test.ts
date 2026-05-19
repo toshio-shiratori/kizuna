@@ -437,6 +437,19 @@ describe("findChunksByQuery", () => {
     expect(target.sessionId).toBe("session-1");
     expect(target.createdAt).toBeTruthy();
   });
+
+  it("finds chunks via LIKE fallback for short CJK query", () => {
+    db.insertChunk(makeChunk({ turnIndex: 0, content: "認証フローを実装してください" }));
+    db.insertChunk(makeChunk({ turnIndex: 1, content: "データベース接続の設定方法" }));
+    db.insertChunk(makeChunk({ turnIndex: 2, content: "認証モジュールのテスト結果" }));
+
+    // "認証" is 2 chars CJK, which uses LIKE-only fallback
+    const targets = findChunksByQuery(db, "認証");
+    expect(targets.length).toBeGreaterThanOrEqual(2);
+    const contents = targets.map((t) => t.content);
+    expect(contents).toContain("認証フローを実装してください");
+    expect(contents).toContain("認証モジュールのテスト結果");
+  });
 });
 
 describe("executeCleanup", () => {

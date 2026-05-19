@@ -7,6 +7,7 @@ import type {
   StoredChunk,
   PluginContext,
   Migration,
+  PreprocessedQuery,
 } from "@kizuna/core";
 
 export interface RepoReference {
@@ -80,26 +81,60 @@ function rowToStoredChunk(row: FtsRow): StoredChunk {
  * Query a read-only database for FTS5 search results.
  * The query is executed against the chunks_fts index using the same scoring
  * formula as the core search pipeline (BM25 * time_decay * importance_boost).
+ *
+ * When likePatterns are provided, they are added as AND conditions to narrow
+ * results (used for short CJK tokens that cannot be matched via FTS5 trigram).
  */
 export function queryRemoteDb(
   db: BetterSqlite3.Database,
   ftsQuery: string,
   limit: number,
   halfLifeDays: number,
+  likePatterns: string[] = [],
 ): SearchResult[] {
-  const rows = db
-    .prepare(
-      `SELECT
+  if (ftsQuery.length === 0 && likePatterns.length === 0) return [];
+
+  if (ftsQuery.length === 0) {
+    // LIKE-only mode
+    const likeConditions = likePatterns.map(() => "c.content LIKE ? ESCAPE '\\'").join(" AND ");
+    const params: (string | number)[] = [halfLifeDays, ...likePatterns, halfLifeDays, limit];
+    const sql = `SELECT
          c.*,
-         bm25(chunks_fts) AS bm25_score,
+         1.0 AS bm25_score,
          exp(-0.693 * (julianday('now') - julianday(c.created_at)) / ?) AS time_decay
        FROM chunks_fts
        JOIN chunks c ON chunks_fts.rowid = c.id
-       WHERE chunks_fts MATCH ?
-       ORDER BY (bm25(chunks_fts) * exp(-0.693 * (julianday('now') - julianday(c.created_at)) / ?) * (1.0 + c.importance / 10.0)) DESC
-       LIMIT ?`,
-    )
-    .all(halfLifeDays, ftsQuery, halfLifeDays, limit) as FtsRow[];
+       WHERE ${likeConditions}
+       ORDER BY (exp(-0.693 * (julianday('now') - julianday(c.created_at)) / ?) * (1.0 + c.importance / 10.0)) DESC
+       LIMIT ?`;
+    const rows = db.prepare(sql).all(...params) as FtsRow[];
+    return rows.map((row) => ({
+      chunk: rowToStoredChunk(row),
+      score: row.bm25_score * row.time_decay * (1.0 + row.importance / 10.0),
+    }));
+  }
+
+  // FTS5 MATCH mode (optionally combined with LIKE)
+  const conditions: string[] = ["chunks_fts MATCH ?"];
+  const params: (string | number)[] = [halfLifeDays, ftsQuery];
+  for (const pattern of likePatterns) {
+    conditions.push("c.content LIKE ? ESCAPE '\\'");
+    params.push(pattern);
+  }
+  const whereClause = conditions.join(" AND ");
+  params.push(halfLifeDays, limit);
+
+  const sql = `SELECT
+       c.*,
+       bm25(chunks_fts) AS bm25_score,
+       exp(-0.693 * (julianday('now') - julianday(c.created_at)) / ?) AS time_decay
+     FROM chunks_fts
+     JOIN chunks c ON chunks_fts.rowid = c.id
+     WHERE ${whereClause}
+     ORDER BY (bm25(chunks_fts) * exp(-0.693 * (julianday('now') - julianday(c.created_at)) / ?) * (1.0 + c.importance / 10.0)) DESC
+     LIMIT ?`;
+
+  const rows = db.prepare(sql).all(...params) as FtsRow[];
 
   return rows.map((row) => ({
     chunk: rowToStoredChunk(row),
@@ -138,6 +173,7 @@ export function queryReferences(
   limit: number,
   halfLifeDays: number,
   logger: PluginContext["logger"],
+  likePatterns: string[] = [],
 ): SearchResult[] {
   const allResults: SearchResult[] = [];
 
@@ -149,7 +185,7 @@ export function queryReferences(
           logger.warn(`Skipping reference "${ref.name}": incompatible schema at ${ref.dbPath}`);
           continue;
         }
-        const remoteResults = queryRemoteDb(remoteDb, ftsQuery, limit, halfLifeDays);
+        const remoteResults = queryRemoteDb(remoteDb, ftsQuery, limit, halfLifeDays, likePatterns);
         // Normalize remote results independently per database
         const normalized = normalizeScores(remoteResults);
         for (const r of normalized) {
@@ -255,8 +291,8 @@ export function createMultiRepoSharing(): Plugin {
       }
 
       // Preprocess the query for FTS5 (CJK n-gram support)
-      const ftsQuery = preprocessQuery(queryText);
-      if (ftsQuery.length === 0) {
+      const { ftsQuery, likePatterns }: PreprocessedQuery = preprocessQuery(queryText);
+      if (ftsQuery.length === 0 && likePatterns.length === 0) {
         return annotatedLocal;
       }
 
@@ -268,6 +304,7 @@ export function createMultiRepoSharing(): Plugin {
         queryLimit,
         halfLifeDays,
         ctx.logger,
+        likePatterns,
       );
 
       if (remoteResults.length === 0) {
