@@ -9,6 +9,7 @@ export interface InjectOptions {
   tokenBudget?: number;
   maxResults?: number;
   halfLifeDays?: number;
+  normalizeByLength?: boolean;
   pluginManager?: PluginManager;
 }
 
@@ -97,6 +98,7 @@ export async function injectMemory(
     tokenBudget = PIPELINE_DEFAULTS.tokenBudget,
     maxResults = PIPELINE_DEFAULTS.maxResults,
     halfLifeDays = PIPELINE_DEFAULTS.halfLifeDays,
+    normalizeByLength,
     pluginManager,
   } = options;
 
@@ -113,7 +115,7 @@ export async function injectMemory(
     limit: maxResults,
   };
 
-  const results = await searchMemory(db, query, { halfLifeDays, pluginManager });
+  const results = await searchMemory(db, query, { halfLifeDays, normalizeByLength, pluginManager });
   const formatted = formatContext(results, chunkBudget);
 
   if (pluginManager) {

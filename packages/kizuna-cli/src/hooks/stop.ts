@@ -30,6 +30,7 @@ export async function handleStop(): Promise<void> {
       transcriptPath: input.transcript_path,
       pluginManager,
       noisePatterns: config.pipeline.noisePatterns,
+      maxChunkSize: config.pipeline.maxChunkSize,
     });
 
     if (result.chunksStored > 0) {

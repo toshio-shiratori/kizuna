@@ -23,6 +23,10 @@ function numOrDefault(value: unknown, fallback: number): number {
   return isPositiveNumber(value) ? value : fallback;
 }
 
+function boolOrDefault(value: unknown, fallback: boolean): boolean {
+  return typeof value === "boolean" ? value : fallback;
+}
+
 function stringArrayOrDefault(value: unknown, fallback: readonly string[]): readonly string[] {
   if (!Array.isArray(value)) return fallback;
   const filtered = value.filter((item): item is string => typeof item === "string");
@@ -38,6 +42,11 @@ function mergePipeline(
     maxResults: intOrDefault(overrides.maxResults, base.maxResults),
     halfLifeDays: numOrDefault(overrides.halfLifeDays, base.halfLifeDays),
     minContentLength: intOrDefault(overrides.minContentLength, base.minContentLength),
+    maxChunkSize: intOrDefault(overrides.maxChunkSize, base.maxChunkSize),
+    normalizeScoreByLength: boolOrDefault(
+      overrides.normalizeScoreByLength,
+      base.normalizeScoreByLength,
+    ),
     noisePatterns: stringArrayOrDefault(overrides.noisePatterns, base.noisePatterns),
   };
 }

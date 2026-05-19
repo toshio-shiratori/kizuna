@@ -457,4 +457,134 @@ describe("loadConfig", () => {
       expect(config.display.recapChunkLimit).toBe(DISPLAY_DEFAULTS.recapChunkLimit);
     });
   });
+
+  describe("maxChunkSize", () => {
+    it("returns default (8000) when not configured", () => {
+      const config = loadConfig(tmpDir, globalDir);
+      expect(config.pipeline.maxChunkSize).toBe(8000);
+    });
+
+    it("reads maxChunkSize from project config", () => {
+      mkdirSync(join(tmpDir, ".kizuna"));
+      writeFileSync(
+        join(tmpDir, ".kizuna", "config.json"),
+        JSON.stringify({ pipeline: { maxChunkSize: 4000 } }),
+      );
+
+      const config = loadConfig(tmpDir, globalDir);
+      expect(config.pipeline.maxChunkSize).toBe(4000);
+    });
+
+    it("reads maxChunkSize from global config", () => {
+      writeFileSync(
+        join(globalDir, "config.json"),
+        JSON.stringify({ pipeline: { maxChunkSize: 16000 } }),
+      );
+
+      const config = loadConfig(tmpDir, globalDir);
+      expect(config.pipeline.maxChunkSize).toBe(16000);
+    });
+
+    it("project maxChunkSize overrides global", () => {
+      writeFileSync(
+        join(globalDir, "config.json"),
+        JSON.stringify({ pipeline: { maxChunkSize: 16000 } }),
+      );
+      mkdirSync(join(tmpDir, ".kizuna"));
+      writeFileSync(
+        join(tmpDir, ".kizuna", "config.json"),
+        JSON.stringify({ pipeline: { maxChunkSize: 4000 } }),
+      );
+
+      const config = loadConfig(tmpDir, globalDir);
+      expect(config.pipeline.maxChunkSize).toBe(4000);
+    });
+
+    it("falls back to default for invalid values", () => {
+      mkdirSync(join(tmpDir, ".kizuna"));
+      writeFileSync(
+        join(tmpDir, ".kizuna", "config.json"),
+        JSON.stringify({ pipeline: { maxChunkSize: -1 } }),
+      );
+
+      const config = loadConfig(tmpDir, globalDir);
+      expect(config.pipeline.maxChunkSize).toBe(8000);
+    });
+
+    it("floors float values to integers", () => {
+      mkdirSync(join(tmpDir, ".kizuna"));
+      writeFileSync(
+        join(tmpDir, ".kizuna", "config.json"),
+        JSON.stringify({ pipeline: { maxChunkSize: 5000.7 } }),
+      );
+
+      const config = loadConfig(tmpDir, globalDir);
+      expect(config.pipeline.maxChunkSize).toBe(5000);
+    });
+  });
+
+  describe("normalizeScoreByLength", () => {
+    it("returns default (true) when not configured", () => {
+      const config = loadConfig(tmpDir, globalDir);
+      expect(config.pipeline.normalizeScoreByLength).toBe(true);
+    });
+
+    it("reads normalizeScoreByLength from project config", () => {
+      mkdirSync(join(tmpDir, ".kizuna"));
+      writeFileSync(
+        join(tmpDir, ".kizuna", "config.json"),
+        JSON.stringify({ pipeline: { normalizeScoreByLength: false } }),
+      );
+
+      const config = loadConfig(tmpDir, globalDir);
+      expect(config.pipeline.normalizeScoreByLength).toBe(false);
+    });
+
+    it("reads normalizeScoreByLength from global config", () => {
+      writeFileSync(
+        join(globalDir, "config.json"),
+        JSON.stringify({ pipeline: { normalizeScoreByLength: false } }),
+      );
+
+      const config = loadConfig(tmpDir, globalDir);
+      expect(config.pipeline.normalizeScoreByLength).toBe(false);
+    });
+
+    it("project normalizeScoreByLength overrides global", () => {
+      writeFileSync(
+        join(globalDir, "config.json"),
+        JSON.stringify({ pipeline: { normalizeScoreByLength: false } }),
+      );
+      mkdirSync(join(tmpDir, ".kizuna"));
+      writeFileSync(
+        join(tmpDir, ".kizuna", "config.json"),
+        JSON.stringify({ pipeline: { normalizeScoreByLength: true } }),
+      );
+
+      const config = loadConfig(tmpDir, globalDir);
+      expect(config.pipeline.normalizeScoreByLength).toBe(true);
+    });
+
+    it("falls back to default for non-boolean values", () => {
+      mkdirSync(join(tmpDir, ".kizuna"));
+      writeFileSync(
+        join(tmpDir, ".kizuna", "config.json"),
+        JSON.stringify({ pipeline: { normalizeScoreByLength: "yes" } }),
+      );
+
+      const config = loadConfig(tmpDir, globalDir);
+      expect(config.pipeline.normalizeScoreByLength).toBe(true);
+    });
+
+    it("falls back to default for null", () => {
+      mkdirSync(join(tmpDir, ".kizuna"));
+      writeFileSync(
+        join(tmpDir, ".kizuna", "config.json"),
+        JSON.stringify({ pipeline: { normalizeScoreByLength: null } }),
+      );
+
+      const config = loadConfig(tmpDir, globalDir);
+      expect(config.pipeline.normalizeScoreByLength).toBe(true);
+    });
+  });
 });
