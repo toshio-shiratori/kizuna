@@ -1071,7 +1071,7 @@ describe("references count warning", () => {
     plugin.afterSearch!([], ctx);
     const countWarnings = warnings.filter((w) => w.includes("recommended max"));
     expect(countWarnings).toHaveLength(1);
-    expect(countWarnings[0]).toContain("6 references configured");
+    expect(countWarnings[0]).toContain("6 references");
     expect(countWarnings[0]).toContain("recommended max: 5");
     expect(countWarnings[0]).toContain("Search latency may increase");
   });
@@ -1346,5 +1346,36 @@ describe("afterSearch (autoDiscover)", () => {
     const sources = output.map((r) => r.annotations?.["source"]);
     expect(sources).toContain("sibling-a");
     expect(sources).toContain("elsewhere");
+  });
+
+  it("warning message distinguishes explicit and auto-discovered references", () => {
+    const myProject = path.join(tmpDir, "my-project");
+    fs.mkdirSync(path.join(myProject, ".kizuna"), { recursive: true });
+
+    // Create 6 sibling projects with memory.db (exceeds MAX_RECOMMENDED_REFERENCES)
+    for (let i = 0; i < 6; i++) {
+      const sibling = path.join(tmpDir, `sibling-${i}`);
+      fs.mkdirSync(path.join(sibling, ".kizuna"), { recursive: true });
+      const sibDb = createTestDb(path.join(sibling, ".kizuna", "memory.db"));
+      sibDb.close();
+    }
+
+    const plugin = createMultiRepoSharing();
+    plugin.beforeSearch!({ text: "test", limit: 10 }, makeContext("my-project", {}, myProject));
+
+    const { ctx, warnings } = makeContextWithLogger(
+      "my-project",
+      {
+        autoDiscover: true,
+        references: [{ name: "explicit-ref", dbPath: path.join(tmpDir, "missing.db") }],
+      },
+      myProject,
+    );
+
+    plugin.afterSearch!([], ctx);
+    const countWarnings = warnings.filter((w) => w.includes("recommended max"));
+    expect(countWarnings).toHaveLength(1);
+    expect(countWarnings[0]).toContain("1 explicit");
+    expect(countWarnings[0]).toContain("6 auto-discovered");
   });
 });

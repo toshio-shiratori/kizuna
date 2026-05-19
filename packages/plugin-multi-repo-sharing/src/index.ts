@@ -338,8 +338,14 @@ export function createMultiRepoSharing(): Plugin {
       }
 
       if (references.length > MAX_RECOMMENDED_REFERENCES) {
+        const autoCount = autoRefs.filter((r) => !explicitNames.has(r.name)).length;
+        const explicitCount = references.length - autoCount;
+        const detail =
+          autoCount > 0
+            ? `${references.length} references (${explicitCount} explicit, ${autoCount} auto-discovered)`
+            : `${references.length} references configured`;
         ctx.logger.warn(
-          `${references.length} references configured (recommended max: ${MAX_RECOMMENDED_REFERENCES}). Search latency may increase.`,
+          `${detail} (recommended max: ${MAX_RECOMMENDED_REFERENCES}). Search latency may increase.`,
         );
       }
 
