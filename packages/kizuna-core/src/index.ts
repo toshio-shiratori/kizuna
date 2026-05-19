@@ -29,6 +29,7 @@ export { chunkifyTurns, isLowQualityContent, MIN_CONTENT_LENGTH } from "./pipeli
 export { searchMemory } from "./pipelines/search.js";
 export type { SearchOptions } from "./pipelines/search.js";
 export { preprocessQuery, isCJKChar, splitByCJK } from "./pipelines/cjk-preprocessing.js";
+export type { PreprocessedQuery } from "./pipelines/cjk-preprocessing.js";
 export { injectMemory, formatContext } from "./pipelines/inject.js";
 export type { InjectOptions, InjectResult } from "./pipelines/inject.js";
 export { estimateTokens } from "./pipelines/chunker.js";

@@ -1,3 +1,8 @@
+export interface PreprocessedQuery {
+  ftsQuery: string;
+  likePatterns: string[];
+}
+
 export function isCJKChar(char: string): boolean {
   const code = char.codePointAt(0);
   if (code === undefined) return false;
@@ -51,12 +56,17 @@ function escapeForFts(text: string): string {
   return `"${text.replace(/"/g, '""')}"`;
 }
 
-export function preprocessQuery(query: string): string {
+export function escapeForLike(text: string): string {
+  return text.replace(/[\\%_]/g, "\\$&");
+}
+
+export function preprocessQuery(query: string): PreprocessedQuery {
   const trimmed = query.trim();
-  if (trimmed.length === 0) return "";
+  if (trimmed.length === 0) return { ftsQuery: "", likePatterns: [] };
 
   const segments = splitByCJK(trimmed);
-  const parts: string[] = [];
+  const ftsParts: string[] = [];
+  const likePatterns: string[] = [];
 
   for (const segment of segments) {
     if (!segment.cjk) {
@@ -65,18 +75,20 @@ export function preprocessQuery(query: string): string {
         .split(/\s+/)
         .filter((w) => w.length > 0);
       for (const word of words) {
-        parts.push(escapeForFts(word));
+        ftsParts.push(escapeForFts(word));
       }
       continue;
     }
 
     const trigrams = generateTrigrams(segment.text);
     if (trigrams.length > 0) {
-      parts.push(trigrams.map(escapeForFts).join(" OR "));
+      ftsParts.push(trigrams.map(escapeForFts).join(" OR "));
     } else if (segment.text.length > 0) {
-      parts.push(escapeForFts(segment.text));
+      // CJK text shorter than 3 characters: FTS5 trigram can't MATCH these,
+      // so use LIKE fallback instead
+      likePatterns.push(`%${escapeForLike(segment.text)}%`);
     }
   }
 
-  return parts.join(" ");
+  return { ftsQuery: ftsParts.join(" "), likePatterns };
 }

@@ -55,19 +55,34 @@ export function findLowQualityChunks(
 }
 
 export function findChunksByQuery(db: Database, query: string): CleanupTarget[] {
-  const preprocessed = preprocessQuery(query);
-  if (preprocessed.length === 0) return [];
+  const { ftsQuery, likePatterns } = preprocessQuery(query);
+  if (ftsQuery.length === 0 && likePatterns.length === 0) return [];
 
   try {
-    const rows = db.db
-      .prepare(
-        `SELECT c.id, c.content, c.role, c.session_id, c.created_at
+    if (ftsQuery.length === 0) {
+      // LIKE-only mode
+      const likeConditions = likePatterns.map(() => "c.content LIKE ? ESCAPE '\\'").join(" AND ");
+      const sql = `SELECT c.id, c.content, c.role, c.session_id, c.created_at
          FROM chunks_fts
          JOIN chunks c ON chunks_fts.rowid = c.id
-         WHERE chunks_fts MATCH ?`,
-      )
-      .all(preprocessed) as AllChunkRow[];
+         WHERE ${likeConditions}`;
+      const rows = db.db.prepare(sql).all(...likePatterns) as AllChunkRow[];
+      return rows.map(toCleanupTarget);
+    }
 
+    // FTS5 MATCH mode (optionally combined with LIKE)
+    const conditions: string[] = ["chunks_fts MATCH ?"];
+    const params: string[] = [ftsQuery];
+    for (const pattern of likePatterns) {
+      conditions.push("c.content LIKE ? ESCAPE '\\'");
+      params.push(pattern);
+    }
+
+    const sql = `SELECT c.id, c.content, c.role, c.session_id, c.created_at
+         FROM chunks_fts
+         JOIN chunks c ON chunks_fts.rowid = c.id
+         WHERE ${conditions.join(" AND ")}`;
+    const rows = db.db.prepare(sql).all(...params) as AllChunkRow[];
     return rows.map(toCleanupTarget);
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);

@@ -66,23 +66,62 @@ export function searchChunks(
   query: string,
   limit: number = 10,
   halfLifeDays: number = 30,
+  likePatterns: string[] = [],
 ): SearchResult[] {
-  const rows = db
-    .prepare(
-      `SELECT
-         c.*,
-         bm25(chunks_fts) AS bm25_score,
-         exp(-0.693 * (julianday('now') - julianday(c.created_at)) / ?) AS time_decay
-       FROM chunks_fts
-       JOIN chunks c ON chunks_fts.rowid = c.id
-       WHERE chunks_fts MATCH ?
-       ORDER BY (bm25(chunks_fts) * exp(-0.693 * (julianday('now') - julianday(c.created_at)) / ?) * (1.0 + c.importance / 10.0)) DESC
-       LIMIT ?`,
-    )
-    .all(halfLifeDays, query, halfLifeDays, limit) as FtsRow[];
+  const conditions: string[] = ["chunks_fts MATCH ?"];
+  const params: (string | number)[] = [halfLifeDays, query];
+
+  for (const pattern of likePatterns) {
+    conditions.push("c.content LIKE ? ESCAPE '\\'");
+    params.push(pattern);
+  }
+
+  const whereClause = conditions.join(" AND ");
+  params.push(halfLifeDays, limit);
+
+  const sql = `SELECT
+       c.*,
+       bm25(chunks_fts) AS bm25_score,
+       exp(-0.693 * (julianday('now') - julianday(c.created_at)) / ?) AS time_decay
+     FROM chunks_fts
+     JOIN chunks c ON chunks_fts.rowid = c.id
+     WHERE ${whereClause}
+     ORDER BY (bm25(chunks_fts) * exp(-0.693 * (julianday('now') - julianday(c.created_at)) / ?) * (1.0 + c.importance / 10.0)) DESC
+     LIMIT ?`;
+
+  const rows = db.prepare(sql).all(...params) as FtsRow[];
 
   return rows.map((row) => ({
     chunk: chunkRowToStoredChunk(row),
     score: Math.abs(row.bm25_score) * row.time_decay * (1.0 + row.importance / 10.0),
+  }));
+}
+
+export function searchChunksLikeOnly(
+  db: BetterSqlite3.Database,
+  likePatterns: string[],
+  limit: number = 10,
+  halfLifeDays: number = 30,
+): SearchResult[] {
+  if (likePatterns.length === 0) return [];
+
+  const likeConditions = likePatterns.map(() => "c.content LIKE ? ESCAPE '\\'").join(" AND ");
+  const params: (string | number)[] = [halfLifeDays, ...likePatterns, halfLifeDays, limit];
+
+  const sql = `SELECT
+       c.*,
+       1.0 AS bm25_score,
+       exp(-0.693 * (julianday('now') - julianday(c.created_at)) / ?) AS time_decay
+     FROM chunks_fts
+     JOIN chunks c ON chunks_fts.rowid = c.id
+     WHERE ${likeConditions}
+     ORDER BY (exp(-0.693 * (julianday('now') - julianday(c.created_at)) / ?) * (1.0 + c.importance / 10.0)) DESC
+     LIMIT ?`;
+
+  const rows = db.prepare(sql).all(...params) as FtsRow[];
+
+  return rows.map((row) => ({
+    chunk: chunkRowToStoredChunk(row),
+    score: row.bm25_score * row.time_decay * (1.0 + row.importance / 10.0),
   }));
 }
