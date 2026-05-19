@@ -3,6 +3,8 @@ export interface PipelineConfig {
   readonly maxResults: number;
   readonly halfLifeDays: number;
   readonly minContentLength: number;
+  readonly maxChunkSize: number;
+  readonly normalizeScoreByLength: boolean;
   readonly noisePatterns: readonly string[];
 }
 
@@ -25,6 +27,8 @@ export const PIPELINE_DEFAULTS: Readonly<PipelineConfig> = {
   maxResults: 10,
   halfLifeDays: 30,
   minContentLength: 10,
+  maxChunkSize: 8000,
+  normalizeScoreByLength: true,
   noisePatterns: [],
 };
 

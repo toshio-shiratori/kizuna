@@ -24,10 +24,11 @@ export function registerSearch(program: Command): void {
       const db = new Database(resolveDbPath(opts.cwd));
       try {
         const limit = opts.limit ?? config.pipeline.maxResults;
-        const results = await searchMemory(db, {
-          text: query,
-          limit,
-        });
+        const results = await searchMemory(
+          db,
+          { text: query, limit },
+          { normalizeByLength: config.pipeline.normalizeScoreByLength },
+        );
 
         if (results.length === 0) {
           console.log("No results found.");

@@ -536,4 +536,129 @@ describe("searchMemory", () => {
       expect(results.length).toBeGreaterThan(0);
     });
   });
+
+  // ─── Score Normalization Tests ─────────────────────────
+
+  describe("score normalization by length", () => {
+    let normDb: Database;
+    let normDir: string;
+
+    beforeEach(() => {
+      normDir = mkdtempSync(join(tmpdir(), "kizuna-norm-test-"));
+      normDb = new Database(join(normDir, "test.db"));
+
+      normDb.insertSession({
+        id: "norm-session",
+        projectId: "norm-project",
+        startedAt: "2025-06-01T00:00:00.000Z",
+        endedAt: "2025-06-01T01:00:00.000Z",
+        transcriptPath: null,
+        metadata: {},
+      });
+
+      // Short chunk with keyword
+      normDb.insertChunk({
+        sessionId: "norm-session",
+        turnIndex: 0,
+        role: "user",
+        content: "authentication module design",
+        metadata: {},
+        importance: 5,
+      });
+
+      // Very long chunk with the keyword repeated frequently throughout.
+      // BM25 rewards high term frequency, so this chunk should score high
+      // in raw BM25 ranking despite its length.
+      const longContent = (
+        "authentication system design and implementation details. " +
+        "The authentication layer handles user credentials. "
+      ).repeat(50);
+      normDb.insertChunk({
+        sessionId: "norm-session",
+        turnIndex: 1,
+        role: "assistant",
+        content: longContent,
+        metadata: {},
+        importance: 5,
+      });
+
+      // Medium chunk with keyword
+      normDb.insertChunk({
+        sessionId: "norm-session",
+        turnIndex: 2,
+        role: "user",
+        content:
+          "We need to implement the authentication flow using JWT tokens for the API gateway.",
+        metadata: {},
+        importance: 5,
+      });
+    });
+
+    afterEach(() => {
+      normDb.close();
+      rmSync(normDir, { recursive: true, force: true });
+    });
+
+    it("normalizes scores so long chunks do not dominate", async () => {
+      const normalizedResults = await searchMemory(
+        normDb,
+        { text: "authentication", limit: 10 },
+        { normalizeByLength: true },
+      );
+
+      expect(normalizedResults.length).toBeGreaterThanOrEqual(2);
+
+      // The short chunk should rank higher than the very long chunk after normalization
+      const shortIdx = normalizedResults.findIndex(
+        (r) => r.chunk.content === "authentication module design",
+      );
+      const longIdx = normalizedResults.findIndex((r) => r.chunk.content.length > 1000);
+
+      expect(shortIdx).toBeGreaterThanOrEqual(0);
+      expect(longIdx).toBeGreaterThanOrEqual(0);
+      expect(shortIdx).toBeLessThan(longIdx);
+    });
+
+    it("does not normalize when disabled — long chunk outranks short chunk", async () => {
+      const results = await searchMemory(
+        normDb,
+        { text: "authentication", limit: 10 },
+        { normalizeByLength: false },
+      );
+
+      expect(results.length).toBeGreaterThanOrEqual(2);
+
+      const shortIdx = results.findIndex((r) => r.chunk.content === "authentication module design");
+      const longIdx = results.findIndex((r) => r.chunk.content.length > 1000);
+
+      expect(shortIdx).toBeGreaterThanOrEqual(0);
+      expect(longIdx).toBeGreaterThanOrEqual(0);
+
+      // Without normalization, the long chunk (with more keyword occurrences
+      // and boosted by keyword reranking) should rank higher or equal.
+      // This confirms that normalization genuinely changes the ranking.
+      expect(longIdx).toBeLessThanOrEqual(shortIdx);
+    });
+
+    it("applies normalization by default (matches PIPELINE_DEFAULTS)", async () => {
+      // Default is normalizeByLength: true (from PIPELINE_DEFAULTS.normalizeScoreByLength)
+      const results = await searchMemory(normDb, { text: "authentication", limit: 10 });
+
+      expect(results.length).toBeGreaterThanOrEqual(2);
+      // Scores should reflect normalization
+      for (const r of results) {
+        expect(r.score).toBeGreaterThan(0);
+      }
+    });
+
+    it("respects the requested limit after normalization re-ranking", async () => {
+      const results = await searchMemory(
+        normDb,
+        { text: "authentication", limit: 1 },
+        { normalizeByLength: true },
+      );
+
+      expect(results.length).toBe(1);
+    });
+  });
 });

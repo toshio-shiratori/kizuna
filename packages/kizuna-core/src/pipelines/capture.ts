@@ -2,7 +2,8 @@ import type { Database } from "../storage/database.js";
 import type { StoredChunk } from "../index.js";
 import type { PluginManager } from "../plugin/plugin-manager.js";
 import { parseTranscriptFile, parseTranscriptContent } from "./transcript-parser.js";
-import { chunkifyTurns, isLowQualityContent } from "./chunker.js";
+import { chunkifyTurns, isLowQualityContent, truncateChunk, estimateTokens } from "./chunker.js";
+import { PIPELINE_DEFAULTS } from "../config/defaults.js";
 
 export interface CaptureResult {
   sessionId: string;
@@ -18,14 +19,22 @@ export interface CaptureOptions {
   transcriptContent?: string;
   pluginManager?: PluginManager;
   noisePatterns?: readonly string[];
+  maxChunkSize?: number;
 }
 
 export async function captureTranscript(
   db: Database,
   options: CaptureOptions,
 ): Promise<CaptureResult> {
-  const { sessionId, projectId, transcriptPath, transcriptContent, pluginManager, noisePatterns } =
-    options;
+  const {
+    sessionId,
+    projectId,
+    transcriptPath,
+    transcriptContent,
+    pluginManager,
+    noisePatterns,
+    maxChunkSize = PIPELINE_DEFAULTS.maxChunkSize,
+  } = options;
 
   const turns = transcriptPath
     ? parseTranscriptFile(transcriptPath)
@@ -64,7 +73,20 @@ export async function captureTranscript(
         continue;
       }
 
-      const processed = pluginManager ? await pluginManager.runBeforeCapture(chunk) : chunk;
+      // Truncate oversized chunks before plugin processing
+      const truncatedContent = truncateChunk(chunk.content, maxChunkSize);
+      const truncatedChunk =
+        truncatedContent !== chunk.content
+          ? {
+              ...chunk,
+              content: truncatedContent,
+              tokenCount: estimateTokens(truncatedContent),
+            }
+          : chunk;
+
+      const processed = pluginManager
+        ? await pluginManager.runBeforeCapture(truncatedChunk)
+        : truncatedChunk;
 
       if (processed === null) {
         chunksSkipped++;

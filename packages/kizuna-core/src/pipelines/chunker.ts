@@ -67,6 +67,47 @@ export function chunkifyTurns(
   }));
 }
 
+const TRUNCATION_MARKER = "\n\n[truncated]";
+
+/**
+ * Truncates content to fit within a byte limit (UTF-8).
+ * Cuts at character boundaries to avoid breaking multi-byte characters.
+ * Appends a truncation marker if the content was truncated.
+ *
+ * @param content - The content to truncate
+ * @param maxBytes - Maximum size in bytes (UTF-8). The marker is included in this budget.
+ * @returns The original content if within limit, or truncated content with marker
+ */
+export function truncateChunk(content: string, maxBytes: number): string {
+  const encoder = new TextEncoder();
+  const contentBytes = encoder.encode(content).byteLength;
+
+  if (contentBytes <= maxBytes) {
+    return content;
+  }
+
+  const markerBytes = encoder.encode(TRUNCATION_MARKER).byteLength;
+  const targetBytes = maxBytes - markerBytes;
+
+  if (targetBytes <= 0) {
+    return TRUNCATION_MARKER;
+  }
+
+  // Slice at character boundaries by iterating characters
+  let byteCount = 0;
+  let charEnd = 0;
+  for (const char of content) {
+    const charBytes = encoder.encode(char).byteLength;
+    if (byteCount + charBytes > targetBytes) {
+      break;
+    }
+    byteCount += charBytes;
+    charEnd += char.length; // .length handles surrogate pairs (2 for surrogates, 1 otherwise)
+  }
+
+  return content.slice(0, charEnd) + TRUNCATION_MARKER;
+}
+
 export function estimateTokens(text: string): number {
   const len = text.length;
   let count = 0;

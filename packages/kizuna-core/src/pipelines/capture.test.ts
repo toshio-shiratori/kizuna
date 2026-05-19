@@ -5,7 +5,12 @@ import { tmpdir } from "node:os";
 import { Database } from "../storage/database.js";
 import { PluginManager } from "../plugin/plugin-manager.js";
 import { parseTranscriptContent, sanitizeContent } from "./transcript-parser.js";
-import { chunkifyTurns, isLowQualityContent, MIN_CONTENT_LENGTH } from "./chunker.js";
+import {
+  chunkifyTurns,
+  isLowQualityContent,
+  truncateChunk,
+  MIN_CONTENT_LENGTH,
+} from "./chunker.js";
 import { captureTranscript } from "./capture.js";
 import type { Plugin } from "../index.js";
 
@@ -1244,5 +1249,217 @@ describe("isLowQualityContent", () => {
       expect(isLowQualityContent("Normal content that should pass")).toBe(false);
       expect(isLowQualityContent("OK")).toBe(true);
     });
+  });
+});
+
+describe("truncateChunk", () => {
+  it("returns content unchanged when within byte limit", () => {
+    const content = "Hello, world!";
+    expect(truncateChunk(content, 100)).toBe(content);
+  });
+
+  it("returns content unchanged when exactly at byte limit", () => {
+    const content = "abcd"; // 4 bytes in UTF-8
+    expect(truncateChunk(content, 4)).toBe(content);
+  });
+
+  it("truncates content exceeding byte limit and appends marker", () => {
+    const content = "a".repeat(10000);
+    const result = truncateChunk(content, 100);
+    expect(result.endsWith("\n\n[truncated]")).toBe(true);
+    expect(new TextEncoder().encode(result).byteLength).toBeLessThanOrEqual(100);
+  });
+
+  it("does not break multi-byte characters (Japanese)", () => {
+    // Each Japanese char is 3 bytes in UTF-8
+    const content = "あ".repeat(100); // 300 bytes
+    const result = truncateChunk(content, 50);
+    expect(result.endsWith("\n\n[truncated]")).toBe(true);
+    // Verify no broken characters: each char in the result should be valid
+    for (const char of result.replace("\n\n[truncated]", "")) {
+      expect(char).toBe("あ");
+    }
+    expect(new TextEncoder().encode(result).byteLength).toBeLessThanOrEqual(50);
+  });
+
+  it("does not break surrogate pairs (emoji)", () => {
+    // Emoji like U+1F600 is 4 bytes in UTF-8 and 2 code units in JS
+    const content = "\u{1F600}".repeat(50); // 200 bytes
+    const result = truncateChunk(content, 50);
+    expect(result.endsWith("\n\n[truncated]")).toBe(true);
+    const body = result.replace("\n\n[truncated]", "");
+    // Each emoji should be intact (length 2 per emoji in JS)
+    expect(body.length % 2).toBe(0);
+    expect(new TextEncoder().encode(result).byteLength).toBeLessThanOrEqual(50);
+  });
+
+  it("returns only marker when maxBytes is too small for any content plus marker", () => {
+    const content = "Hello, world! This is a longer piece of content";
+    const markerBytes = new TextEncoder().encode("\n\n[truncated]").byteLength;
+    // Set limit to exactly marker size -- no room for any content characters
+    const result = truncateChunk(content, markerBytes);
+    expect(result).toBe("\n\n[truncated]");
+  });
+
+  it("handles the default 8000-byte limit correctly", () => {
+    const content = "x".repeat(8001);
+    const result = truncateChunk(content, 8000);
+    expect(result.endsWith("\n\n[truncated]")).toBe(true);
+    expect(new TextEncoder().encode(result).byteLength).toBeLessThanOrEqual(8000);
+  });
+
+  it("preserves content fully when byte count equals limit with marker space", () => {
+    // Content that is 50 bytes, limit is 50 bytes -- should not truncate
+    const content = "a".repeat(50);
+    expect(truncateChunk(content, 50)).toBe(content);
+  });
+});
+
+describe("captureTranscript with maxChunkSize", () => {
+  let db: Database;
+  let dir: string;
+
+  beforeEach(() => {
+    dir = mkdtempSync(join(tmpdir(), "kizuna-truncate-test-"));
+    db = new Database(join(dir, "test.db"));
+  });
+
+  afterEach(() => {
+    db.close();
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  it("truncates oversized chunks during capture", async () => {
+    const largeContent = "a]b[c".repeat(2000); // 10,000 bytes, safe chars
+    const content = makeTranscriptLine({
+      type: "user",
+      uuid: "u1",
+      timestamp: "2025-01-01T00:00:00.000Z",
+      message: { role: "user", content: largeContent },
+    });
+
+    const result = await captureTranscript(db, {
+      sessionId: "sess-trunc",
+      projectId: "proj-1",
+      transcriptContent: content,
+      maxChunkSize: 500,
+    });
+
+    expect(result.chunksStored).toBe(1);
+    const chunks = db.getChunksBySession("sess-trunc");
+    expect(chunks[0]!.content.endsWith("\n\n[truncated]")).toBe(true);
+    expect(new TextEncoder().encode(chunks[0]!.content).byteLength).toBeLessThanOrEqual(500);
+  });
+
+  it("does not truncate chunks within the limit", async () => {
+    const content = makeTranscriptLine({
+      type: "user",
+      uuid: "u1",
+      timestamp: "2025-01-01T00:00:00.000Z",
+      message: { role: "user", content: "This is a short message" },
+    });
+
+    const result = await captureTranscript(db, {
+      sessionId: "sess-no-trunc",
+      projectId: "proj-1",
+      transcriptContent: content,
+      maxChunkSize: 8000,
+    });
+
+    expect(result.chunksStored).toBe(1);
+    const chunks = db.getChunksBySession("sess-no-trunc");
+    expect(chunks[0]!.content).toBe("This is a short message");
+    expect(chunks[0]!.content).not.toContain("[truncated]");
+  });
+
+  it("uses default maxChunkSize when not specified", async () => {
+    // Default is 8000 bytes, so content under that should not be truncated
+    const content = makeTranscriptLine({
+      type: "user",
+      uuid: "u1",
+      timestamp: "2025-01-01T00:00:00.000Z",
+      message: { role: "user", content: "Short content here" },
+    });
+
+    const result = await captureTranscript(db, {
+      sessionId: "sess-default",
+      projectId: "proj-1",
+      transcriptContent: content,
+    });
+
+    expect(result.chunksStored).toBe(1);
+    const chunks = db.getChunksBySession("sess-default");
+    expect(chunks[0]!.content).toBe("Short content here");
+  });
+
+  it("truncated chunks are searchable via FTS", async () => {
+    // Include a unique keyword early in the content so it survives truncation
+    const largeContent = "authentication module " + "padding text ".repeat(800);
+    const content = makeTranscriptLine({
+      type: "user",
+      uuid: "u1",
+      timestamp: "2025-01-01T00:00:00.000Z",
+      message: { role: "user", content: largeContent },
+    });
+
+    await captureTranscript(db, {
+      sessionId: "sess-search-trunc",
+      projectId: "proj-1",
+      transcriptContent: content,
+      maxChunkSize: 500,
+    });
+
+    const results = db.searchChunks("authentication");
+    expect(results.length).toBeGreaterThan(0);
+    expect(results[0]!.chunk.content).toContain("authentication");
+    expect(results[0]!.chunk.content.endsWith("\n\n[truncated]")).toBe(true);
+  });
+
+  it("recalculates token count after truncation", async () => {
+    const largeContent = "token ".repeat(2000); // 12,000 bytes
+    const content = makeTranscriptLine({
+      type: "user",
+      uuid: "u1",
+      timestamp: "2025-01-01T00:00:00.000Z",
+      message: { role: "user", content: largeContent },
+    });
+
+    await captureTranscript(db, {
+      sessionId: "sess-tokens",
+      projectId: "proj-1",
+      transcriptContent: content,
+      maxChunkSize: 500,
+    });
+
+    const chunks = db.getChunksBySession("sess-tokens");
+    // Token count should reflect the truncated content, not the original
+    expect(chunks[0]!.tokenCount).toBeLessThan(3000); // original would be ~3000
+    expect(chunks[0]!.tokenCount).toBeGreaterThan(0);
+  });
+
+  it("truncates Japanese content without breaking characters", async () => {
+    // Each Japanese char is 3 bytes in UTF-8
+    const largeJapanese = "認証フローの実装について詳しく説明します。".repeat(100);
+    const content = makeTranscriptLine({
+      type: "user",
+      uuid: "u1",
+      timestamp: "2025-01-01T00:00:00.000Z",
+      message: { role: "user", content: largeJapanese },
+    });
+
+    await captureTranscript(db, {
+      sessionId: "sess-jp-trunc",
+      projectId: "proj-1",
+      transcriptContent: content,
+      maxChunkSize: 500,
+    });
+
+    const chunks = db.getChunksBySession("sess-jp-trunc");
+    expect(chunks[0]!.content.endsWith("\n\n[truncated]")).toBe(true);
+    // Verify the content doesn't have broken characters by checking it can be encoded/decoded cleanly
+    const encoded = new TextEncoder().encode(chunks[0]!.content);
+    const decoded = new TextDecoder().decode(encoded);
+    expect(decoded).toBe(chunks[0]!.content);
+    expect(encoded.byteLength).toBeLessThanOrEqual(500);
   });
 });

@@ -7,6 +7,7 @@ import type { PreprocessedQuery } from "./cjk-preprocessing.js";
 
 export interface SearchOptions {
   halfLifeDays?: number;
+  normalizeByLength?: boolean;
   pluginManager?: PluginManager;
 }
 
@@ -66,6 +67,20 @@ function ftsRowToSearchResult(row: FtsRow): SearchResult {
     },
     score: Math.abs(row.bm25_score) * row.time_decay * (1.0 + row.importance / 10.0),
   };
+}
+
+/**
+ * Normalizes search scores by chunk content length to reduce the advantage
+ * of longer chunks that naturally contain more keyword occurrences.
+ * Uses log(1 + charCount) as the divisor so the effect is sublinear.
+ */
+function normalizeScoresByLength(results: SearchResult[]): SearchResult[] {
+  return results
+    .map((result) => ({
+      ...result,
+      score: result.score / Math.log(1 + result.chunk.content.length),
+    }))
+    .sort((a, b) => b.score - a.score);
 }
 
 function addFilterConditions(
@@ -176,6 +191,7 @@ export async function searchMemory(
   options: SearchOptions = {},
 ): Promise<SearchResult[]> {
   const halfLifeDays = options.halfLifeDays ?? PIPELINE_DEFAULTS.halfLifeDays;
+  const normalizeByLength = options.normalizeByLength ?? PIPELINE_DEFAULTS.normalizeScoreByLength;
   const { pluginManager } = options;
 
   const processedQuery = pluginManager ? await pluginManager.runBeforeSearch(query) : query;
@@ -193,21 +209,35 @@ export async function searchMemory(
       processedQuery.filters.createdAfter ||
       processedQuery.filters.createdBefore);
 
+  // Over-fetch when normalization is enabled so re-ranking can promote
+  // shorter chunks that would otherwise be cut off by the SQL LIMIT
+  const fetchLimit = normalizeByLength ? processedQuery.limit * 3 : processedQuery.limit;
+  const fetchQuery = { ...processedQuery, limit: fetchLimit };
+
   let results: SearchResult[];
   if (ftsQuery.length === 0) {
     // LIKE-only mode: no FTS5 MATCH, only LIKE patterns
     if (hasFilters) {
-      results = buildLikeOnlyFilteredQuery(db, processedQuery, halfLifeDays, likePatterns);
+      results = buildLikeOnlyFilteredQuery(db, fetchQuery, halfLifeDays, likePatterns);
     } else {
-      results = db.searchChunksLikeOnly(likePatterns, processedQuery.limit, halfLifeDays);
+      results = db.searchChunksLikeOnly(likePatterns, fetchQuery.limit, halfLifeDays);
     }
   } else if (hasFilters) {
-    results = buildFilteredQuery(db, ftsQuery, processedQuery, halfLifeDays, likePatterns);
+    results = buildFilteredQuery(db, ftsQuery, fetchQuery, halfLifeDays, likePatterns);
   } else {
-    results = db.searchChunks(ftsQuery, processedQuery.limit, halfLifeDays, likePatterns);
+    results = db.searchChunks(ftsQuery, fetchQuery.limit, halfLifeDays, likePatterns);
   }
 
   results = applyKeywordReranking(results, processedQuery.text);
+
+  if (normalizeByLength) {
+    results = normalizeScoresByLength(results);
+  }
+
+  // Trim to the originally requested limit after normalization re-ranking
+  if (results.length > processedQuery.limit) {
+    results = results.slice(0, processedQuery.limit);
+  }
 
   if (pluginManager) {
     results = await pluginManager.runAfterSearch(results);

@@ -29,6 +29,7 @@ export async function handlePromptSubmit(): Promise<void> {
       tokenBudget: config.pipeline.tokenBudget,
       maxResults: config.pipeline.maxResults,
       halfLifeDays: config.pipeline.halfLifeDays,
+      normalizeByLength: config.pipeline.normalizeScoreByLength,
     });
     if (result.context.length > 0) {
       process.stdout.write(result.context);
