@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { Database } from "../storage/database.js";
 import { PluginManager } from "../plugin/plugin-manager.js";
 import { searchMemory } from "./search.js";
-import { preprocessQuery, isCJKChar, splitByCJK } from "./cjk-preprocessing.js";
+import { preprocessQuery, isCJKChar, splitByCJK, escapeForLike } from "./cjk-preprocessing.js";
 import type { Plugin } from "../index.js";
 
 // ─── CJK Preprocessing Tests ────────────────────────────
@@ -72,43 +72,76 @@ describe("splitByCJK", () => {
 });
 
 describe("preprocessQuery", () => {
-  it("generates trigrams for CJK text", () => {
+  it("generates trigrams for CJK text in ftsQuery", () => {
     const result = preprocessQuery("記憶を共有");
-    expect(result).toContain('"記憶を"');
-    expect(result).toContain('"憶を共"');
-    expect(result).toContain('"を共有"');
-    expect(result).toContain("OR");
+    expect(result.ftsQuery).toContain('"記憶を"');
+    expect(result.ftsQuery).toContain('"憶を共"');
+    expect(result.ftsQuery).toContain('"を共有"');
+    expect(result.ftsQuery).toContain("OR");
+    expect(result.likePatterns).toEqual([]);
   });
 
-  it("passes through English words quoted", () => {
+  it("passes through English words quoted in ftsQuery", () => {
     const result = preprocessQuery("hello world");
-    expect(result).toBe('"hello" "world"');
+    expect(result.ftsQuery).toBe('"hello" "world"');
+    expect(result.likePatterns).toEqual([]);
   });
 
-  it("handles mixed English and Japanese", () => {
+  it("handles mixed English and Japanese (3+ chars CJK)", () => {
     const result = preprocessQuery("Claude記憶を共有");
-    expect(result).toContain('"Claude"');
-    expect(result).toContain('"記憶を"');
+    expect(result.ftsQuery).toContain('"Claude"');
+    expect(result.ftsQuery).toContain('"記憶を"');
+    expect(result.likePatterns).toEqual([]);
   });
 
-  it("handles short CJK text (< 3 chars) with quoting", () => {
+  it("puts short CJK text (< 3 chars) into likePatterns", () => {
     const result = preprocessQuery("記憶");
-    expect(result).toBe('"記憶"');
+    expect(result.ftsQuery).toBe("");
+    expect(result.likePatterns).toEqual(["%記憶%"]);
   });
 
-  it("handles single CJK character", () => {
+  it("puts single CJK character into likePatterns", () => {
     const result = preprocessQuery("記");
-    expect(result).toBe('"記"');
+    expect(result.ftsQuery).toBe("");
+    expect(result.likePatterns).toEqual(["%記%"]);
   });
 
-  it("returns empty string for empty input", () => {
-    expect(preprocessQuery("")).toBe("");
-    expect(preprocessQuery("   ")).toBe("");
+  it("returns empty ftsQuery and likePatterns for empty input", () => {
+    expect(preprocessQuery("")).toEqual({ ftsQuery: "", likePatterns: [] });
+    expect(preprocessQuery("   ")).toEqual({ ftsQuery: "", likePatterns: [] });
   });
 
   it("handles CJK punctuation within text", () => {
     const result = preprocessQuery("テスト。確認");
-    expect(result).toContain("OR");
+    expect(result.ftsQuery).toContain("OR");
+  });
+
+  it("handles mixed FTS and LIKE (English + short CJK)", () => {
+    const result = preprocessQuery("TypeScript認証");
+    expect(result.ftsQuery).toContain('"TypeScript"');
+    expect(result.likePatterns).toEqual(["%認証%"]);
+  });
+});
+
+describe("escapeForLike", () => {
+  it("escapes percent sign", () => {
+    expect(escapeForLike("100%")).toBe("100\\%");
+  });
+
+  it("escapes underscore", () => {
+    expect(escapeForLike("a_b")).toBe("a\\_b");
+  });
+
+  it("escapes backslash", () => {
+    expect(escapeForLike("a\\b")).toBe("a\\\\b");
+  });
+
+  it("leaves normal text unchanged", () => {
+    expect(escapeForLike("認証フロー")).toBe("認証フロー");
+  });
+
+  it("escapes multiple special characters", () => {
+    expect(escapeForLike("100%_test\\")).toBe("100\\%\\_test\\\\");
   });
 });
 
@@ -186,6 +219,15 @@ describe("searchMemory", () => {
       metadata: {},
       importance: 5,
     });
+
+    db.insertChunk({
+      sessionId: "session-2",
+      turnIndex: 2,
+      role: "user",
+      content: "TypeScriptで認証フローを実装する方法を教えてください。",
+      metadata: {},
+      importance: 7,
+    });
   });
 
   afterEach(() => {
@@ -213,12 +255,15 @@ describe("searchMemory", () => {
     expect(contents.some((c) => c.includes("データベース"))).toBe(true);
   });
 
-  it("searches mixed English and Japanese", async () => {
+  it("searches mixed English and Japanese (FTS5 + LIKE)", async () => {
     const results = await searchMemory(db, {
       text: "TypeScript認証",
       limit: 10,
     });
     expect(results.length).toBeGreaterThan(0);
+    const contents = results.map((r) => r.chunk.content);
+    // Should match the chunk that contains both TypeScript and 認証
+    expect(contents.some((c) => c.includes("TypeScript") && c.includes("認証"))).toBe(true);
   });
 
   it("returns results with scores", async () => {
@@ -264,6 +309,26 @@ describe("searchMemory", () => {
       const topContent = results[0]!.chunk.content.toLowerCase();
       expect(topContent.includes("database") || topContent.includes("connection")).toBe(true);
     }
+  });
+
+  it("LIKE metacharacters in content do not cause false matches", async () => {
+    // Insert a chunk with LIKE metacharacters
+    db.insertChunk({
+      sessionId: "session-1",
+      turnIndex: 10,
+      role: "user",
+      content: "進捗率は100%を超えた",
+      metadata: {},
+      importance: 5,
+    });
+
+    // Searching for "進捗" should find it, not be confused by the % in content
+    const results = await searchMemory(db, {
+      text: "進捗",
+      limit: 10,
+    });
+    expect(results.length).toBeGreaterThan(0);
+    expect(results.some((r) => r.chunk.content.includes("100%"))).toBe(true);
   });
 
   // ─── Filter Tests ──────────────────────────────────────
@@ -315,6 +380,31 @@ describe("searchMemory", () => {
       }
     });
 
+    it("LIKE-only search works with sessionId filter", async () => {
+      const results = await searchMemory(db, {
+        text: "認証",
+        limit: 10,
+        filters: { sessionIds: ["session-2"] },
+      });
+      expect(results.length).toBeGreaterThan(0);
+      for (const result of results) {
+        expect(result.chunk.sessionId).toBe("session-2");
+        expect(result.chunk.content).toContain("認証");
+      }
+    });
+
+    it("LIKE-only search works with projectId filter", async () => {
+      const results = await searchMemory(db, {
+        text: "認証",
+        limit: 10,
+        filters: { projectIds: ["project-b"] },
+      });
+      expect(results.length).toBeGreaterThan(0);
+      for (const result of results) {
+        expect(result.chunk.sessionId).toBe("session-2");
+      }
+    });
+
     it("combines multiple filters", async () => {
       const results = await searchMemory(db, {
         text: "authentication",
@@ -342,12 +432,34 @@ describe("searchMemory", () => {
       expect(results.length).toBeGreaterThan(0);
     });
 
-    it("handles short Japanese queries (2 chars)", async () => {
+    it("handles short Japanese queries (2 chars) via LIKE fallback", async () => {
       const results = await searchMemory(db, {
         text: "実装",
         limit: 10,
       });
-      expect(results.length).toBeGreaterThanOrEqual(0);
+      expect(results.length).toBeGreaterThan(0);
+      const contents = results.map((r) => r.chunk.content);
+      expect(contents.some((c) => c.includes("実装"))).toBe(true);
+    });
+
+    it("finds 2-char CJK term '認証' via LIKE fallback", async () => {
+      const results = await searchMemory(db, {
+        text: "認証",
+        limit: 10,
+      });
+      expect(results.length).toBeGreaterThan(0);
+      const contents = results.map((r) => r.chunk.content);
+      expect(contents.some((c) => c.includes("認証"))).toBe(true);
+    });
+
+    it("finds single CJK character via LIKE fallback", async () => {
+      const results = await searchMemory(db, {
+        text: "認",
+        limit: 10,
+      });
+      expect(results.length).toBeGreaterThan(0);
+      const contents = results.map((r) => r.chunk.content);
+      expect(contents.some((c) => c.includes("認"))).toBe(true);
     });
 
     it("handles Katakana queries", async () => {

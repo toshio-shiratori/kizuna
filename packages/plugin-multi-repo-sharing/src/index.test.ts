@@ -347,6 +347,60 @@ describe("queryRemoteDb", () => {
       remoteDb.close();
     }
   });
+
+  it("returns results via LIKE-only mode when ftsQuery is empty", () => {
+    const dbPath = path.join(tmpDir, "remote-like.db");
+    const db = createTestDb(dbPath);
+    insertTestChunk(db, "認証フローを実装する方法について説明します");
+    insertTestChunk(db, "データベース接続の設定方法について", { turnIndex: 1 });
+    db.close();
+
+    const remoteDb = new BetterSqlite3(dbPath, { readonly: true });
+    try {
+      // Empty ftsQuery, non-empty likePatterns (short CJK token "認証")
+      const results = queryRemoteDb(remoteDb, "", 10, 30, ["%認証%"]);
+      expect(results.length).toBe(1);
+      expect(results[0]!.chunk.content).toContain("認証");
+      expect(results[0]!.score).toBeGreaterThan(0);
+    } finally {
+      remoteDb.close();
+    }
+  });
+
+  it("returns empty array when both ftsQuery and likePatterns are empty", () => {
+    const dbPath = path.join(tmpDir, "remote-empty.db");
+    const db = createTestDb(dbPath);
+    insertTestChunk(db, "Some content here for testing purposes");
+    db.close();
+
+    const remoteDb = new BetterSqlite3(dbPath, { readonly: true });
+    try {
+      const results = queryRemoteDb(remoteDb, "", 10, 30, []);
+      expect(results.length).toBe(0);
+    } finally {
+      remoteDb.close();
+    }
+  });
+
+  it("narrows results with mixed FTS + LIKE mode", () => {
+    const dbPath = path.join(tmpDir, "remote-mixed.db");
+    const db = createTestDb(dbPath);
+    insertTestChunk(db, "TypeScriptで認証フローを実装する方法を解説します");
+    insertTestChunk(db, "TypeScript configuration guide for the project", { turnIndex: 1 });
+    insertTestChunk(db, "認証モジュールのPython実装について", { turnIndex: 2 });
+    db.close();
+
+    const remoteDb = new BetterSqlite3(dbPath, { readonly: true });
+    try {
+      // FTS matches "TypeScript", LIKE narrows to those also containing "認証"
+      const results = queryRemoteDb(remoteDb, '"TypeScript"', 10, 30, ["%認証%"]);
+      expect(results.length).toBe(1);
+      expect(results[0]!.chunk.content).toContain("TypeScript");
+      expect(results[0]!.chunk.content).toContain("認証");
+    } finally {
+      remoteDb.close();
+    }
+  });
 });
 
 // ─── queryReferences ────────────────────────────────────────
@@ -651,6 +705,63 @@ describe("afterSearch", () => {
     const ctx = makeContext("my-project", { references: [] });
     plugin.afterSearch!(original, ctx);
     expect(original[0]!.annotations).toBeUndefined();
+  });
+
+  it("finds short CJK term via LIKE fallback in remote database", () => {
+    const remotePath = path.join(tmpDir, "remote-cjk.db");
+    const remoteDb = createTestDb(remotePath);
+    insertTestChunk(remoteDb, "認証フローの設計に関するメモ");
+    insertTestChunk(remoteDb, "データベース接続のトラブルシューティング", { turnIndex: 1 });
+    remoteDb.close();
+
+    const plugin = createMultiRepoSharing();
+    // "認証" is 2 chars CJK -> preprocessQuery produces LIKE-only
+    plugin.beforeSearch!({ text: "認証", limit: 10 }, makeContext("my-project"));
+
+    const ctx = makeContext("my-project", {
+      references: [{ name: "remote-cjk", dbPath: remotePath }],
+    });
+
+    const output = plugin.afterSearch!([], ctx) as SearchResult[];
+    expect(output.length).toBeGreaterThan(0);
+    expect(output[0]!.chunk.content).toContain("認証");
+    expect(output[0]!.annotations?.["source"]).toBe("remote-cjk");
+  });
+
+  it("merges local and remote results for mixed English + short CJK query", () => {
+    const remotePath = path.join(tmpDir, "remote-mixed-cjk.db");
+    const remoteDb = createTestDb(remotePath);
+    insertTestChunk(remoteDb, "TypeScriptで認証フローを実装するガイド");
+    insertTestChunk(remoteDb, "Python deployment guide for the backend", { turnIndex: 1 });
+    remoteDb.close();
+
+    const plugin = createMultiRepoSharing();
+    // "TypeScript認証" -> FTS "TypeScript" + LIKE "%認証%"
+    plugin.beforeSearch!({ text: "TypeScript認証", limit: 10 }, makeContext("my-project"));
+
+    const localResults: SearchResult[] = [
+      {
+        chunk: makeStoredChunk({ content: "Local TypeScript認証の実装ノート" }),
+        score: 2.0,
+      },
+    ];
+
+    const ctx = makeContext("my-project", {
+      references: [{ name: "remote-mixed", dbPath: remotePath }],
+    });
+
+    const output = plugin.afterSearch!(localResults, ctx) as SearchResult[];
+    expect(output.length).toBeGreaterThanOrEqual(2);
+
+    const sources = output.map((r) => r.annotations?.["source"]);
+    expect(sources).toContain("local");
+    expect(sources).toContain("remote-mixed");
+
+    // All results should contain both TypeScript and 認証
+    for (const r of output) {
+      expect(r.chunk.content).toContain("TypeScript");
+      expect(r.chunk.content).toContain("認証");
+    }
   });
 
   it("handles beforeSearch not being called (no captured query)", () => {
