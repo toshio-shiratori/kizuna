@@ -19,6 +19,7 @@ import {
   queryRemoteDb,
   hasCompatibleSchema,
   queryReferences,
+  discoverReferences,
 } from "./index.js";
 import type { RepoReference } from "./index.js";
 
@@ -82,7 +83,11 @@ function makeStoredChunk(
   };
 }
 
-function makeContext(projectId: string, options: Record<string, unknown> = {}): PluginContext {
+function makeContext(
+  projectId: string,
+  options: Record<string, unknown> = {},
+  dir?: string,
+): PluginContext {
   const logger: Logger = {
     debug() {},
     info() {},
@@ -93,7 +98,7 @@ function makeContext(projectId: string, options: Record<string, unknown> = {}): 
   return {
     db: {},
     config,
-    projectConfig: { id: projectId },
+    projectConfig: { id: projectId, ...(dir !== undefined ? { dir } : {}) },
     logger,
     storage: {
       async get() {
@@ -111,6 +116,7 @@ function makeContext(projectId: string, options: Record<string, unknown> = {}): 
 function makeContextWithLogger(
   projectId: string,
   options: Record<string, unknown> = {},
+  dir?: string,
 ): { ctx: PluginContext; warnings: string[] } {
   const warnings: string[] = [];
   const logger: Logger = {
@@ -126,7 +132,7 @@ function makeContextWithLogger(
     ctx: {
       db: {},
       config,
-      projectConfig: { id: projectId },
+      projectConfig: { id: projectId, ...(dir !== undefined ? { dir } : {}) },
       logger,
       storage: {
         async get() {
@@ -1065,8 +1071,311 @@ describe("references count warning", () => {
     plugin.afterSearch!([], ctx);
     const countWarnings = warnings.filter((w) => w.includes("recommended max"));
     expect(countWarnings).toHaveLength(1);
-    expect(countWarnings[0]).toContain("6 references configured");
+    expect(countWarnings[0]).toContain("6 references");
     expect(countWarnings[0]).toContain("recommended max: 5");
     expect(countWarnings[0]).toContain("Search latency may increase");
+  });
+});
+
+// ─── discoverReferences ──────────────────────────────────
+
+describe("discoverReferences", () => {
+  let tmpDir: string;
+
+  beforeEach(() => {
+    tmpDir = makeTmpDir();
+  });
+
+  afterEach(() => {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  it("discovers sibling projects with .kizuna/memory.db", () => {
+    // Create parent with three project dirs
+    const projectA = path.join(tmpDir, "project-a");
+    const projectB = path.join(tmpDir, "project-b");
+    const projectC = path.join(tmpDir, "project-c");
+
+    fs.mkdirSync(path.join(projectA, ".kizuna"), { recursive: true });
+    fs.mkdirSync(path.join(projectB, ".kizuna"), { recursive: true });
+    fs.mkdirSync(projectC, { recursive: true });
+
+    // project-a and project-b have memory.db; project-c does not
+    fs.writeFileSync(path.join(projectA, ".kizuna", "memory.db"), "");
+    fs.writeFileSync(path.join(projectB, ".kizuna", "memory.db"), "");
+
+    // Discover from project-a's perspective
+    const refs = discoverReferences(projectA);
+
+    expect(refs).toHaveLength(1);
+    expect(refs[0]!.name).toBe("project-b");
+    expect(refs[0]!.dbPath).toBe(path.join(projectB, ".kizuna", "memory.db"));
+  });
+
+  it("excludes the current project directory", () => {
+    const projectA = path.join(tmpDir, "project-a");
+    fs.mkdirSync(path.join(projectA, ".kizuna"), { recursive: true });
+    fs.writeFileSync(path.join(projectA, ".kizuna", "memory.db"), "");
+
+    const refs = discoverReferences(projectA);
+    // Should not include self
+    const selfRef = refs.find((r) => r.name === "project-a");
+    expect(selfRef).toBeUndefined();
+  });
+
+  it("skips directories without memory.db", () => {
+    const projectA = path.join(tmpDir, "project-a");
+    const projectB = path.join(tmpDir, "project-b");
+
+    fs.mkdirSync(path.join(projectA, ".kizuna"), { recursive: true });
+    fs.writeFileSync(path.join(projectA, ".kizuna", "memory.db"), "");
+
+    // project-b has .kizuna dir but no memory.db
+    fs.mkdirSync(path.join(projectB, ".kizuna"), { recursive: true });
+
+    const refs = discoverReferences(projectA);
+    expect(refs).toHaveLength(0);
+  });
+
+  it("skips hidden directories", () => {
+    const projectA = path.join(tmpDir, "project-a");
+    const hiddenDir = path.join(tmpDir, ".hidden-project");
+
+    fs.mkdirSync(path.join(projectA, ".kizuna"), { recursive: true });
+    fs.writeFileSync(path.join(projectA, ".kizuna", "memory.db"), "");
+
+    fs.mkdirSync(path.join(hiddenDir, ".kizuna"), { recursive: true });
+    fs.writeFileSync(path.join(hiddenDir, ".kizuna", "memory.db"), "");
+
+    const refs = discoverReferences(projectA);
+    // Should not include hidden directories
+    const hiddenRef = refs.find((r) => r.name === ".hidden-project");
+    expect(hiddenRef).toBeUndefined();
+    expect(refs).toHaveLength(0);
+  });
+
+  it("returns empty array for empty parent directory", () => {
+    const projectA = path.join(tmpDir, "only-child");
+    fs.mkdirSync(projectA, { recursive: true });
+
+    const refs = discoverReferences(projectA);
+    expect(refs).toHaveLength(0);
+  });
+
+  it("returns empty array when parent directory does not exist", () => {
+    const refs = discoverReferences(path.join(tmpDir, "nonexistent", "project"));
+    expect(refs).toHaveLength(0);
+  });
+
+  it("skips files (non-directories) in parent", () => {
+    const projectA = path.join(tmpDir, "project-a");
+    fs.mkdirSync(path.join(projectA, ".kizuna"), { recursive: true });
+    fs.writeFileSync(path.join(projectA, ".kizuna", "memory.db"), "");
+
+    // Create a file (not a directory) in the parent
+    fs.writeFileSync(path.join(tmpDir, "some-file.txt"), "not a directory");
+
+    const refs = discoverReferences(projectA);
+    expect(refs).toHaveLength(0);
+  });
+});
+
+// ─── afterSearch (autoDiscover integration) ───────────────
+
+describe("afterSearch (autoDiscover)", () => {
+  let tmpDir: string;
+
+  beforeEach(() => {
+    tmpDir = makeTmpDir();
+  });
+
+  afterEach(() => {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  it("auto-discovers sibling project memory.db and includes in search", () => {
+    // Set up sibling project with a real database
+    const myProject = path.join(tmpDir, "my-project");
+    const siblingProject = path.join(tmpDir, "sibling-project");
+    fs.mkdirSync(path.join(myProject, ".kizuna"), { recursive: true });
+    fs.mkdirSync(path.join(siblingProject, ".kizuna"), { recursive: true });
+
+    const siblingDbPath = path.join(siblingProject, ".kizuna", "memory.db");
+    const siblingDb = createTestDb(siblingDbPath);
+    insertTestChunk(siblingDb, "TypeScript configuration from the sibling project");
+    siblingDb.close();
+
+    // Create own memory.db so we're a real project
+    fs.writeFileSync(path.join(myProject, ".kizuna", "memory.db"), "");
+
+    const plugin = createMultiRepoSharing();
+    plugin.beforeSearch!(
+      { text: "TypeScript", limit: 10 },
+      makeContext("my-project", {}, myProject),
+    );
+
+    const ctx = makeContext("my-project", { autoDiscover: true }, myProject);
+    const output = plugin.afterSearch!([], ctx) as SearchResult[];
+
+    expect(output.length).toBeGreaterThan(0);
+    expect(output[0]!.annotations?.["source"]).toBe("sibling-project");
+  });
+
+  it("merges explicit references with auto-discovered ones (explicit wins on name conflict)", () => {
+    const myProject = path.join(tmpDir, "my-project");
+    const siblingProject = path.join(tmpDir, "sibling-project");
+    fs.mkdirSync(path.join(myProject, ".kizuna"), { recursive: true });
+    fs.mkdirSync(path.join(siblingProject, ".kizuna"), { recursive: true });
+
+    const siblingDbPath = path.join(siblingProject, ".kizuna", "memory.db");
+    const siblingDb = createTestDb(siblingDbPath);
+    insertTestChunk(siblingDb, "TypeScript guide from sibling auto-discovered");
+    siblingDb.close();
+
+    // Create an explicit reference with the same name but different path
+    const explicitDbPath = path.join(tmpDir, "explicit.db");
+    const explicitDb = createTestDb(explicitDbPath);
+    insertTestChunk(explicitDb, "TypeScript guide from explicit reference configuration");
+    explicitDb.close();
+
+    const plugin = createMultiRepoSharing();
+    plugin.beforeSearch!(
+      { text: "TypeScript", limit: 10 },
+      makeContext("my-project", {}, myProject),
+    );
+
+    const ctx = makeContext(
+      "my-project",
+      {
+        autoDiscover: true,
+        references: [{ name: "sibling-project", dbPath: explicitDbPath }],
+      },
+      myProject,
+    );
+
+    const output = plugin.afterSearch!([], ctx) as SearchResult[];
+
+    // Should use the explicit reference (which has different content)
+    expect(output.length).toBeGreaterThan(0);
+    expect(output[0]!.chunk.content).toContain("explicit reference");
+    expect(output[0]!.annotations?.["source"]).toBe("sibling-project");
+  });
+
+  it("skips autoDiscover when ctx.projectConfig.dir is not set", () => {
+    const siblingProject = path.join(tmpDir, "sibling-project");
+    fs.mkdirSync(path.join(siblingProject, ".kizuna"), { recursive: true });
+
+    const siblingDbPath = path.join(siblingProject, ".kizuna", "memory.db");
+    const siblingDb = createTestDb(siblingDbPath);
+    insertTestChunk(siblingDb, "TypeScript content in sibling that should not be found");
+    siblingDb.close();
+
+    const plugin = createMultiRepoSharing();
+    plugin.beforeSearch!({ text: "TypeScript", limit: 10 }, makeContext("my-project"));
+
+    // No dir provided
+    const ctx = makeContext("my-project", { autoDiscover: true });
+    const output = plugin.afterSearch!([], ctx) as SearchResult[];
+
+    // Should return empty since no dir means no auto-discovery and no explicit refs
+    expect(output).toHaveLength(0);
+  });
+
+  it("does not auto-discover when autoDiscover is false (default)", () => {
+    const myProject = path.join(tmpDir, "my-project");
+    const siblingProject = path.join(tmpDir, "sibling-project");
+    fs.mkdirSync(path.join(myProject, ".kizuna"), { recursive: true });
+    fs.mkdirSync(path.join(siblingProject, ".kizuna"), { recursive: true });
+
+    const siblingDbPath = path.join(siblingProject, ".kizuna", "memory.db");
+    const siblingDb = createTestDb(siblingDbPath);
+    insertTestChunk(siblingDb, "TypeScript content from sibling that should not be found");
+    siblingDb.close();
+
+    const plugin = createMultiRepoSharing();
+    plugin.beforeSearch!(
+      { text: "TypeScript", limit: 10 },
+      makeContext("my-project", {}, myProject),
+    );
+
+    // autoDiscover not set (defaults to false)
+    const ctx = makeContext("my-project", {}, myProject);
+    const output = plugin.afterSearch!([], ctx) as SearchResult[];
+
+    // Should return empty (no explicit refs, no auto-discovery)
+    expect(output).toHaveLength(0);
+  });
+
+  it("combines auto-discovered and explicit references from different projects", () => {
+    const myProject = path.join(tmpDir, "my-project");
+    const siblingA = path.join(tmpDir, "sibling-a");
+    const explicitProjectDir = path.join(tmpDir, "elsewhere");
+    fs.mkdirSync(path.join(myProject, ".kizuna"), { recursive: true });
+    fs.mkdirSync(path.join(siblingA, ".kizuna"), { recursive: true });
+    fs.mkdirSync(explicitProjectDir, { recursive: true });
+
+    // Sibling with memory.db
+    const siblingDbPath = path.join(siblingA, ".kizuna", "memory.db");
+    const siblingDb = createTestDb(siblingDbPath);
+    insertTestChunk(siblingDb, "TypeScript notes from auto-discovered sibling-a");
+    siblingDb.close();
+
+    // Explicit reference to a project outside the parent dir
+    const explicitDbPath = path.join(explicitProjectDir, "memory.db");
+    const explicitDb = createTestDb(explicitDbPath);
+    insertTestChunk(explicitDb, "TypeScript notes from explicit elsewhere project");
+    explicitDb.close();
+
+    const plugin = createMultiRepoSharing();
+    plugin.beforeSearch!(
+      { text: "TypeScript", limit: 10 },
+      makeContext("my-project", {}, myProject),
+    );
+
+    const ctx = makeContext(
+      "my-project",
+      {
+        autoDiscover: true,
+        references: [{ name: "elsewhere", dbPath: explicitDbPath }],
+      },
+      myProject,
+    );
+
+    const output = plugin.afterSearch!([], ctx) as SearchResult[];
+
+    const sources = output.map((r) => r.annotations?.["source"]);
+    expect(sources).toContain("sibling-a");
+    expect(sources).toContain("elsewhere");
+  });
+
+  it("warning message distinguishes explicit and auto-discovered references", () => {
+    const myProject = path.join(tmpDir, "my-project");
+    fs.mkdirSync(path.join(myProject, ".kizuna"), { recursive: true });
+
+    // Create 6 sibling projects with memory.db (exceeds MAX_RECOMMENDED_REFERENCES)
+    for (let i = 0; i < 6; i++) {
+      const sibling = path.join(tmpDir, `sibling-${i}`);
+      fs.mkdirSync(path.join(sibling, ".kizuna"), { recursive: true });
+      const sibDb = createTestDb(path.join(sibling, ".kizuna", "memory.db"));
+      sibDb.close();
+    }
+
+    const plugin = createMultiRepoSharing();
+    plugin.beforeSearch!({ text: "test", limit: 10 }, makeContext("my-project", {}, myProject));
+
+    const { ctx, warnings } = makeContextWithLogger(
+      "my-project",
+      {
+        autoDiscover: true,
+        references: [{ name: "explicit-ref", dbPath: path.join(tmpDir, "missing.db") }],
+      },
+      myProject,
+    );
+
+    plugin.afterSearch!([], ctx);
+    const countWarnings = warnings.filter((w) => w.includes("recommended max"));
+    expect(countWarnings).toHaveLength(1);
+    expect(countWarnings[0]).toContain("1 explicit");
+    expect(countWarnings[0]).toContain("6 auto-discovered");
   });
 });

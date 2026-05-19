@@ -22,6 +22,26 @@ Add to your `.kizuna/plugins.json`:
     "multi-repo-sharing": {
       "enabled": true,
       "options": {
+        "autoDiscover": true
+      }
+    }
+  }
+}
+```
+
+With `autoDiscover: true`, the plugin automatically finds sibling projects (directories sharing the same parent) that have `.kizuna/memory.db`. No manual path configuration is needed.
+
+### Manual references
+
+For projects outside the parent directory, or to override auto-discovered paths, use explicit `references`:
+
+```json
+{
+  "plugins": {
+    "multi-repo-sharing": {
+      "enabled": true,
+      "options": {
+        "autoDiscover": true,
         "references": [
           {
             "name": "backend-api",
@@ -34,7 +54,7 @@ Add to your `.kizuna/plugins.json`:
 }
 ```
 
-Each entry in `references` declares another project's database to search alongside the local one. The `name` field is used for source attribution in search results.
+Each entry in `references` declares another project's database to search alongside the local one. The `name` field is used for source attribution in search results. When both `autoDiscover` and `references` are used, explicit references take priority on name conflict.
 
 References are **directional** -- if project A references project B, A can search B's memories but B cannot search A's (unless B also configures a reference to A).
 
@@ -59,12 +79,13 @@ Each search result is annotated with a `source` field in its `annotations`:
 
 ## Options
 
-| Option         | Type              | Default | Description                                                                |
-| -------------- | ----------------- | ------- | -------------------------------------------------------------------------- |
-| `references`   | `RepoReference[]` | `[]`    | List of other projects' databases to search. Each has `name` and `dbPath`. |
-| `halfLifeDays` | `number`          | `30`    | Half-life (in days) for time-decay scoring of referenced results.          |
+| Option         | Type              | Default | Description                                                                                    |
+| -------------- | ----------------- | ------- | ---------------------------------------------------------------------------------------------- |
+| `autoDiscover` | `boolean`         | `false` | Automatically discover sibling projects with `.kizuna/memory.db` in the same parent directory. |
+| `references`   | `RepoReference[]` | `[]`    | List of other projects' databases to search. Each has `name` and `dbPath`.                     |
+| `halfLifeDays` | `number`          | `30`    | Half-life (in days) for time-decay scoring of referenced results.                              |
 
-The recommended maximum number of references is **5**. Configuring more than 5 references will trigger a warning log and may increase search latency, as each reference opens a separate read-only database connection per search request.
+The recommended maximum number of references (including auto-discovered ones) is **5**. Exceeding this triggers a warning log and may increase search latency, as each reference opens a separate read-only database connection per search request.
 
 ### RepoReference
 
@@ -95,6 +116,7 @@ The previous version of this plugin used a shared database approach with `namesp
 - `queryRemoteDb()` -- Low-level remote database query function.
 - `hasCompatibleSchema()` -- Schema compatibility check utility.
 - `queryReferences()` -- High-level federated query function.
+- `discoverReferences()` -- Sibling project auto-discovery function.
 
 ## Development
 

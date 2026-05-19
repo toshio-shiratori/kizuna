@@ -143,7 +143,7 @@ export async function loadPluginManager(
 
   const manager = new PluginManager({
     db,
-    projectConfig: { id: basename(cwd) },
+    projectConfig: { id: basename(cwd), dir: cwd },
     logger,
   });
 

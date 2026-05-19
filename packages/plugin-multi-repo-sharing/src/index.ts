@@ -1,3 +1,5 @@
+import { existsSync, readdirSync, statSync } from "node:fs";
+import { basename, dirname, join, resolve } from "node:path";
 import BetterSqlite3 from "better-sqlite3";
 import { preprocessQuery } from "@kizuna/core";
 import type {
@@ -16,6 +18,7 @@ export interface RepoReference {
 }
 
 export interface MultiRepoSharingOptions {
+  autoDiscover?: boolean;
   references?: RepoReference[];
   halfLifeDays?: number;
 }
@@ -61,6 +64,58 @@ export function normalizeScores(results: SearchResult[]): SearchResult[] {
     ...r,
     score: (r.score - min) / range,
   }));
+}
+
+/**
+ * Discover sibling project memory databases by scanning the parent directory.
+ *
+ * For each child directory of `parentDir` (one level deep, no recursion):
+ *   - Hidden directories (starting with `.`) are skipped.
+ *   - The project's own directory is excluded.
+ *   - Only directories containing `.kizuna/memory.db` are returned.
+ *
+ * @param projectDir Absolute path to the current project directory.
+ * @returns Array of discovered RepoReference entries.
+ */
+export function discoverReferences(projectDir: string): RepoReference[] {
+  const parentDir = dirname(resolve(projectDir));
+  const selfDir = resolve(projectDir);
+
+  let entries: string[];
+  try {
+    entries = readdirSync(parentDir);
+  } catch {
+    return [];
+  }
+
+  const discovered: RepoReference[] = [];
+
+  for (const entry of entries) {
+    // Skip hidden directories
+    if (entry.startsWith(".")) continue;
+
+    const entryPath = join(parentDir, entry);
+
+    // Skip self
+    if (resolve(entryPath) === selfDir) continue;
+
+    try {
+      const stat = statSync(entryPath);
+      if (!stat.isDirectory()) continue;
+    } catch {
+      continue;
+    }
+
+    const dbPath = join(entryPath, ".kizuna", "memory.db");
+    if (existsSync(dbPath)) {
+      discovered.push({
+        name: basename(entryPath),
+        dbPath,
+      });
+    }
+  }
+
+  return discovered;
 }
 
 function rowToStoredChunk(row: FtsRow): StoredChunk {
@@ -266,14 +321,31 @@ export function createMultiRepoSharing(): Plugin {
       lastQueryText = null;
 
       const options = ctx.config.options as MultiRepoSharingOptions;
-      const references = options.references;
-      if (!references || references.length === 0) {
+
+      // Merge explicit references with auto-discovered ones.
+      // Explicit references take priority (same name = explicit wins).
+      const explicitRefs = options.references ?? [];
+      let autoRefs: RepoReference[] = [];
+      if (options.autoDiscover && ctx.projectConfig.dir) {
+        autoRefs = discoverReferences(ctx.projectConfig.dir);
+      }
+      const explicitNames = new Set(explicitRefs.map((r) => r.name));
+      const mergedRefs = [...explicitRefs, ...autoRefs.filter((r) => !explicitNames.has(r.name))];
+
+      const references = mergedRefs;
+      if (references.length === 0) {
         return results;
       }
 
       if (references.length > MAX_RECOMMENDED_REFERENCES) {
+        const autoCount = autoRefs.filter((r) => !explicitNames.has(r.name)).length;
+        const explicitCount = references.length - autoCount;
+        const detail =
+          autoCount > 0
+            ? `${references.length} references (${explicitCount} explicit, ${autoCount} auto-discovered)`
+            : `${references.length} references configured`;
         ctx.logger.warn(
-          `${references.length} references configured (recommended max: ${MAX_RECOMMENDED_REFERENCES}). Search latency may increase.`,
+          `${detail} (recommended max: ${MAX_RECOMMENDED_REFERENCES}). Search latency may increase.`,
         );
       }
 
