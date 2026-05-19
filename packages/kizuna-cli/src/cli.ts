@@ -10,6 +10,7 @@ import { registerCleanup } from "./commands/cleanup.js";
 import { registerRecap } from "./commands/recap.js";
 import { registerPlugin } from "./commands/plugin.js";
 import { registerExport } from "./commands/export.js";
+import { registerSanitize } from "./commands/sanitize.js";
 
 const program = new Command();
 
@@ -25,5 +26,6 @@ registerCleanup(program);
 registerRecap(program);
 registerPlugin(program);
 registerExport(program);
+registerSanitize(program);
 
 program.parse();
