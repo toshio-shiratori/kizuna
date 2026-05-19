@@ -133,6 +133,7 @@ export interface ProjectConfig {
   readonly id: string;
   readonly displayName?: string;
   readonly sharedNamespace?: string;
+  readonly dir?: string;
 }
 
 export interface PluginConfig {
