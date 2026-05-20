@@ -1,7 +1,17 @@
 import type { Command } from "commander";
-import { Database } from "@kizuna/core";
+import { Database, SqlitePluginStorage } from "@kizuna/core";
 import { resolveDbPath, dbExists } from "../db-path.js";
 import { formatBytes } from "../utils/format.js";
+
+const PII_PLUGIN_NAME = "@kizuna/plugin-pii-sanitizer";
+const PII_STATS_KEY = "stats";
+
+interface PiiSanitizerStats {
+  totalRedacted: number;
+  byPattern: Record<string, number>;
+  lastRedactedAt: string;
+  sessionsWithRedactions: number;
+}
 
 interface CountRow {
   count: number;
@@ -12,7 +22,7 @@ export function registerStats(program: Command): void {
     .command("stats")
     .description("Show database statistics")
     .option("--cwd <path>", "Project directory", process.cwd())
-    .action((opts: { cwd: string }) => {
+    .action(async (opts: { cwd: string }) => {
       if (!dbExists(opts.cwd)) {
         console.error("No Kizuna database found. Run 'kizuna setup' first.");
         process.exitCode = 1;
@@ -52,6 +62,20 @@ export function registerStats(program: Command): void {
           console.log(`Last cleanup: ${lastMaintenance.ranAt.split("T")[0]}`);
         } else {
           console.log("Last cleanup: never");
+        }
+
+        // Plugin statistics
+        const piiStorage = new SqlitePluginStorage(db.db, PII_PLUGIN_NAME);
+        const piiStats = await piiStorage.get<PiiSanitizerStats>(PII_STATS_KEY);
+        if (piiStats) {
+          console.log("");
+          console.log("Plugin: pii-sanitizer");
+          console.log("─".repeat(40));
+          console.log(`Redacted:     ${piiStats.totalRedacted} items`);
+          console.log(`Sessions:     ${piiStats.sessionsWithRedactions} affected`);
+          if (piiStats.lastRedactedAt) {
+            console.log(`Last redact:  ${piiStats.lastRedactedAt.split("T")[0]}`);
+          }
         }
       } finally {
         db.close();
