@@ -60,6 +60,6 @@ describe("formatRedactionSummary", () => {
       byPattern: { anthropic_key: 1 },
     });
     const result = formatRedactionSummary(null, after);
-    expect(result).toBe("kizuna: pii-sanitizer redacted 1 items (anthropic_key: 1)\n");
+    expect(result).toBe("kizuna: pii-sanitizer redacted 1 item (anthropic_key: 1)\n");
   });
 });

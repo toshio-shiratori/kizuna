@@ -40,7 +40,8 @@ export function formatRedactionSummary(
   }
 
   const detail = diffs.length > 0 ? ` (${diffs.join(", ")})` : "";
-  return `kizuna: pii-sanitizer redacted ${diffTotal} items${detail}\n`;
+  const unit = diffTotal === 1 ? "item" : "items";
+  return `kizuna: pii-sanitizer redacted ${diffTotal} ${unit}${detail}\n`;
 }
 
 export async function handleSessionEnd(): Promise<void> {

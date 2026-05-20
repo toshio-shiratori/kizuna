@@ -365,4 +365,19 @@ describe("piiSanitizer stats accumulation", () => {
     expect(stats!.totalRedacted).toBe(2);
     expect(stats!.byPattern["anthropic_key"]).toBe(2);
   });
+
+  it("tracks lastSessionId without creating per-session keys", async () => {
+    const storage = makeInMemoryStorage();
+    const ctx = makeContext({}, storage);
+
+    await runBeforeCapture(
+      makeChunk("key: sk-ant-abc123def456ghi789jkl012mno345", "session-a"),
+      ctx,
+    );
+
+    const stats = await storage.get<PiiSanitizerStats>(STATS_KEY);
+    expect(stats!.lastSessionId).toBe("session-a");
+    const keys = await storage.list();
+    expect(keys).toEqual([STATS_KEY]);
+  });
 });

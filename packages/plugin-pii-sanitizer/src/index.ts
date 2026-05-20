@@ -13,6 +13,7 @@ export interface PiiSanitizerStats {
   byPattern: Record<string, number>;
   lastRedactedAt: string;
   sessionsWithRedactions: number;
+  lastSessionId: string;
 }
 
 export const STATS_KEY = "stats";
@@ -45,8 +46,6 @@ export function redactContent(
   return { content: result, redactedCount, redactedTypes, redactedByPattern };
 }
 
-const SESSION_KEY_PREFIX = "session:";
-
 async function updateStats(
   ctx: PluginContext,
   sessionId: string,
@@ -59,6 +58,7 @@ async function updateStats(
     byPattern: {},
     lastRedactedAt: "",
     sessionsWithRedactions: 0,
+    lastSessionId: "",
   };
 
   stats.totalRedacted += redactedCount;
@@ -67,11 +67,9 @@ async function updateStats(
   }
   stats.lastRedactedAt = new Date().toISOString();
 
-  const sessionKey = `${SESSION_KEY_PREFIX}${sessionId}`;
-  const seenSession = await ctx.storage.get<boolean>(sessionKey);
-  if (!seenSession) {
+  if (sessionId !== stats.lastSessionId) {
     stats.sessionsWithRedactions += 1;
-    await ctx.storage.set(sessionKey, true);
+    stats.lastSessionId = sessionId;
   }
 
   await ctx.storage.set(STATS_KEY, stats);

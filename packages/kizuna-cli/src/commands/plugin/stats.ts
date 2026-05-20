@@ -15,7 +15,7 @@ interface PiiSanitizerStats {
 
 function formatPiiSanitizerStats(stats: PiiSanitizerStats): void {
   console.log(`Plugin: ${PII_PLUGIN_NAME}`);
-  console.log("-".repeat(40));
+  console.log("─".repeat(40));
   console.log(`Total redacted:     ${stats.totalRedacted}`);
   console.log(`Sessions affected:  ${stats.sessionsWithRedactions}`);
 
