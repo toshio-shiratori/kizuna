@@ -1,14 +1,22 @@
 import { describe, it, expect } from "vitest";
-import type { RawChunk, PluginContext, PluginConfig, Logger } from "@kizuna/core";
-import { piiSanitizer, redactContent, DEFAULT_PATTERNS, compilePatterns } from "./index.js";
+import type { RawChunk, PluginContext, PluginConfig, PluginStorage, Logger } from "@kizuna/core";
+import {
+  piiSanitizer,
+  redactContent,
+  DEFAULT_PATTERNS,
+  compilePatterns,
+  STATS_KEY,
+  PLUGIN_NAME,
+} from "./index.js";
+import type { PiiSanitizerStats } from "./index.js";
 
-function runBeforeCapture(chunk: RawChunk, ctx: PluginContext): RawChunk | null {
-  return piiSanitizer.beforeCapture!(chunk, ctx) as RawChunk | null;
+async function runBeforeCapture(chunk: RawChunk, ctx: PluginContext): Promise<RawChunk | null> {
+  return (await piiSanitizer.beforeCapture!(chunk, ctx)) as RawChunk | null;
 }
 
-function makeChunk(content: string): RawChunk {
+function makeChunk(content: string, sessionId = "test-session"): RawChunk {
   return {
-    sessionId: "test-session",
+    sessionId,
     turnIndex: 0,
     role: "assistant",
     content,
@@ -16,7 +24,30 @@ function makeChunk(content: string): RawChunk {
   };
 }
 
-function makeContext(options: Record<string, unknown> = {}): PluginContext {
+function makeInMemoryStorage(): PluginStorage {
+  const store = new Map<string, unknown>();
+  return {
+    async get<T>(key: string): Promise<T | null> {
+      const val = store.get(key);
+      return val === undefined ? null : (val as T);
+    },
+    async set<T>(key: string, value: T): Promise<void> {
+      store.set(key, value);
+    },
+    async delete(key: string): Promise<void> {
+      store.delete(key);
+    },
+    async list(prefix?: string): Promise<string[]> {
+      const keys = [...store.keys()];
+      return prefix ? keys.filter((k) => k.startsWith(prefix)) : keys;
+    },
+  };
+}
+
+function makeContext(
+  options: Record<string, unknown> = {},
+  storage?: PluginStorage,
+): PluginContext {
   const messages: Array<{ level: string; message: string; meta?: Record<string, unknown> }> = [];
   const logger: Logger = {
     debug(msg, meta) {
@@ -38,16 +69,7 @@ function makeContext(options: Record<string, unknown> = {}): PluginContext {
     config,
     projectConfig: { id: "test-project" },
     logger,
-    storage: {
-      async get() {
-        return null;
-      },
-      async set() {},
-      async delete() {},
-      async list() {
-        return [];
-      },
-    },
+    storage: storage ?? makeInMemoryStorage(),
   };
 }
 
@@ -137,6 +159,17 @@ describe("redactContent", () => {
     expect(result.redactedCount).toBe(2);
     expect(result.redactedTypes).toContain("anthropic_key");
     expect(result.redactedTypes).toContain("github_token");
+    expect(result.redactedByPattern).toEqual({ anthropic_key: 1, github_token: 1 });
+  });
+
+  it("returns per-pattern match counts in redactedByPattern", () => {
+    const input = [
+      "key1: sk-ant-abc123def456ghi789jkl012mno345",
+      "key2: sk-ant-xyz789abc456def012ghi345jkl678",
+    ].join("\n");
+    const result = redactContent(input, DEFAULT_PATTERNS);
+    expect(result.redactedCount).toBe(2);
+    expect(result.redactedByPattern).toEqual({ anthropic_key: 2 });
   });
 
   it("returns original content when no secrets found", () => {
@@ -179,68 +212,172 @@ describe("compilePatterns", () => {
 
 describe("piiSanitizer plugin", () => {
   it("has correct metadata", () => {
-    expect(piiSanitizer.name).toBe("@kizuna/plugin-pii-sanitizer");
+    expect(piiSanitizer.name).toBe(PLUGIN_NAME);
     expect(piiSanitizer.version).toBe("0.0.0");
     expect(piiSanitizer.description).toBeDefined();
   });
 
-  it("redacts secrets in beforeCapture", () => {
+  it("redacts secrets in beforeCapture", async () => {
     const chunk = makeChunk("My key: sk-ant-abc123def456ghi789jkl012mno345");
     const ctx = makeContext();
-    const result = runBeforeCapture(chunk, ctx);
+    const result = await runBeforeCapture(chunk, ctx);
     expect(result).not.toBeNull();
     expect(result!.content).toBe("My key: [REDACTED:anthropic_key]");
-    expect(result!.metadata["@kizuna/plugin-pii-sanitizer"]).toEqual({
+    expect(result!.metadata[PLUGIN_NAME]).toEqual({
       redactedCount: 1,
       redactedTypes: ["anthropic_key"],
     });
   });
 
-  it("returns original chunk when no secrets found", () => {
+  it("returns original chunk when no secrets found", async () => {
     const chunk = makeChunk("Just talking about code");
     const ctx = makeContext();
-    const result = runBeforeCapture(chunk, ctx);
+    const result = await runBeforeCapture(chunk, ctx);
     expect(result).toEqual(chunk);
   });
 
-  it("preserves existing metadata", () => {
+  it("preserves existing metadata", async () => {
     const chunk = makeChunk("key: sk-ant-abc123def456ghi789jkl012mno345");
     chunk.metadata = { existingKey: "existingValue" };
     const ctx = makeContext();
-    const result = runBeforeCapture(chunk, ctx);
+    const result = await runBeforeCapture(chunk, ctx);
     expect(result!.metadata["existingKey"]).toBe("existingValue");
-    expect(result!.metadata["@kizuna/plugin-pii-sanitizer"]).toBeDefined();
+    expect(result!.metadata[PLUGIN_NAME]).toBeDefined();
   });
 
-  it("logs redaction info", () => {
+  it("logs redaction info", async () => {
     const chunk = makeChunk("key: sk-ant-abc123def456ghi789jkl012mno345");
     const logMessages: Array<{ message: string; meta?: Record<string, unknown> }> = [];
     const ctx = makeContext();
     ctx.logger.info = (msg: string, meta?: Record<string, unknown>) => {
       logMessages.push({ message: msg, meta });
     };
-    runBeforeCapture(chunk, ctx);
+    await runBeforeCapture(chunk, ctx);
     expect(logMessages).toHaveLength(1);
     expect(logMessages[0]!.message).toBe("Redacted PII");
     expect(logMessages[0]!.meta).toEqual({ redactedCount: 1, redactedTypes: ["anthropic_key"] });
   });
 
-  it("supports custom patterns via options", () => {
+  it("supports custom patterns via options", async () => {
     const chunk = makeChunk("my_token: custom_prefix_abcdefghij1234");
     const ctx = makeContext({
       customPatterns: [
         { name: "custom_token", pattern: "custom_prefix_[A-Za-z0-9]{10,}", flags: "g" },
       ],
     });
-    const result = runBeforeCapture(chunk, ctx);
+    const result = await runBeforeCapture(chunk, ctx);
     expect(result!.content).toContain("[REDACTED:custom_token]");
   });
 
-  it("does not mutate the original chunk", () => {
+  it("does not mutate the original chunk", async () => {
     const chunk = makeChunk("key: sk-ant-abc123def456ghi789jkl012mno345");
     const originalContent = chunk.content;
     const ctx = makeContext();
-    runBeforeCapture(chunk, ctx);
+    await runBeforeCapture(chunk, ctx);
     expect(chunk.content).toBe(originalContent);
+  });
+});
+
+describe("piiSanitizer stats accumulation", () => {
+  it("stores stats in KV after redaction", async () => {
+    const storage = makeInMemoryStorage();
+    const ctx = makeContext({}, storage);
+    const chunk = makeChunk("key: sk-ant-abc123def456ghi789jkl012mno345");
+    await runBeforeCapture(chunk, ctx);
+
+    const stats = await storage.get<PiiSanitizerStats>(STATS_KEY);
+    expect(stats).not.toBeNull();
+    expect(stats!.totalRedacted).toBe(1);
+    expect(stats!.byPattern["anthropic_key"]).toBe(1);
+    expect(stats!.lastRedactedAt).toBeTruthy();
+    expect(stats!.sessionsWithRedactions).toBe(1);
+  });
+
+  it("does not store stats when no redaction occurs", async () => {
+    const storage = makeInMemoryStorage();
+    const ctx = makeContext({}, storage);
+    const chunk = makeChunk("Just normal text");
+    await runBeforeCapture(chunk, ctx);
+
+    const stats = await storage.get<PiiSanitizerStats>(STATS_KEY);
+    expect(stats).toBeNull();
+  });
+
+  it("accumulates stats across multiple chunks", async () => {
+    const storage = makeInMemoryStorage();
+    const ctx = makeContext({}, storage);
+
+    await runBeforeCapture(makeChunk("key: sk-ant-abc123def456ghi789jkl012mno345"), ctx);
+    await runBeforeCapture(makeChunk("token: ghp_ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghij"), ctx);
+
+    const stats = await storage.get<PiiSanitizerStats>(STATS_KEY);
+    expect(stats!.totalRedacted).toBe(2);
+    expect(stats!.byPattern["anthropic_key"]).toBe(1);
+    expect(stats!.byPattern["github_token"]).toBe(1);
+  });
+
+  it("counts sessionsWithRedactions once per session", async () => {
+    const storage = makeInMemoryStorage();
+    const ctx = makeContext({}, storage);
+
+    await runBeforeCapture(
+      makeChunk("key: sk-ant-abc123def456ghi789jkl012mno345", "session-a"),
+      ctx,
+    );
+    await runBeforeCapture(
+      makeChunk("key2: sk-ant-abc123def456ghi789jkl012mno345", "session-a"),
+      ctx,
+    );
+
+    const stats = await storage.get<PiiSanitizerStats>(STATS_KEY);
+    expect(stats!.sessionsWithRedactions).toBe(1);
+    expect(stats!.totalRedacted).toBe(2);
+  });
+
+  it("increments sessionsWithRedactions for different sessions", async () => {
+    const storage = makeInMemoryStorage();
+    const ctx = makeContext({}, storage);
+
+    await runBeforeCapture(
+      makeChunk("key: sk-ant-abc123def456ghi789jkl012mno345", "session-a"),
+      ctx,
+    );
+    await runBeforeCapture(
+      makeChunk("key: sk-ant-abc123def456ghi789jkl012mno345", "session-b"),
+      ctx,
+    );
+
+    const stats = await storage.get<PiiSanitizerStats>(STATS_KEY);
+    expect(stats!.sessionsWithRedactions).toBe(2);
+  });
+
+  it("accumulates byPattern counts for same pattern type", async () => {
+    const storage = makeInMemoryStorage();
+    const ctx = makeContext({}, storage);
+
+    const content = [
+      "key1: sk-ant-abc123def456ghi789jkl012mno345",
+      "key2: sk-ant-xyz789abc456def012ghi345jkl678",
+    ].join("\n");
+    await runBeforeCapture(makeChunk(content), ctx);
+
+    const stats = await storage.get<PiiSanitizerStats>(STATS_KEY);
+    expect(stats!.totalRedacted).toBe(2);
+    expect(stats!.byPattern["anthropic_key"]).toBe(2);
+  });
+
+  it("tracks lastSessionId without creating per-session keys", async () => {
+    const storage = makeInMemoryStorage();
+    const ctx = makeContext({}, storage);
+
+    await runBeforeCapture(
+      makeChunk("key: sk-ant-abc123def456ghi789jkl012mno345", "session-a"),
+      ctx,
+    );
+
+    const stats = await storage.get<PiiSanitizerStats>(STATS_KEY);
+    expect(stats!.lastSessionId).toBe("session-a");
+    const keys = await storage.list();
+    expect(keys).toEqual([STATS_KEY]);
   });
 });

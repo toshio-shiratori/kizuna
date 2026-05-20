@@ -5,6 +5,7 @@ import { registerEnable } from "./plugin/enable.js";
 import { registerDisable } from "./plugin/disable.js";
 import { registerConfig } from "./plugin/config.js";
 import { registerInit } from "./plugin/init.js";
+import { registerStats } from "./plugin/stats.js";
 
 export function registerPlugin(program: Command): void {
   const pluginCmd = program.command("plugin").description("Manage plugins");
@@ -15,4 +16,5 @@ export function registerPlugin(program: Command): void {
   registerDisable(pluginCmd);
   registerConfig(pluginCmd);
   registerInit(pluginCmd);
+  registerStats(pluginCmd);
 }
