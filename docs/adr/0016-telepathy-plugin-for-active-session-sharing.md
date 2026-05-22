@@ -73,6 +73,7 @@ Telepathy is an optional capability that depends on `multi-repo-sharing`'s `refe
 ### Why explicit send/receive, not automatic sync
 
 Automatic synchronization of active session state would generate excessive noise and remove user control over what gets shared. The explicit model lets users control:
+
 - **When** to share (timing)
 - **What** to share (Claude summarizes on instruction)
 - **Whether** to receive (pull, not push)
