@@ -80,6 +80,15 @@ export const PLUGIN_REGISTRY: readonly PluginDef[] = [
     ],
     example: "kizuna plugin enable openapi-awareness --spec ./docs/openapi/api.yaml",
   },
+  {
+    shortName: "telepathy",
+    packageName: "@kizuna/plugin-telepathy",
+    dirName: "plugin-telepathy",
+    description: "Real-time context sharing between sessions",
+    detail: "Send and receive messages between active Claude Code sessions across projects.",
+    options: [],
+    example: "kizuna plugin enable telepathy",
+  },
 ] as const;
 
 export function findPlugin(name: string): PluginDef | undefined {

@@ -20,7 +20,7 @@ The mental model is **copy-paste between terminals**, automated through Claude.
 
 - Must comply with the local-first, single-SQLite-file principle (ADR-0001)
 - Must not write to another project's database (ADR-0013 established read-only access to referenced databases)
-- Must integrate with the existing `multi-repo-sharing` plugin's `references` configuration for database path resolution
+- Must use the same `references` configuration format as `multi-repo-sharing` for database path resolution (but configured independently per plugin for isolation)
 - Must not require LLM in the core (ADR-0007) — summarization is performed by Claude in the session, not by Kizuna
 
 ## Decision
@@ -91,14 +91,14 @@ Addressing adds configuration overhead and limits the broadcast use case. In a t
 ### Positive
 
 - Enables real-time context sharing between active Claude Code sessions
-- Zero additional configuration if `multi-repo-sharing` references are already set up
+- Familiar configuration: uses the same `references` format as `multi-repo-sharing`
 - Minimal storage impact (one row per project in `telepathy_messages`)
 - Simple mental model: "copy-paste between terminals via Claude"
 - Consistent with existing federated read-only access pattern (ADR-0013)
 
 ### Negative
 
-- Requires `multi-repo-sharing` plugin's `references` to be configured — projects without references cannot exchange telepathy messages
+- Requires its own `references` to be configured in the plugin options — these are independent from `multi-repo-sharing`'s references, so users must configure them separately
 - One message per project means rapid successive sends overwrite previous messages without warning
 - No delivery guarantee — if the receiving session never calls `receive`, the message sits until overwritten
 - Referenced database paths must be valid on the local filesystem (same constraint as ADR-0013)

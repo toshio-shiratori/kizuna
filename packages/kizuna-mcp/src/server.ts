@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { z, type ZodTypeAny } from "zod";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import {
   Database,
@@ -8,6 +8,50 @@ import {
   type PluginManager,
   type StoredChunk,
 } from "@kizuna/core";
+
+interface SchemaPropertyDescriptor {
+  type: string;
+  description?: string;
+}
+
+/**
+ * Convert a plugin's JSON Schema-like inputSchema to a Zod schema shape.
+ *
+ * Plugins define inputSchema as Record<string, unknown> with property
+ * descriptors like { type: "string", description: "..." }. This function
+ * converts them to Zod schemas that the MCP SDK's registerTool accepts.
+ */
+function buildZodSchema(inputSchema: Record<string, unknown>): Record<string, ZodTypeAny> {
+  const zodShape: Record<string, ZodTypeAny> = {};
+
+  for (const [key, value] of Object.entries(inputSchema)) {
+    const prop = value as SchemaPropertyDescriptor;
+    let schema: ZodTypeAny;
+
+    switch (prop.type) {
+      case "string":
+        schema = z.string();
+        break;
+      case "number":
+        schema = z.number();
+        break;
+      case "boolean":
+        schema = z.boolean();
+        break;
+      default:
+        schema = z.unknown();
+        break;
+    }
+
+    if (prop.description) {
+      schema = schema.describe(prop.description);
+    }
+
+    zodShape[key] = schema;
+  }
+
+  return zodShape;
+}
 
 export interface KizunaMcpServerOptions {
   dbPath: string;
@@ -183,13 +227,30 @@ export function createServer(options: KizunaMcpServerOptions): McpServer {
       const tools = entry.plugin.mcpTools?.();
       if (!tools) continue;
       for (const tool of tools) {
-        mcp.registerTool(tool.name, { description: tool.description }, async () => {
-          const result = await tool.handler({}, entry.context);
-          return {
-            content: [{ type: "text" as const, text: JSON.stringify(result.content) }],
-            isError: result.isError,
-          };
-        });
+        const hasInputSchema = Object.keys(tool.inputSchema).length > 0;
+        if (hasInputSchema) {
+          mcp.registerTool(
+            tool.name,
+            { description: tool.description, inputSchema: buildZodSchema(tool.inputSchema) },
+            async (args) => {
+              const result = await tool.handler(args, entry.context);
+              return {
+                content: [{ type: "text" as const, text: JSON.stringify(result.content) }],
+                isError: result.isError,
+              };
+            },
+          );
+        } else {
+          // MCP SDK calls the callback with (extra) when no inputSchema is set,
+          // so we explicitly pass {} to the plugin handler.
+          mcp.registerTool(tool.name, { description: tool.description }, async () => {
+            const result = await tool.handler({}, entry.context);
+            return {
+              content: [{ type: "text" as const, text: JSON.stringify(result.content) }],
+              isError: result.isError,
+            };
+          });
+        }
       }
     }
   }

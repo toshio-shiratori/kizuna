@@ -165,6 +165,58 @@ Plugins can implement any combination of these hooks:
 | `mcpTools`    | `() => MCPToolDefinition[]`    | Register custom MCP tools.                    |
 | `cliCommands` | `() => CLICommandDefinition[]` | Register custom CLI commands.                 |
 
+## Step 3b: MCP Tools
+
+Plugins can register custom MCP tools that are available via the Kizuna MCP server. This is useful for interactive features that the user or Claude invoke explicitly.
+
+```typescript
+import type { Plugin, MCPToolDefinition, MCPToolResult, PluginContext } from "@kizuna/core";
+
+export function createMyPlugin(): Plugin {
+  return {
+    name: "kizuna-plugin-example",
+    version: "0.1.0",
+
+    mcpTools(): MCPToolDefinition[] {
+      return [
+        {
+          name: "kizuna_example_action",
+          description: "Perform an example action",
+          inputSchema: {
+            message: { type: "string", description: "The input message" },
+          },
+          async handler(args: unknown, ctx: PluginContext): Promise<MCPToolResult> {
+            const { message } = args as { message: string };
+            // Use ctx.db for database access
+            return { content: { ok: true, received: message } };
+          },
+        },
+        {
+          name: "kizuna_example_query",
+          description: "A tool with no input parameters",
+          inputSchema: {},
+          async handler(_args: unknown, ctx: PluginContext): Promise<MCPToolResult> {
+            return { content: { status: "ready" } };
+          },
+        },
+      ];
+    },
+  };
+}
+```
+
+### inputSchema format
+
+Each key in `inputSchema` is a property descriptor with `type` and optional `description`:
+
+| Type        | Maps to       |
+| ----------- | ------------- |
+| `"string"`  | `z.string()`  |
+| `"number"`  | `z.number()`  |
+| `"boolean"` | `z.boolean()` |
+
+Use `{}` for tools with no input parameters.
+
 ## Step 4: Token Budget
 
 If your plugin adds content via `enrichContext`, declare a `tokenBudget` to reserve space in the injection pipeline:
@@ -368,6 +420,7 @@ See the built-in plugins for reference:
 | Plugin                      | Pattern          | Hooks Used                                                                      |
 | --------------------------- | ---------------- | ------------------------------------------------------------------------------- |
 | `plugin-pii-sanitizer`      | Direct export    | `beforeCapture`                                                                 |
-| `plugin-multi-repo-sharing` | Direct export    | `beforeCapture`, `beforeSearch`, `afterSearch`, `migrations`                    |
+| `plugin-multi-repo-sharing` | Factory function | `beforeSearch`, `afterSearch`, `migrations`                                     |
 | `plugin-openapi-awareness`  | Factory function | `enrichContext`, `tokenBudget`                                                  |
 | `plugin-hybrid-search`      | Factory function | `init`, `shutdown`, `afterCapture`, `beforeSearch`, `afterSearch`, `migrations` |
+| `plugin-telepathy`          | Factory function | `mcpTools`, `migrations`                                                        |

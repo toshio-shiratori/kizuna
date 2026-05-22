@@ -273,6 +273,75 @@ describe("kizuna_delete", () => {
   });
 });
 
+describe("MCP server plugin tool registration", () => {
+  it("handles plugin tools with no inputSchema", async () => {
+    const manager = new PluginManager({
+      db: db.db,
+      projectConfig: { id: "test" },
+    });
+
+    let receivedArgs: unknown = "NOT_CALLED";
+    manager.register({
+      name: "test-no-input-plugin",
+      version: "1.0.0",
+      mcpTools() {
+        return [
+          {
+            name: "test_no_input",
+            description: "Tool with no input parameters",
+            inputSchema: {},
+            async handler(args: unknown) {
+              receivedArgs = args;
+              return { content: { status: "ok" } };
+            },
+          },
+        ];
+      },
+    });
+    await manager.initAll();
+
+    await setupClient({ pluginManager: manager });
+    await client.callTool({ name: "test_no_input", arguments: {} });
+    expect(receivedArgs).toEqual({});
+  });
+
+  it("passes inputSchema and args to plugin-provided tools", async () => {
+    const manager = new PluginManager({
+      db: db.db,
+      projectConfig: { id: "test" },
+    });
+
+    let receivedArgs: unknown = null;
+    manager.register({
+      name: "test-tool-plugin",
+      version: "1.0.0",
+      mcpTools() {
+        return [
+          {
+            name: "test_echo",
+            description: "Echo tool for testing",
+            inputSchema: {
+              message: { type: "string", description: "Message to echo" },
+            },
+            async handler(args: unknown) {
+              receivedArgs = args;
+              return { content: { echoed: (args as { message: string }).message } };
+            },
+          },
+        ];
+      },
+    });
+    await manager.initAll();
+
+    await setupClient({ pluginManager: manager });
+    const tools = await client.listTools();
+    expect(tools.tools.map((t) => t.name)).toContain("test_echo");
+
+    await client.callTool({ name: "test_echo", arguments: { message: "hello" } });
+    expect(receivedArgs).toEqual({ message: "hello" });
+  });
+});
+
 describe("MCP server with PluginManager", () => {
   it("passes pluginManager to search pipeline", async () => {
     const manager = new PluginManager({
