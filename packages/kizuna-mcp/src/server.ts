@@ -9,7 +9,7 @@ import {
   type StoredChunk,
 } from "@kizuna/core";
 
-interface PropertyDescriptor {
+interface SchemaPropertyDescriptor {
   type: string;
   description?: string;
 }
@@ -25,7 +25,7 @@ function buildZodSchema(inputSchema: Record<string, unknown>): Record<string, Zo
   const zodShape: Record<string, ZodTypeAny> = {};
 
   for (const [key, value] of Object.entries(inputSchema)) {
-    const prop = value as PropertyDescriptor;
+    const prop = value as SchemaPropertyDescriptor;
     let schema: ZodTypeAny;
 
     switch (prop.type) {
@@ -228,19 +228,29 @@ export function createServer(options: KizunaMcpServerOptions): McpServer {
       if (!tools) continue;
       for (const tool of tools) {
         const hasInputSchema = Object.keys(tool.inputSchema).length > 0;
-        const config: { description: string; inputSchema?: Record<string, ZodTypeAny> } = {
-          description: tool.description,
-        };
         if (hasInputSchema) {
-          config.inputSchema = buildZodSchema(tool.inputSchema);
+          mcp.registerTool(
+            tool.name,
+            { description: tool.description, inputSchema: buildZodSchema(tool.inputSchema) },
+            async (args) => {
+              const result = await tool.handler(args, entry.context);
+              return {
+                content: [{ type: "text" as const, text: JSON.stringify(result.content) }],
+                isError: result.isError,
+              };
+            },
+          );
+        } else {
+          // MCP SDK calls the callback with (extra) when no inputSchema is set,
+          // so we explicitly pass {} to the plugin handler.
+          mcp.registerTool(tool.name, { description: tool.description }, async () => {
+            const result = await tool.handler({}, entry.context);
+            return {
+              content: [{ type: "text" as const, text: JSON.stringify(result.content) }],
+              isError: result.isError,
+            };
+          });
         }
-        mcp.registerTool(tool.name, config, async (args) => {
-          const result = await tool.handler(args, entry.context);
-          return {
-            content: [{ type: "text" as const, text: JSON.stringify(result.content) }],
-            isError: result.isError,
-          };
-        });
       }
     }
   }

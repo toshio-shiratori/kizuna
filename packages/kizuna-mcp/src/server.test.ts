@@ -274,6 +274,37 @@ describe("kizuna_delete", () => {
 });
 
 describe("MCP server plugin tool registration", () => {
+  it("handles plugin tools with no inputSchema", async () => {
+    const manager = new PluginManager({
+      db: db.db,
+      projectConfig: { id: "test" },
+    });
+
+    let receivedArgs: unknown = "NOT_CALLED";
+    manager.register({
+      name: "test-no-input-plugin",
+      version: "1.0.0",
+      mcpTools() {
+        return [
+          {
+            name: "test_no_input",
+            description: "Tool with no input parameters",
+            inputSchema: {},
+            async handler(args: unknown) {
+              receivedArgs = args;
+              return { content: { status: "ok" } };
+            },
+          },
+        ];
+      },
+    });
+    await manager.initAll();
+
+    await setupClient({ pluginManager: manager });
+    await client.callTool({ name: "test_no_input", arguments: {} });
+    expect(receivedArgs).toEqual({});
+  });
+
   it("passes inputSchema and args to plugin-provided tools", async () => {
     const manager = new PluginManager({
       db: db.db,
