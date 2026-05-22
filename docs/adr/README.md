@@ -89,10 +89,11 @@ What becomes easier? What becomes harder? What new constraints are introduced?
 | [0013](./0013-federated-search-for-multi-repo-sharing.md) | Federated search for multi-repo memory sharing     | Accepted                       |
 | [0014](./0014-cli-plugin-config-command.md)               | CLI plugin config command for structured options   | Accepted                       |
 | [0015](./0015-memory-export-functionality.md)             | Memory export functionality                        | Accepted                       |
+| [0016](./0016-telepathy-plugin-for-active-session-sharing.md) | Telepathy plugin for active session context sharing | Accepted                       |
 
 ## How to Add a New ADR
 
-1. Identify the next available number (currently 0016)
+1. Identify the next available number (currently 0017)
 2. Create `NNNN-short-title.md` in this directory
 3. Follow the format above
 4. Status starts as "Proposed"
