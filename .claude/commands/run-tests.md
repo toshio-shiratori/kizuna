@@ -32,11 +32,13 @@ description: 品質検証の実行。型チェック・テスト・lint・フォ
    pnpm lint
    ```
 
-4. **フォーマットチェック**
+4. **フォーマット修正**
 
    ```bash
-   pnpm format:check
+   pnpm format
    ```
+
+   - `format:check` ではなく `format` を使い、自動修正を適用する
 
 5. **未使用コード検出**
 
