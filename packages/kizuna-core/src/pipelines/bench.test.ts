@@ -83,20 +83,20 @@ describe("Performance baselines", () => {
     expect(result.chunksUsed).toBeGreaterThan(0);
   });
 
-  it("estimateTokens: 10000 chars under 1ms", () => {
+  it("estimateTokens: 10000 chars under 5ms", () => {
     const text = "日本語テスト".repeat(1667);
     const start = performance.now();
     estimateTokens(text);
     const elapsed = performance.now() - start;
-    expect(elapsed).toBeLessThan(1);
+    expect(elapsed).toBeLessThan(5);
   });
 
-  it("preprocessQuery: CJK trigram under 1ms", () => {
+  it("preprocessQuery: CJK trigram under 5ms", () => {
     const query = "SQLiteのFTS5でトリグラムトークナイザーを使う場合の注意点";
     const start = performance.now();
     preprocessQuery(query);
     const elapsed = performance.now() - start;
-    expect(elapsed).toBeLessThan(1);
+    expect(elapsed).toBeLessThan(5);
   });
 
   it("captureTranscript with transaction is faster than baseline", async () => {

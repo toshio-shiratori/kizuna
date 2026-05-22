@@ -60,12 +60,12 @@ git switch -c <type>/issue-<N>-<short-description> main
 pnpm tsc --noEmit
 pnpm test
 pnpm lint
-pnpm format:check
+pnpm format
 pnpm knip
 ```
 
+- `pnpm format` は自動修正を実行する（`format:check` ではなく `format` を使う）
 - 失敗した場合は原因を特定し修正 → 再検証
-- `pnpm format` で自動修正可能なものは `pnpm format` を実行
 - 3 回のループで解決しない場合、現状をユーザーに報告して判断を仰ぐ
 
 ### 5. セルフレビュー

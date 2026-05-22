@@ -38,7 +38,7 @@ After reading, summarize:
 - Make small, focused commits with Conventional Commits format
 - Include the Issue number in commit messages: `feat(core): add storage layer (#5)`
 - Write tests alongside implementation, not after
-- Run `pnpm tsc --noEmit` and relevant tests before declaring work complete
+- Run `pnpm tsc --noEmit`, relevant tests, and `pnpm format` (auto-fix) before declaring work complete
 - If you discover the Issue's scope is wrong (too large, too small, missing
   dependencies), STOP and ask the user before proceeding
 - Never add new dependencies without explicit user approval
