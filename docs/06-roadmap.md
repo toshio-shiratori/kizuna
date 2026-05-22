@@ -234,9 +234,9 @@ Add the plugin system so that project-specific or use-case-specific functionalit
 
 - Create `packages/plugin-multi-repo-sharing/` (the example from `05-plugin-api.md`)
 - Implement and test
-- Document configuration for shared storage
+- Document configuration for federated search references
 
-**Validation**: Two projects pointing to a shared database can see each other's tagged memories
+**Validation**: Two projects can search each other's memories via read-only federated queries
 
 ### Exit Criteria
 

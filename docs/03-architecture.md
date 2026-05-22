@@ -44,7 +44,7 @@ This document describes Kizuna's architectural design at a high level. Detailed 
 │  ┌─────────────────────────▼───────────────────────────────┐   │
 │  │                   Storage Layer                          │   │
 │  │           SQLite + FTS5 (trigram tokenizer)              │   │
-│  │           Single file per project or shared              │   │
+│  │           Single file per project (federated read-only)  │   │
 │  └─────────────────────────────────────────────────────────┘   │
 │                            ▲                                    │
 │  ┌─────────────────────────┴───────────────────────────────┐   │
@@ -193,13 +193,15 @@ Hook registration is per-project by default but can be made global. Three hooks 
 
 By default, each project has its own SQLite file at `.kizuna/memory.db`. This isolates memories by project.
 
-### Shared Storage for Multi-Repo Collaboration
+### Federated Search for Multi-Repo Collaboration
 
-When the `multi-repo-sharing` plugin is enabled, multiple projects can share a single SQLite file. The file is referenced by absolute path (e.g., a shared NAS location, Dropbox folder, or organizational network drive).
+When the `multi-repo-sharing` plugin is enabled, a project can search other projects' memories via federated read-only queries. Each project keeps its own `.kizuna/memory.db` as the sole writable database — there is no shared file.
 
-Memories in shared storage are tagged with their originating project ID and an optional shared namespace. Plugins control which memories are visible across projects via namespace filtering.
+The plugin configuration declares a list of **references** pointing to other projects' databases. At search time, the plugin opens each referenced database in read-only mode, executes the same FTS5 query, normalizes scores across databases, and merges results with local search results. Writes always target the local database only.
 
-This design choice (single shared SQLite vs. distributed databases with sync) is documented in an ADR.
+References are directional: frontend can reference backend without backend referencing frontend. This naturally supports asymmetric collaboration patterns.
+
+This design choice (federated search vs. shared database) is documented in ADR-0013.
 
 ## Plugin Architecture (Summary)
 
@@ -254,4 +256,4 @@ The following are explicitly NOT part of the initial architecture. They may be a
 - **MCP transport options beyond stdio**: HTTP/SSE for remote scenarios
 - **Hybrid search plugin**: Optional FTS5 + sqlite-vec with a small embedding model
 - **Cross-language plugin support**: Currently TypeScript only; future plugins might be in Python or Rust via a wrapper protocol
-- **Federated multi-repo sync**: For when shared filesystem is not feasible
+- **Remote multi-repo sync**: For when referenced databases are not on the local filesystem
