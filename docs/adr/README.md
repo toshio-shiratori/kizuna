@@ -74,7 +74,7 @@ What becomes easier? What becomes harder? What new constraints are introduced?
 
 | ID                                                        | Title                                              | Status   |
 | --------------------------------------------------------- | -------------------------------------------------- | -------- |
-| [0001](./0001-use-sqlite.md)                              | Use SQLite as the storage backend                  | Accepted |
+| [0001](./0001-use-sqlite.md)                              | Use SQLite as the storage backend                  | Accepted (Amended by ADR-0013) |
 | [0002](./0002-use-typescript.md)                          | Use TypeScript as the implementation language      | Accepted |
 | [0003](./0003-use-monorepo.md)                            | Use pnpm workspaces monorepo structure             | Accepted |
 | [0004](./0004-use-mise.md)                                | Use mise for development environment management    | Accepted |

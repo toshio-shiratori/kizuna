@@ -1,6 +1,6 @@
 # 0001. Use SQLite as the storage backend
 
-**Status**: Accepted
+**Status**: Accepted (Amended by [ADR-0013](./0013-federated-search-for-multi-repo-sharing.md))
 
 **Date**: 2026-05-02
 
