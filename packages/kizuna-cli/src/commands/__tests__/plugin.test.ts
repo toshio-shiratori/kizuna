@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { mkdirSync, writeFileSync, readFileSync, existsSync } from "node:fs";
-import { join } from "node:path";
+import { mkdirSync, writeFileSync, readFileSync, existsSync, readdirSync } from "node:fs";
+import { join, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import { Database } from "@kizuna/core";
 import { runCli, createTempDir, removeTempDir } from "../../test-utils.js";
 import { resolvePluginDistPath, PLUGIN_REGISTRY, findPluginByKey } from "../plugin/registry.js";
@@ -809,6 +810,21 @@ describe("plugin command", () => {
 
     it("should return undefined for unknown key", () => {
       expect(findPluginByKey("unknown-package")).toBeUndefined();
+    });
+  });
+
+  describe("registry completeness", () => {
+    it("should have an entry for every plugin-* package in the monorepo", () => {
+      const packagesDir = resolve(fileURLToPath(import.meta.url), "..", "..", "..", "..", "..");
+      const pluginDirs = readdirSync(packagesDir).filter((d) => d.startsWith("plugin-"));
+      const registeredDirNames = PLUGIN_REGISTRY.map((p) => p.dirName);
+
+      for (const dir of pluginDirs) {
+        expect(
+          registeredDirNames,
+          `plugin package "${dir}" is missing from PLUGIN_REGISTRY`,
+        ).toContain(dir);
+      }
     });
   });
 });
