@@ -28,10 +28,10 @@
   },
   "dependencies": {
     "@kizuna/core": "workspace:*",
-    "@kizuna/web": "workspace:*",
     "commander": "^13.0.0"
   },
   "devDependencies": {
+    "@kizuna/web": "workspace:*",
     "tsx": "^4.21.0",
     "typescript": "^5.8.0",
     "vitest": "^3.1.0"

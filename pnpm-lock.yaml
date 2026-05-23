@@ -41,13 +41,13 @@ importers:
       '@kizuna/core':
         specifier: workspace:*
         version: link:../kizuna-core
-      '@kizuna/web':
-        specifier: workspace:*
-        version: link:../kizuna-web
       commander:
         specifier: ^13.0.0
         version: 13.1.0
     devDependencies:
+      '@kizuna/web':
+        specifier: workspace:*
+        version: link:../kizuna-web
       tsx:
         specifier: ^4.21.0
         version: 4.21.0

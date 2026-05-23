@@ -19,7 +19,15 @@ export function registerWeb(program: Command): void {
       }
 
       const dbPath = resolveDbPath(opts.cwd);
-      const { startServer } = await import("@kizuna/web");
+
+      let startServer: (options: { port: number; dbPath: string; write: boolean }) => unknown;
+      try {
+        ({ startServer } = await import("@kizuna/web"));
+      } catch {
+        console.error("@kizuna/web is not installed. Install it with: pnpm add @kizuna/web");
+        process.exitCode = 1;
+        return;
+      }
 
       startServer({ port, dbPath, write: opts.write });
     });

@@ -14,6 +14,7 @@ export default tseslint.config(
             "eslint.config.js",
             "packages/*/vitest.config.ts",
             "packages/*/vite.config.ts",
+            "packages/kizuna-web/src/client/*.tsx",
           ],
           maximumDefaultProjectFileMatchCount_THIS_WILL_SLOW_DOWN_LINTING: 12,
         },
@@ -22,6 +23,6 @@ export default tseslint.config(
     },
   },
   {
-    ignores: ["**/dist/", "**/node_modules/", "templates/", "packages/kizuna-web/src/client/"],
+    ignores: ["**/dist/", "**/node_modules/", "templates/"],
   },
 );
