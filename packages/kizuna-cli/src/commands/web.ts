@@ -1,5 +1,5 @@
 import type { Command } from "commander";
-import { resolveDbPath } from "../db-path.js";
+import { resolveDbPath, dbExists } from "../db-path.js";
 
 const DEFAULT_PORT = 4100;
 
@@ -14,6 +14,12 @@ export function registerWeb(program: Command): void {
       const port = parseInt(opts.port, 10);
       if (Number.isNaN(port) || port < 1 || port > 65535) {
         console.error("Invalid port number. Must be between 1 and 65535.");
+        process.exitCode = 1;
+        return;
+      }
+
+      if (!dbExists(opts.cwd)) {
+        console.error("No Kizuna database found. Run 'kizuna setup' first.");
         process.exitCode = 1;
         return;
       }

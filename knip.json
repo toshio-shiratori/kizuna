@@ -8,8 +8,6 @@
     "packages/plugin-hybrid-search": {
       "ignoreDependencies": ["@huggingface/transformers"]
     },
-    "packages/kizuna-web": {
-      "ignoreDependencies": ["@kizuna/core"]
-    }
+    "packages/kizuna-web": {}
   }
 }

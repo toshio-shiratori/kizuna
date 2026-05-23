@@ -16,7 +16,7 @@ export default tseslint.config(
             "packages/*/vite.config.ts",
             "packages/kizuna-web/src/client/*.tsx",
           ],
-          maximumDefaultProjectFileMatchCount_THIS_WILL_SLOW_DOWN_LINTING: 12,
+          maximumDefaultProjectFileMatchCount_THIS_WILL_SLOW_DOWN_LINTING: 16,
         },
         tsconfigRootDir: import.meta.dirname,
       },
