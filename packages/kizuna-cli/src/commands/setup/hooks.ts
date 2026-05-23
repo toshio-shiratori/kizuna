@@ -30,10 +30,10 @@ export interface McpJsonConfig {
   mcpServers?: Record<string, McpServerEntry>;
 }
 
-export function toTildePath(absolutePath: string): string {
+export function toPortablePath(absolutePath: string): string {
   const home = homedir();
   if (absolutePath === home || absolutePath.startsWith(home + "/")) {
-    return "~" + absolutePath.slice(home.length);
+    return "${HOME}" + absolutePath.slice(home.length);
   }
   return absolutePath;
 }
@@ -151,10 +151,10 @@ export function configureHooks(
 
     mcpJson.mcpServers["kizuna"] = {
       command: "node",
-      args: [toTildePath(mcpServerPath)],
+      args: [toPortablePath(mcpServerPath)],
       env: {
-        KIZUNA_DB_PATH: toTildePath(dbPath),
-        KIZUNA_PROJECT_DIR: toTildePath(opts.cwd),
+        KIZUNA_DB_PATH: toPortablePath(dbPath),
+        KIZUNA_PROJECT_DIR: toPortablePath(opts.cwd),
       },
     };
 

@@ -3,7 +3,7 @@ import { existsSync, readFileSync, mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { runCli, createTempDir, removeTempDir } from "../../test-utils.js";
 import { resolvePluginDistPath, PLUGIN_REGISTRY } from "../plugin/registry.js";
-import { toTildePath } from "../setup/hooks.js";
+import { toPortablePath } from "../setup/hooks.js";
 
 function distKey(shortName: string): string {
   const def = PLUGIN_REGISTRY.find((p) => p.shortName === shortName)!;
@@ -144,9 +144,9 @@ describe("setup command", () => {
     expect(kizunaServer.command).toBe("node");
     expect(kizunaServer.args[0]).toContain("main.js");
     expect(kizunaServer.env["KIZUNA_DB_PATH"]).toBe(
-      toTildePath(join(tempDir, ".kizuna", "memory.db")),
+      toPortablePath(join(tempDir, ".kizuna", "memory.db")),
     );
-    expect(kizunaServer.env["KIZUNA_PROJECT_DIR"]).toBe(toTildePath(tempDir));
+    expect(kizunaServer.env["KIZUNA_PROJECT_DIR"]).toBe(toPortablePath(tempDir));
 
     const settings = JSON.parse(
       readFileSync(join(tempDir, ".claude", "settings.json"), "utf-8"),
@@ -217,7 +217,7 @@ describe("setup command", () => {
     >;
     const mcpServers = mcpJson["mcpServers"] as Record<string, unknown>;
     const kizunaServer = mcpServers["kizuna"] as { args: string[] };
-    expect(kizunaServer.args[0]).toMatch(/^~\//);
+    expect(kizunaServer.args[0]).toMatch(/^\$\{HOME\}\//);
   });
 
   it("should run plugin migrations when plugins.json already has enabled plugins", () => {
