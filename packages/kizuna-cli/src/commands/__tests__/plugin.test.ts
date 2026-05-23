@@ -387,7 +387,7 @@ describe("plugin command", () => {
       );
     });
 
-    it("should add a reference to the references array", () => {
+    it("should add a reference with directory path auto-resolved to .kizuna/memory.db", () => {
       const kizunaDir = join(tempDir, ".kizuna");
       mkdirSync(kizunaDir, { recursive: true });
       writeFileSync(
@@ -397,19 +397,25 @@ describe("plugin command", () => {
         }),
       );
 
-      // Use tempDir itself as the path so it exists
+      // Create a target project directory with .kizuna/memory.db
+      const targetDir = join(tempDir, "other-project");
+      const targetKizuna = join(targetDir, ".kizuna");
+      mkdirSync(targetKizuna, { recursive: true });
+      writeFileSync(join(targetKizuna, "memory.db"), "");
+
       const result = runCli(
-        `plugin config multi-repo-sharing add-reference backend ${tempDir} --cwd ${tempDir}`,
+        `plugin config multi-repo-sharing add-reference backend ${targetDir} --cwd ${tempDir}`,
         tempDir,
       );
       expect(result.exitCode).toBe(0);
       expect(result.stdout).toContain('Reference "backend" added.');
+      expect(result.stdout).toContain("(resolved:");
 
       const config = JSON.parse(readFileSync(join(kizunaDir, "plugins.json"), "utf-8"));
       const refs = config.plugins[distKey("multi-repo-sharing")].options.references;
       expect(refs).toHaveLength(1);
       expect(refs[0].name).toBe("backend");
-      expect(refs[0].dbPath).toContain(tempDir);
+      expect(refs[0].dbPath).toBe(join(targetKizuna, "memory.db"));
     });
 
     it("should update existing reference by name", () => {
@@ -427,8 +433,14 @@ describe("plugin command", () => {
         }),
       );
 
+      // Create a target project directory with .kizuna/memory.db
+      const targetDir = join(tempDir, "other-project");
+      const targetKizuna = join(targetDir, ".kizuna");
+      mkdirSync(targetKizuna, { recursive: true });
+      writeFileSync(join(targetKizuna, "memory.db"), "");
+
       const result = runCli(
-        `plugin config multi-repo-sharing add-reference backend ${tempDir} --cwd ${tempDir}`,
+        `plugin config multi-repo-sharing add-reference backend ${targetDir} --cwd ${tempDir}`,
         tempDir,
       );
       expect(result.exitCode).toBe(0);
@@ -437,10 +449,10 @@ describe("plugin command", () => {
       const config = JSON.parse(readFileSync(join(kizunaDir, "plugins.json"), "utf-8"));
       const refs = config.plugins[distKey("multi-repo-sharing")].options.references;
       expect(refs).toHaveLength(1);
-      expect(refs[0].dbPath).toContain(tempDir);
+      expect(refs[0].dbPath).toBe(join(targetKizuna, "memory.db"));
     });
 
-    it("should warn on non-existent path but proceed", () => {
+    it("should error on non-existent path", () => {
       const kizunaDir = join(tempDir, ".kizuna");
       mkdirSync(kizunaDir, { recursive: true });
       writeFileSync(
@@ -454,9 +466,69 @@ describe("plugin command", () => {
         `plugin config multi-repo-sharing add-reference backend /nonexistent/path/db --cwd ${tempDir}`,
         tempDir,
       );
+      expect(result.exitCode).toBe(1);
+      expect(result.stderr).toContain("Path does not exist:");
+
+      // Verify plugins.json was NOT modified
+      const config = JSON.parse(readFileSync(join(kizunaDir, "plugins.json"), "utf-8"));
+      expect(config.plugins[distKey("multi-repo-sharing")].options).toBeUndefined();
+    });
+
+    it("should use direct DB file path as-is when given a file", () => {
+      const kizunaDir = join(tempDir, ".kizuna");
+      mkdirSync(kizunaDir, { recursive: true });
+      writeFileSync(
+        join(kizunaDir, "plugins.json"),
+        JSON.stringify({
+          plugins: { [distKey("multi-repo-sharing")]: { enabled: true } },
+        }),
+      );
+
+      // Create a file path directly
+      const dbFile = join(tempDir, "other-project", ".kizuna", "memory.db");
+      mkdirSync(join(tempDir, "other-project", ".kizuna"), { recursive: true });
+      writeFileSync(dbFile, "");
+
+      const result = runCli(
+        `plugin config multi-repo-sharing add-reference backend ${dbFile} --cwd ${tempDir}`,
+        tempDir,
+      );
       expect(result.exitCode).toBe(0);
-      expect(result.stderr).toContain("Warning: path does not exist");
       expect(result.stdout).toContain('Reference "backend" added.');
+      // Should NOT show "(resolved:" since no auto-resolution happened
+      expect(result.stdout).not.toContain("(resolved:");
+
+      const config = JSON.parse(readFileSync(join(kizunaDir, "plugins.json"), "utf-8"));
+      const refs = config.plugins[distKey("multi-repo-sharing")].options.references;
+      expect(refs).toHaveLength(1);
+      expect(refs[0].dbPath).toBe(dbFile);
+    });
+
+    it("should error when directory has no .kizuna/memory.db", () => {
+      const kizunaDir = join(tempDir, ".kizuna");
+      mkdirSync(kizunaDir, { recursive: true });
+      writeFileSync(
+        join(kizunaDir, "plugins.json"),
+        JSON.stringify({
+          plugins: { [distKey("multi-repo-sharing")]: { enabled: true } },
+        }),
+      );
+
+      // Create a target directory WITHOUT .kizuna/memory.db
+      const targetDir = join(tempDir, "empty-project");
+      mkdirSync(targetDir, { recursive: true });
+
+      const result = runCli(
+        `plugin config multi-repo-sharing add-reference backend ${targetDir} --cwd ${tempDir}`,
+        tempDir,
+      );
+      expect(result.exitCode).toBe(1);
+      expect(result.stderr).toContain("Database not found:");
+      expect(result.stderr).toContain(".kizuna/memory.db does not exist");
+
+      // Verify plugins.json was NOT modified
+      const config = JSON.parse(readFileSync(join(kizunaDir, "plugins.json"), "utf-8"));
+      expect(config.plugins[distKey("multi-repo-sharing")].options).toBeUndefined();
     });
 
     it("should remove a reference by name", () => {

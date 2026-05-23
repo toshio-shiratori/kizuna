@@ -100,7 +100,8 @@ kizuna/
 │   ├── kizuna-cli/                  CLI (setup, search, hooks)
 │   ├── kizuna-mcp/                  MCP server (stdio transport)
 │   ├── plugin-pii-sanitizer/        Redacts secrets before storage
-│   └── plugin-multi-repo-sharing/   Cross-repo memory sharing
+│   ├── plugin-multi-repo-sharing/   Cross-repo memory sharing
+│   └── plugin-telepathy/            Real-time context sharing between sessions
 └── docs/                            Design documents and ADRs
 ```
 
@@ -118,6 +119,7 @@ Kizuna supports plugins that hook into the capture, search, and inject pipelines
 - **multi-repo-sharing** -- Enables memory sharing across repositories via shared namespaces
 - **hybrid-search** -- Combines FTS5 lexical search with vector similarity for better recall
 - **openapi-awareness** -- Injects relevant OpenAPI endpoint information into context
+- **telepathy** -- Real-time context sharing between active Claude Code sessions via MCP tools
 
 #### Managing plugins
 
@@ -136,6 +138,7 @@ When asking Claude Code to set up plugins, use a prompt like:
 > For each disabled plugin, run `kizuna plugin info <name>` to check required options, then enable it with `kizuna plugin enable`.
 > For openapi-awareness, find the OpenAPI spec file in this repository and pass it via `--spec`.
 > For multi-repo-sharing, use `--namespace <team-name>` to share memories across related repositories.
+> For telepathy, add references to other projects with `kizuna plugin config telepathy add-reference <name> /path/to/project`.
 
 See [Plugin API documentation](docs/05-plugin-api.md) for writing custom plugins.
 
