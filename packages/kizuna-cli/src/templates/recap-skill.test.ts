@@ -3,7 +3,7 @@ import { RECAP_SKILL_CONTENT } from "./recap-skill.js";
 
 describe("RECAP_SKILL_CONTENT", () => {
   it("should contain YAML frontmatter with name and description", () => {
-    expect(RECAP_SKILL_CONTENT).toMatch(/^---\nname: recap\n/);
+    expect(RECAP_SKILL_CONTENT).toMatch(/^---\nname: kizuna-recap\n/);
     expect(RECAP_SKILL_CONTENT).toContain("description:");
   });
 

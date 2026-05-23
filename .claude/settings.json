@@ -113,15 +113,5 @@
         ]
       }
     ]
-  },
-  "mcpServers": {
-    "kizuna": {
-      "command": "node",
-      "args": ["/Users/toshio/github/kizuna/packages/kizuna-mcp/dist/main.js"],
-      "env": {
-        "KIZUNA_DB_PATH": "/Users/toshio/github/kizuna/.kizuna/memory.db",
-        "KIZUNA_PROJECT_DIR": "/Users/toshio/github/kizuna"
-      }
-    }
   }
 }

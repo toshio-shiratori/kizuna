@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "kizuna": {
+      "command": "node",
+      "args": ["${HOME}/github/kizuna/packages/kizuna-mcp/dist/main.js"],
+      "env": {
+        "KIZUNA_DB_PATH": "${HOME}/github/kizuna/.kizuna/memory.db",
+        "KIZUNA_PROJECT_DIR": "${HOME}/github/kizuna"
+      }
+    }
+  }
+}

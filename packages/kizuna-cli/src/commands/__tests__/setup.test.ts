@@ -87,7 +87,7 @@ describe("setup command", () => {
     const recapPath = join(tempDir, ".claude", "skills", "kizuna-recap", "SKILL.md");
     expect(existsSync(recapPath)).toBe(true);
     const content = readFileSync(recapPath, "utf-8");
-    expect(content).toContain("name: recap");
+    expect(content).toContain("name: kizuna-recap");
     expect(content).toContain("kizuna recap --project <path>");
   });
 
@@ -97,7 +97,7 @@ describe("setup command", () => {
     writeFileSync(recapPath, "old content");
     runCli(`setup --cwd ${tempDir}`, tempDir);
     const content = readFileSync(recapPath, "utf-8");
-    expect(content).toContain("name: recap");
+    expect(content).toContain("name: kizuna-recap");
     expect(content).not.toContain("old content");
   });
 
