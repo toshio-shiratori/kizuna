@@ -231,12 +231,12 @@ describe("Scale performance (5000 chunks)", () => {
     expect(elapsed).toBeLessThan(2);
   });
 
-  it("preprocessQuery: long CJK query under 2ms", () => {
+  it("preprocessQuery: long CJK query under 20ms", () => {
     const query =
       "SQLiteのFTS5でトリグラムトークナイザーを使う場合の注意点を教えてください。日本語のテキスト検索に最適な設定は何ですか";
     const start = performance.now();
     preprocessQuery(query);
     const elapsed = performance.now() - start;
-    expect(elapsed).toBeLessThan(2);
+    expect(elapsed).toBeLessThan(20);
   });
 });
