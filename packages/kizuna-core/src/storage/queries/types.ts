@@ -37,6 +37,15 @@ export interface SessionPreviewRow {
   preview: string;
 }
 
+export interface SessionPaginatedRow {
+  session_id: string;
+  started_at: string;
+  ended_at: string | null;
+  project_id: string;
+  chunk_count: number;
+  preview: string;
+}
+
 export interface FtsRow extends ChunkRow {
   bm25_score: number;
   time_decay: number;
