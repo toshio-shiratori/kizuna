@@ -74,15 +74,13 @@ export function Dashboard() {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-bg text-text-secondary">
-        Loading...
-      </div>
+      <div className="flex items-center justify-center p-6 text-text-secondary">Loading...</div>
     );
   }
 
   if (error) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-bg text-red-400">
+      <div className="flex items-center justify-center p-6 text-red-400">
         Failed to load stats: {error}
       </div>
     );
@@ -94,7 +92,7 @@ export function Dashboard() {
     stats.projectDistribution.length > 0 ? stats.projectDistribution[0].chunkCount : 0;
 
   return (
-    <div className="min-h-screen bg-bg p-6">
+    <div className="p-6">
       <h1 className="mb-6 text-2xl font-bold text-text-primary">Kizuna Dashboard</h1>
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
