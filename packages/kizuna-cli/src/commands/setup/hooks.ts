@@ -2,6 +2,7 @@ import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { execSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
+import { homedir } from "node:os";
 
 interface HookEntry {
   type: string;
@@ -23,6 +24,18 @@ export interface ClaudeSettings {
   hooks?: Record<string, HookMatcher[]>;
   mcpServers?: Record<string, McpServerEntry>;
   [key: string]: unknown;
+}
+
+export interface McpJsonConfig {
+  mcpServers?: Record<string, McpServerEntry>;
+}
+
+export function toTildePath(absolutePath: string): string {
+  const home = homedir();
+  if (absolutePath === home || absolutePath.startsWith(home + "/")) {
+    return "~" + absolutePath.slice(home.length);
+  }
+  return absolutePath;
 }
 
 export function findMcpServerPath(): string {
@@ -126,19 +139,34 @@ export function configureHooks(
   if (opts.withMcp) {
     const mcpServerPath = findMcpServerPath();
     const dbPath = resolve(opts.kizunaDir, "memory.db");
+    const mcpJsonPath = resolve(opts.cwd, ".mcp.json");
 
-    if (!settings.mcpServers) {
-      settings.mcpServers = {};
+    let mcpJson: McpJsonConfig = {};
+    if (existsSync(mcpJsonPath)) {
+      mcpJson = JSON.parse(readFileSync(mcpJsonPath, "utf-8")) as McpJsonConfig;
+    }
+    if (!mcpJson.mcpServers) {
+      mcpJson.mcpServers = {};
     }
 
-    settings.mcpServers["kizuna"] = {
+    mcpJson.mcpServers["kizuna"] = {
       command: "node",
-      args: [mcpServerPath],
+      args: [toTildePath(mcpServerPath)],
       env: {
-        KIZUNA_DB_PATH: dbPath,
-        KIZUNA_PROJECT_DIR: opts.cwd,
+        KIZUNA_DB_PATH: toTildePath(dbPath),
+        KIZUNA_PROJECT_DIR: toTildePath(opts.cwd),
       },
     };
+
+    writeFileSync(mcpJsonPath, JSON.stringify(mcpJson, null, 2) + "\n");
+
+    if (settings.mcpServers?.["kizuna"]) {
+      delete settings.mcpServers["kizuna"];
+      if (Object.keys(settings.mcpServers).length === 0) {
+        delete settings.mcpServers;
+      }
+    }
+
     mcpConfigured = true;
   }
 

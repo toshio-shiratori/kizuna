@@ -1,9 +1,30 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { mkdtempSync, readFileSync, writeFileSync, mkdirSync, rmSync } from "node:fs";
+import { mkdtempSync, readFileSync, writeFileSync, mkdirSync, rmSync, existsSync } from "node:fs";
 import { resolve } from "node:path";
-import { tmpdir } from "node:os";
-import type { ClaudeSettings } from "./hooks.js";
-import { configureHooks } from "./hooks.js";
+import { tmpdir, homedir } from "node:os";
+import type { ClaudeSettings, McpJsonConfig } from "./hooks.js";
+import { configureHooks, toTildePath } from "./hooks.js";
+
+describe("toTildePath", () => {
+  it("should replace homedir prefix with ~", () => {
+    const home = homedir();
+    expect(toTildePath(`${home}/projects/foo`)).toBe("~/projects/foo");
+  });
+
+  it("should return path unchanged if not under homedir", () => {
+    expect(toTildePath("/opt/some/path")).toBe("/opt/some/path");
+  });
+
+  it("should not match partial homedir prefix", () => {
+    const home = homedir();
+    expect(toTildePath(`${home}-suffix/foo`)).toBe(`${home}-suffix/foo`);
+  });
+
+  it("should handle homedir exactly", () => {
+    const home = homedir();
+    expect(toTildePath(home)).toBe("~");
+  });
+});
 
 describe("configureHooks", () => {
   let tmpDir: string;
@@ -133,7 +154,7 @@ describe("configureHooks", () => {
     expect(hook.command).toBe("node /custom/cli.js hook session-end");
   });
 
-  it("should configure MCP server when withMcp is true", () => {
+  it("should configure MCP server in .mcp.json when withMcp is true", () => {
     const result = configureHooks(settingsPath, "kizuna", {
       withMcp: true,
       cwd: tmpDir,
@@ -142,14 +163,19 @@ describe("configureHooks", () => {
 
     expect(result.mcpConfigured).toBe(true);
 
-    const settings = JSON.parse(readFileSync(settingsPath, "utf-8")) as ClaudeSettings;
-    expect(settings.mcpServers).toBeDefined();
-    expect(settings.mcpServers!["kizuna"]).toBeDefined();
-    expect(settings.mcpServers!["kizuna"]!.command).toBe("node");
-    expect(settings.mcpServers!["kizuna"]!.env!["KIZUNA_DB_PATH"]).toBe(
-      resolve(kizunaDir, "memory.db"),
+    const mcpJsonPath = resolve(tmpDir, ".mcp.json");
+    expect(existsSync(mcpJsonPath)).toBe(true);
+    const mcpJson = JSON.parse(readFileSync(mcpJsonPath, "utf-8")) as McpJsonConfig;
+    expect(mcpJson.mcpServers).toBeDefined();
+    expect(mcpJson.mcpServers!["kizuna"]).toBeDefined();
+    expect(mcpJson.mcpServers!["kizuna"]!.command).toBe("node");
+    expect(mcpJson.mcpServers!["kizuna"]!.env!["KIZUNA_DB_PATH"]).toBe(
+      toTildePath(resolve(kizunaDir, "memory.db")),
     );
-    expect(settings.mcpServers!["kizuna"]!.env!["KIZUNA_PROJECT_DIR"]).toBe(tmpDir);
+    expect(mcpJson.mcpServers!["kizuna"]!.env!["KIZUNA_PROJECT_DIR"]).toBe(toTildePath(tmpDir));
+
+    const settings = JSON.parse(readFileSync(settingsPath, "utf-8")) as ClaudeSettings;
+    expect(settings.mcpServers).toBeUndefined();
   });
 
   it("should not configure MCP server when withMcp is not set", () => {
@@ -160,7 +186,78 @@ describe("configureHooks", () => {
 
     expect(result.mcpConfigured).toBe(false);
 
+    const mcpJsonPath = resolve(tmpDir, ".mcp.json");
+    expect(existsSync(mcpJsonPath)).toBe(false);
+  });
+
+  it("should preserve existing entries in .mcp.json", () => {
+    const mcpJsonPath = resolve(tmpDir, ".mcp.json");
+    writeFileSync(
+      mcpJsonPath,
+      JSON.stringify({
+        mcpServers: { other: { command: "other-server", args: [] } },
+      }),
+    );
+
+    configureHooks(settingsPath, "kizuna", {
+      withMcp: true,
+      cwd: tmpDir,
+      kizunaDir,
+    });
+
+    const mcpJson = JSON.parse(readFileSync(mcpJsonPath, "utf-8")) as McpJsonConfig;
+    expect(mcpJson.mcpServers!["other"]).toBeDefined();
+    expect(mcpJson.mcpServers!["kizuna"]).toBeDefined();
+  });
+
+  it("should migrate kizuna entry from settings.json to .mcp.json", () => {
+    const existing: ClaudeSettings = {
+      mcpServers: {
+        kizuna: {
+          command: "node",
+          args: ["/old/path/main.js"],
+          env: { KIZUNA_DB_PATH: "/old/path/memory.db" },
+        },
+        other: { command: "other-server", args: [] },
+      },
+    };
+    writeFileSync(settingsPath, JSON.stringify(existing, null, 2) + "\n");
+
+    configureHooks(settingsPath, "kizuna", {
+      withMcp: true,
+      cwd: tmpDir,
+      kizunaDir,
+    });
+
+    const settings = JSON.parse(readFileSync(settingsPath, "utf-8")) as ClaudeSettings;
+    expect(settings.mcpServers!["kizuna"]).toBeUndefined();
+    expect(settings.mcpServers!["other"]).toBeDefined();
+
+    const mcpJsonPath = resolve(tmpDir, ".mcp.json");
+    const mcpJson = JSON.parse(readFileSync(mcpJsonPath, "utf-8")) as McpJsonConfig;
+    expect(mcpJson.mcpServers!["kizuna"]!.args[0]).toMatch(/^~\//);
+  });
+
+  it("should remove empty mcpServers from settings.json after migration", () => {
+    const existing: ClaudeSettings = {
+      hooks: {},
+      mcpServers: {
+        kizuna: {
+          command: "node",
+          args: ["/old/path/main.js"],
+        },
+      },
+    };
+    writeFileSync(settingsPath, JSON.stringify(existing, null, 2) + "\n");
+
+    configureHooks(settingsPath, "kizuna", {
+      withMcp: true,
+      cwd: tmpDir,
+      kizunaDir,
+    });
+
     const settings = JSON.parse(readFileSync(settingsPath, "utf-8")) as ClaudeSettings;
     expect(settings.mcpServers).toBeUndefined();
+    expect(settings.hooks).toBeDefined();
   });
 });

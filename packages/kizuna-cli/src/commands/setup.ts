@@ -83,8 +83,10 @@ export function registerSetup(program: Command): void {
       console.log("  UserPromptSubmit → inject relevant memories");
       console.log("  Stop             → incremental capture");
       if (mcpConfigured) {
+        const mcpJsonPath = resolve(cwd, ".mcp.json");
         console.log("");
         console.log("MCP server configured:");
+        console.log(`  Config: ${mcpJsonPath}`);
         console.log('  Server name: "kizuna"');
         console.log(`  Entry point: ${findMcpServerPath()}`);
       }

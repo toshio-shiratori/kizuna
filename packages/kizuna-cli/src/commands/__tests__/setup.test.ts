@@ -3,6 +3,7 @@ import { existsSync, readFileSync, mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { runCli, createTempDir, removeTempDir } from "../../test-utils.js";
 import { resolvePluginDistPath, PLUGIN_REGISTRY } from "../plugin/registry.js";
+import { toTildePath } from "../setup/hooks.js";
 
 function distKey(shortName: string): string {
   const def = PLUGIN_REGISTRY.find((p) => p.shortName === shortName)!;
@@ -120,21 +121,19 @@ describe("setup command", () => {
 
   it("should not configure MCP server without --with-mcp", () => {
     runCli(`setup --cwd ${tempDir}`, tempDir);
-    const settings = JSON.parse(
-      readFileSync(join(tempDir, ".claude", "settings.json"), "utf-8"),
-    ) as Record<string, unknown>;
-    expect(settings["mcpServers"]).toBeUndefined();
+    expect(existsSync(join(tempDir, ".mcp.json"))).toBe(false);
   });
 
-  it("should configure MCP server with --with-mcp", () => {
+  it("should configure MCP server in .mcp.json with --with-mcp", () => {
     const result = runCli(`setup --with-mcp --cwd ${tempDir}`, tempDir);
     expect(result.exitCode).toBe(0);
     expect(result.stdout).toContain("MCP server configured");
 
-    const settings = JSON.parse(
-      readFileSync(join(tempDir, ".claude", "settings.json"), "utf-8"),
-    ) as Record<string, unknown>;
-    const mcpServers = settings["mcpServers"] as Record<string, unknown>;
+    const mcpJson = JSON.parse(readFileSync(join(tempDir, ".mcp.json"), "utf-8")) as Record<
+      string,
+      unknown
+    >;
+    const mcpServers = mcpJson["mcpServers"] as Record<string, unknown>;
     expect(mcpServers["kizuna"]).toBeDefined();
 
     const kizunaServer = mcpServers["kizuna"] as {
@@ -144,26 +143,31 @@ describe("setup command", () => {
     };
     expect(kizunaServer.command).toBe("node");
     expect(kizunaServer.args[0]).toContain("main.js");
-    expect(kizunaServer.env["KIZUNA_DB_PATH"]).toContain(".kizuna/memory.db");
-    expect(kizunaServer.env["KIZUNA_PROJECT_DIR"]).toBe(tempDir);
+    expect(kizunaServer.env["KIZUNA_DB_PATH"]).toBe(
+      toTildePath(join(tempDir, ".kizuna", "memory.db")),
+    );
+    expect(kizunaServer.env["KIZUNA_PROJECT_DIR"]).toBe(toTildePath(tempDir));
+
+    const settings = JSON.parse(
+      readFileSync(join(tempDir, ".claude", "settings.json"), "utf-8"),
+    ) as Record<string, unknown>;
+    expect(settings["mcpServers"]).toBeUndefined();
   });
 
-  it("should preserve existing mcpServers on re-run with --with-mcp", () => {
-    const claudeDir = join(tempDir, ".claude");
-    mkdirSync(claudeDir, { recursive: true });
+  it("should preserve existing entries in .mcp.json on re-run with --with-mcp", () => {
     writeFileSync(
-      join(claudeDir, "settings.json"),
+      join(tempDir, ".mcp.json"),
       JSON.stringify({
         mcpServers: { other: { command: "other-server", args: [] } },
       }),
     );
 
     runCli(`setup --with-mcp --cwd ${tempDir}`, tempDir);
-    const settings = JSON.parse(readFileSync(join(claudeDir, "settings.json"), "utf-8")) as Record<
+    const mcpJson = JSON.parse(readFileSync(join(tempDir, ".mcp.json"), "utf-8")) as Record<
       string,
       unknown
     >;
-    const mcpServers = settings["mcpServers"] as Record<string, unknown>;
+    const mcpServers = mcpJson["mcpServers"] as Record<string, unknown>;
     expect(mcpServers["other"]).toBeDefined();
     expect(mcpServers["kizuna"]).toBeDefined();
   });
@@ -171,12 +175,49 @@ describe("setup command", () => {
   it("should update kizuna MCP entry on re-run with --with-mcp", () => {
     runCli(`setup --with-mcp --cwd ${tempDir}`, tempDir);
     runCli(`setup --with-mcp --cwd ${tempDir}`, tempDir);
-    const settings = JSON.parse(
-      readFileSync(join(tempDir, ".claude", "settings.json"), "utf-8"),
-    ) as Record<string, unknown>;
-    const mcpServers = settings["mcpServers"] as Record<string, unknown>;
+    const mcpJson = JSON.parse(readFileSync(join(tempDir, ".mcp.json"), "utf-8")) as Record<
+      string,
+      unknown
+    >;
+    const mcpServers = mcpJson["mcpServers"] as Record<string, unknown>;
     const keys = Object.keys(mcpServers);
     expect(keys.filter((k) => k === "kizuna")).toHaveLength(1);
+  });
+
+  it("should migrate kizuna MCP entry from settings.json to .mcp.json", () => {
+    const claudeDir = join(tempDir, ".claude");
+    mkdirSync(claudeDir, { recursive: true });
+    writeFileSync(
+      join(claudeDir, "settings.json"),
+      JSON.stringify({
+        mcpServers: {
+          kizuna: {
+            command: "node",
+            args: ["/old/path/main.js"],
+            env: { KIZUNA_DB_PATH: "/old/path/memory.db" },
+          },
+          other: { command: "other-server", args: [] },
+        },
+      }),
+    );
+
+    runCli(`setup --with-mcp --cwd ${tempDir}`, tempDir);
+
+    const settings = JSON.parse(readFileSync(join(claudeDir, "settings.json"), "utf-8")) as Record<
+      string,
+      unknown
+    >;
+    const settingsMcp = settings["mcpServers"] as Record<string, unknown>;
+    expect(settingsMcp["kizuna"]).toBeUndefined();
+    expect(settingsMcp["other"]).toBeDefined();
+
+    const mcpJson = JSON.parse(readFileSync(join(tempDir, ".mcp.json"), "utf-8")) as Record<
+      string,
+      unknown
+    >;
+    const mcpServers = mcpJson["mcpServers"] as Record<string, unknown>;
+    const kizunaServer = mcpServers["kizuna"] as { args: string[] };
+    expect(kizunaServer.args[0]).toMatch(/^~\//);
   });
 
   it("should run plugin migrations when plugins.json already has enabled plugins", () => {
