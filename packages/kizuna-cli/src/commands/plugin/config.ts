@@ -1,6 +1,6 @@
 import type { Command } from "commander";
-import { resolve } from "node:path";
-import { existsSync } from "node:fs";
+import { resolve, join } from "node:path";
+import { existsSync, statSync } from "node:fs";
 import { findPlugin, findPluginByKey, resolvePluginDistPath } from "./registry.js";
 import { readPluginsJson, writePluginsJson } from "./plugins-json.js";
 
@@ -99,6 +99,44 @@ Subcommands:
   );
 }
 
+/**
+ * Resolves a user-provided path to a valid database file path.
+ *
+ * Resolution rules:
+ * - If the path is a directory, append `.kizuna/memory.db` automatically.
+ * - If the path is a file, use it as-is (regardless of filename).
+ * - If the resolved path does not exist, return an error.
+ * - If the original path does not exist at all, return an error.
+ */
+function resolveReferencePath(
+  cwd: string,
+  rawPath: string,
+): { dbPath: string; resolved: boolean } | { error: string } {
+  const absPath = resolve(cwd, rawPath);
+
+  let isDir: boolean;
+  try {
+    isDir = statSync(absPath).isDirectory();
+  } catch {
+    // Path does not exist at all
+    return { error: `Path does not exist: ${absPath}` };
+  }
+
+  if (!isDir) {
+    // It's a file — use as-is
+    return { dbPath: absPath, resolved: false };
+  }
+
+  // It's a directory — auto-resolve to .kizuna/memory.db
+  const dbPath = join(absPath, ".kizuna", "memory.db");
+  if (!existsSync(dbPath)) {
+    return {
+      error: `Database not found: ${dbPath} (directory given, but .kizuna/memory.db does not exist)`,
+    };
+  }
+  return { dbPath, resolved: true };
+}
+
 function handleAddReference(cwd: string, entry: PluginEntryInfo, args: string[]): void {
   const name = args[0] as string | undefined;
   const rawPath = args[1] as string | undefined;
@@ -109,11 +147,14 @@ function handleAddReference(cwd: string, entry: PluginEntryInfo, args: string[])
     return;
   }
 
-  const dbPath = resolve(cwd, rawPath);
-
-  if (!existsSync(dbPath)) {
-    console.error(`Warning: path does not exist: ${dbPath}`);
+  const result = resolveReferencePath(cwd, rawPath);
+  if ("error" in result) {
+    console.error(result.error);
+    process.exitCode = 1;
+    return;
   }
+
+  const { dbPath, resolved } = result;
 
   const references: Reference[] = Array.isArray(entry.options.references)
     ? ([...entry.options.references] as Reference[])
@@ -133,7 +174,11 @@ function handleAddReference(cwd: string, entry: PluginEntryInfo, args: string[])
   };
   writePluginsJson(cwd, config);
 
-  console.log(`Reference "${name}" added.`);
+  if (resolved) {
+    console.log(`Reference "${name}" added. (resolved: ${dbPath})`);
+  } else {
+    console.log(`Reference "${name}" added.`);
+  }
 }
 
 function handleRemoveReference(cwd: string, entry: PluginEntryInfo, args: string[]): void {
