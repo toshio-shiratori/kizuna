@@ -1,7 +1,16 @@
 import { Hono } from "hono";
+import type { Database } from "@kizuna/core";
 
-export const apiRoutes = new Hono();
+export function createApiRoutes(db: Database): Hono {
+  const api = new Hono();
 
-apiRoutes.get("/health", (c) => {
-  return c.json({ ok: true });
-});
+  api.get("/health", (c) => {
+    return c.json({ ok: true });
+  });
+
+  api.get("/stats", (c) => {
+    return c.json(db.getStats());
+  });
+
+  return api;
+}

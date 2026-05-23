@@ -3,7 +3,8 @@ import { readFileSync } from "node:fs";
 import { Hono } from "hono";
 import { serve } from "@hono/node-server";
 import { serveStatic } from "@hono/node-server/serve-static";
-import { apiRoutes } from "./routes/api.js";
+import { Database } from "@kizuna/core";
+import { createApiRoutes } from "./routes/api.js";
 
 export interface ServerOptions {
   port: number;
@@ -11,10 +12,16 @@ export interface ServerOptions {
   write: boolean;
 }
 
-export function createApp(clientDir: string): Hono {
+export interface AppOptions {
+  dbPath: string;
+  write: boolean;
+}
+
+export function createApp(clientDir: string, options: AppOptions): { app: Hono; db: Database } {
+  const db = new Database(options.dbPath, { readonly: !options.write });
   const app = new Hono();
 
-  app.route("/api", apiRoutes);
+  app.route("/api", createApiRoutes(db));
 
   app.use(
     "/*",
@@ -27,12 +34,15 @@ export function createApp(clientDir: string): Hono {
   const indexHtml = readFileSync(resolve(clientDir, "index.html"), "utf-8");
   app.get("/*", (c) => c.html(indexHtml));
 
-  return app;
+  return { app, db };
 }
 
 export function startServer(options: ServerOptions) {
   const clientDir = resolve(import.meta.dirname, "../client");
-  const app = createApp(clientDir);
+  const { app, db } = createApp(clientDir, {
+    dbPath: options.dbPath,
+    write: options.write,
+  });
 
   const server = serve(
     {
@@ -44,6 +54,14 @@ export function startServer(options: ServerOptions) {
       console.log(`Kizuna Web running at http://127.0.0.1:${options.port}`);
     },
   );
+
+  const shutdown = () => {
+    server.close(() => {
+      db.close();
+    });
+  };
+  process.on("SIGINT", shutdown);
+  process.on("SIGTERM", shutdown);
 
   return server;
 }

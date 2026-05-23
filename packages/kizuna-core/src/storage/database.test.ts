@@ -320,6 +320,53 @@ describe("Database", () => {
     });
   });
 
+  describe("getStats", () => {
+    it("returns zeros for an empty database", () => {
+      const stats = db.getStats();
+      expect(stats.databaseSizeBytes).toBeGreaterThan(0);
+      expect(stats.sessionCount).toBe(0);
+      expect(stats.chunkCount).toBe(0);
+      expect(stats.oldestChunkDate).toBeNull();
+      expect(stats.newestChunkDate).toBeNull();
+      expect(stats.lastMaintenanceAt).toBeNull();
+      expect(stats.projectDistribution).toEqual([]);
+    });
+
+    it("returns correct stats with data", () => {
+      db.insertSession(makeSession({ id: "s1", projectId: "proj-a" }));
+      db.insertChunk({
+        ...makeChunk({ sessionId: "s1", turnIndex: 0 }),
+        createdAt: "2025-01-01T00:00:00Z",
+      });
+      db.insertChunk({
+        ...makeChunk({ sessionId: "s1", turnIndex: 1 }),
+        createdAt: "2025-06-01T00:00:00Z",
+      });
+
+      db.insertSession(makeSession({ id: "s2", projectId: "proj-b" }));
+      db.insertChunk({
+        ...makeChunk({ sessionId: "s2", turnIndex: 0 }),
+        createdAt: "2025-03-01T00:00:00Z",
+      });
+
+      db.insertMaintenanceRun(
+        { chunksDeleted: 0, sessionsDeleted: 0, bytesReclaimed: 0, durationMs: 10 },
+        "2025-04-01T00:00:00Z",
+      );
+
+      const stats = db.getStats();
+      expect(stats.sessionCount).toBe(2);
+      expect(stats.chunkCount).toBe(3);
+      expect(stats.oldestChunkDate).toBe("2025-01-01T00:00:00Z");
+      expect(stats.newestChunkDate).toBe("2025-06-01T00:00:00Z");
+      expect(stats.lastMaintenanceAt).toBe("2025-04-01T00:00:00Z");
+      expect(stats.projectDistribution).toEqual([
+        { projectId: "proj-a", chunkCount: 2 },
+        { projectId: "proj-b", chunkCount: 1 },
+      ]);
+    });
+  });
+
   describe("migrations", () => {
     it("is idempotent — opening twice doesn't fail", () => {
       const dbPath = join(dir, "test.db");
