@@ -3,7 +3,7 @@ const FENCE = BACKTICK.repeat(3);
 
 export const RECAP_SKILL_CONTENT = [
   "---",
-  "name: recap",
+  "name: kizuna-recap",
   "description: 別プロジェクトの直近セッション履歴を取り込み、文脈を共有する（クロスプロジェクト専用）。",
   "---",
   "",
