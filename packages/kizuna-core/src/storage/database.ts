@@ -153,6 +153,10 @@ export class Database {
     return maintenanceQueries.deleteOldestChunksPercent(this.db, percent);
   }
 
+  getStats(): maintenanceQueries.DatabaseStats {
+    return maintenanceQueries.getStats(this.db);
+  }
+
   getDatabaseSizeBytes(): number {
     return maintenanceQueries.getDatabaseSizeBytes(this.db);
   }

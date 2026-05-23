@@ -13,10 +13,6 @@ interface PiiSanitizerStats {
   sessionsWithRedactions: number;
 }
 
-interface CountRow {
-  count: number;
-}
-
 export function registerStats(program: Command): void {
   program
     .command("stats")
@@ -31,35 +27,22 @@ export function registerStats(program: Command): void {
 
       const db = new Database(resolveDbPath(opts.cwd));
       try {
-        const chunkCount = (db.db.prepare("SELECT COUNT(*) AS count FROM chunks").get() as CountRow)
-          .count;
-        const sessionCount = (
-          db.db.prepare("SELECT COUNT(*) AS count FROM sessions").get() as CountRow
-        ).count;
-        const dbSize = db.getDatabaseSizeBytes();
-        const lastMaintenance = db.getLastMaintenanceRun();
-
-        const oldestChunk = db.db
-          .prepare("SELECT created_at FROM chunks ORDER BY created_at ASC LIMIT 1")
-          .get() as { created_at: string } | undefined;
-        const newestChunk = db.db
-          .prepare("SELECT created_at FROM chunks ORDER BY created_at DESC LIMIT 1")
-          .get() as { created_at: string } | undefined;
+        const stats = db.getStats();
 
         console.log("Kizuna Database Statistics");
         console.log("─".repeat(40));
         console.log(`Database:     ${resolveDbPath(opts.cwd)}`);
-        console.log(`Size:         ${formatBytes(dbSize)}`);
-        console.log(`Sessions:     ${sessionCount}`);
-        console.log(`Chunks:       ${chunkCount}`);
-        if (oldestChunk) {
-          console.log(`Oldest:       ${oldestChunk.created_at.split("T")[0]}`);
+        console.log(`Size:         ${formatBytes(stats.databaseSizeBytes)}`);
+        console.log(`Sessions:     ${stats.sessionCount}`);
+        console.log(`Chunks:       ${stats.chunkCount}`);
+        if (stats.oldestChunkDate) {
+          console.log(`Oldest:       ${stats.oldestChunkDate.split("T")[0]}`);
         }
-        if (newestChunk) {
-          console.log(`Newest:       ${newestChunk.created_at.split("T")[0]}`);
+        if (stats.newestChunkDate) {
+          console.log(`Newest:       ${stats.newestChunkDate.split("T")[0]}`);
         }
-        if (lastMaintenance) {
-          console.log(`Last cleanup: ${lastMaintenance.ranAt.split("T")[0]}`);
+        if (stats.lastMaintenanceAt) {
+          console.log(`Last cleanup: ${stats.lastMaintenanceAt.split("T")[0]}`);
         } else {
           console.log("Last cleanup: never");
         }

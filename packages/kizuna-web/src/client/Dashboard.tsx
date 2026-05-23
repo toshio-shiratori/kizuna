@@ -1,14 +1,5 @@
 import { useEffect, useState } from "react";
-
-interface StatsResponse {
-  databaseSizeBytes: number;
-  sessionCount: number;
-  chunkCount: number;
-  oldestChunkDate: string | null;
-  newestChunkDate: string | null;
-  lastMaintenanceAt: string | null;
-  projectDistribution: Array<{ projectId: string; chunkCount: number }>;
-}
+import type { DatabaseStats } from "@kizuna/core";
 
 function formatBytes(bytes: number): string {
   if (bytes === 0) return "0 B";
@@ -61,7 +52,7 @@ function ProjectBar({
 }
 
 export function Dashboard() {
-  const [stats, setStats] = useState<StatsResponse | null>(null);
+  const [stats, setStats] = useState<DatabaseStats | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -69,7 +60,7 @@ export function Dashboard() {
     fetch("/api/stats")
       .then(async (res) => {
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        return res.json() as Promise<StatsResponse>;
+        return res.json() as Promise<DatabaseStats>;
       })
       .then((data) => {
         setStats(data);

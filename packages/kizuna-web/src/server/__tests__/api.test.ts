@@ -1,8 +1,8 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { Hono } from "hono";
 import { Database } from "@kizuna/core";
+import type { DatabaseStats } from "@kizuna/core";
 import { createApiRoutes } from "../routes/api.js";
-import type { StatsResponse } from "../routes/api.js";
 
 let db: Database;
 
@@ -34,7 +34,7 @@ describe("API routes", () => {
       const res = await app.request("/api/stats");
       expect(res.status).toBe(200);
 
-      const body = (await res.json()) as StatsResponse;
+      const body = (await res.json()) as DatabaseStats;
       expect(body.databaseSizeBytes).toBeGreaterThanOrEqual(0);
       expect(body.sessionCount).toBe(0);
       expect(body.chunkCount).toBe(0);
@@ -96,7 +96,7 @@ describe("API routes", () => {
       const res = await app.request("/api/stats");
       expect(res.status).toBe(200);
 
-      const body = (await res.json()) as StatsResponse;
+      const body = (await res.json()) as DatabaseStats;
       expect(body.sessionCount).toBe(2);
       expect(body.chunkCount).toBe(3);
       expect(body.oldestChunkDate).toBe("2025-01-01T00:00:00Z");
@@ -123,7 +123,7 @@ describe("API routes", () => {
       app.route("/api", createApiRoutes(db));
 
       const res = await app.request("/api/stats");
-      const body = (await res.json()) as StatsResponse;
+      const body = (await res.json()) as DatabaseStats;
       expect(body.lastMaintenanceAt).toBe("2025-03-15T10:00:00Z");
     });
   });
