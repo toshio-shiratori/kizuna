@@ -1,16 +1,24 @@
 #!/usr/bin/env node
 import { dirname } from "node:path";
+import { homedir } from "node:os";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { Database, loadPluginManager } from "@kizuna/core";
 import { createServer } from "./server.js";
 
-const dbPath = process.env["KIZUNA_DB_PATH"];
-if (!dbPath) {
+function expandTilde(p: string): string {
+  if (p === "~") return homedir();
+  if (p.startsWith("~/")) return homedir() + p.slice(1);
+  return p;
+}
+
+const rawDbPath = process.env["KIZUNA_DB_PATH"];
+if (!rawDbPath) {
   process.stderr.write("Error: KIZUNA_DB_PATH environment variable is required.\n");
   process.exit(1);
 }
 
-const projectDir = process.env["KIZUNA_PROJECT_DIR"] ?? dirname(dirname(dbPath));
+const dbPath = expandTilde(rawDbPath);
+const projectDir = expandTilde(process.env["KIZUNA_PROJECT_DIR"] ?? dirname(dirname(dbPath)));
 
 const stderrLogger = {
   debug() {},
