@@ -82,18 +82,18 @@ describe("setup command", () => {
     expect(matches).toHaveLength(1);
   });
 
-  it("should deploy recap skill to .claude/commands/", () => {
+  it("should deploy kizuna-recap skill to .claude/skills/", () => {
     runCli(`setup --cwd ${tempDir}`, tempDir);
-    const recapPath = join(tempDir, ".claude", "commands", "recap.md");
+    const recapPath = join(tempDir, ".claude", "skills", "kizuna-recap", "SKILL.md");
     expect(existsSync(recapPath)).toBe(true);
     const content = readFileSync(recapPath, "utf-8");
     expect(content).toContain("name: recap");
     expect(content).toContain("kizuna recap --project <path>");
   });
 
-  it("should overwrite recap skill on re-run", () => {
+  it("should overwrite kizuna-recap skill on re-run", () => {
     runCli(`setup --cwd ${tempDir}`, tempDir);
-    const recapPath = join(tempDir, ".claude", "commands", "recap.md");
+    const recapPath = join(tempDir, ".claude", "skills", "kizuna-recap", "SKILL.md");
     writeFileSync(recapPath, "old content");
     runCli(`setup --cwd ${tempDir}`, tempDir);
     const content = readFileSync(recapPath, "utf-8");
@@ -101,22 +101,11 @@ describe("setup command", () => {
     expect(content).not.toContain("old content");
   });
 
-  it("should deploy session-start skill to .claude/commands/", () => {
+  it("should not deploy session-start skill", () => {
     runCli(`setup --cwd ${tempDir}`, tempDir);
-    const sessionStartPath = join(tempDir, ".claude", "commands", "session-start.md");
-    expect(existsSync(sessionStartPath)).toBe(true);
-    const content = readFileSync(sessionStartPath, "utf-8");
-    expect(content).toContain("name: session-start");
-    expect(content).toContain("kizuna recap --last 1 --limit 3");
-  });
-
-  it("should not overwrite session-start skill on re-run", () => {
-    runCli(`setup --cwd ${tempDir}`, tempDir);
-    const sessionStartPath = join(tempDir, ".claude", "commands", "session-start.md");
-    writeFileSync(sessionStartPath, "custom content");
-    runCli(`setup --cwd ${tempDir}`, tempDir);
-    const content = readFileSync(sessionStartPath, "utf-8");
-    expect(content).toBe("custom content");
+    expect(existsSync(join(tempDir, ".claude", "skills", "session-start", "SKILL.md"))).toBe(false);
+    expect(existsSync(join(tempDir, ".claude", "skills", "kizuna-session-start"))).toBe(false);
+    expect(existsSync(join(tempDir, ".claude", "commands", "session-start.md"))).toBe(false);
   });
 
   it("should not configure MCP server without --with-mcp", () => {

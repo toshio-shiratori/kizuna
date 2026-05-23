@@ -4,7 +4,7 @@ import { resolve } from "node:path";
 import { execSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { injectClaudeMdSection } from "./setup/claude-md.js";
-import { deployRecapSkill, deploySessionStartSkill } from "./setup/skills.js";
+import { deployRecapSkill } from "./setup/skills.js";
 import { configureHooks, findMcpServerPath } from "./setup/hooks.js";
 import { runPluginMigrationsForProject } from "./plugin/run-migrations.js";
 
@@ -71,7 +71,6 @@ export function registerSetup(program: Command): void {
       const injected = injectClaudeMdSection(claudeMdPath);
 
       const recapResult = deployRecapSkill(claudeDir);
-      const sessionStartResult = deploySessionStartSkill(claudeDir);
 
       console.log("Kizuna hooks configured:");
       console.log(`  Settings: ${settingsPath}`);
@@ -103,15 +102,9 @@ export function registerSetup(program: Command): void {
         console.log("CLAUDE.md: Kizuna section already present, skipped");
       }
       console.log("");
-      const recapPath = resolve(claudeDir, "commands", "recap.md");
+      const recapPath = resolve(claudeDir, "skills", "kizuna-recap", "SKILL.md");
       console.log(
         recapResult === "created" ? `Skill deployed: ${recapPath}` : `Skill updated: ${recapPath}`,
-      );
-      const sessionStartPath = resolve(claudeDir, "commands", "session-start.md");
-      console.log(
-        sessionStartResult === "created"
-          ? `Skill deployed: ${sessionStartPath}`
-          : `Skill skipped: ${sessionStartPath} (already exists)`,
       );
 
       if (!pluginsJsonCreated) {
