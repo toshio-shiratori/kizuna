@@ -1,0 +1,54 @@
+{
+  "name": "@kizuna/web",
+  "version": "0.1.0",
+  "description": "Web UI for Kizuna - browser-based memory viewer",
+  "license": "MIT",
+  "author": "Toshio Shiratori (@toshio-shiratori)",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/toshio-shiratori/kizuna.git",
+    "directory": "packages/kizuna-web"
+  },
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./src/server/index.ts",
+      "import": "./dist/server/index.js"
+    }
+  },
+  "publishConfig": {
+    "exports": {
+      ".": {
+        "types": "./dist/server/index.d.ts",
+        "import": "./dist/server/index.js"
+      }
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -b && vite build",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@hono/node-server": "^1.14.1",
+    "@kizuna/core": "workspace:*",
+    "hono": "^4.7.10"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.1.7",
+    "@types/react": "^19.1.4",
+    "@types/react-dom": "^19.1.5",
+    "@vitejs/plugin-react": "^4.5.2",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "tailwindcss": "^4.1.7",
+    "typescript": "^5.8.0",
+    "vite": "^6.3.5",
+    "vitest": "^3.1.0"
+  },
+  "engines": {
+    "node": ">=24.0.0"
+  }
+}

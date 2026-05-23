@@ -11,6 +11,7 @@ import { registerRecap } from "./commands/recap.js";
 import { registerPlugin } from "./commands/plugin.js";
 import { registerExport } from "./commands/export.js";
 import { registerSanitize } from "./commands/sanitize.js";
+import { registerWeb } from "./commands/web.js";
 
 const program = new Command();
 
@@ -27,5 +28,6 @@ registerRecap(program);
 registerPlugin(program);
 registerExport(program);
 registerSanitize(program);
+registerWeb(program);
 
 program.parse();

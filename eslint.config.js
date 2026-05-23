@@ -10,13 +10,18 @@ export default tseslint.config(
     languageOptions: {
       parserOptions: {
         projectService: {
-          allowDefaultProject: ["eslint.config.js", "packages/*/vitest.config.ts"],
+          allowDefaultProject: [
+            "eslint.config.js",
+            "packages/*/vitest.config.ts",
+            "packages/*/vite.config.ts",
+          ],
+          maximumDefaultProjectFileMatchCount_THIS_WILL_SLOW_DOWN_LINTING: 12,
         },
         tsconfigRootDir: import.meta.dirname,
       },
     },
   },
   {
-    ignores: ["**/dist/", "**/node_modules/", "templates/"],
+    ignores: ["**/dist/", "**/node_modules/", "templates/", "packages/kizuna-web/src/client/"],
   },
 );

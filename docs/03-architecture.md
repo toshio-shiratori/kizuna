@@ -71,7 +71,11 @@ kizuna/
 │   │   └── tools/             search, save, list, delete, etc.
 │   │
 │   ├── kizuna-cli/            Command-line interface
-│   │   └── commands/          setup, search, list, prune, etc.
+│   │   └── commands/          setup, search, list, prune, web, etc.
+│   │
+│   ├── kizuna-web/            Web UI (Hono + Vite + React)
+│   │   ├── server/            Hono HTTP server + API routes
+│   │   └── client/            React 19 + Tailwind CSS v4 frontend
 │   │
 │   └── plugin-*               Optional plugins (separate packages)
 │       ├── plugin-pii-sanitizer/
@@ -244,7 +248,6 @@ The CLI commands (`kizuna search`, etc.) MAY surface errors to the user, since t
 
 The following are explicitly NOT part of the initial architecture. They may be added later as plugins or future features, but should not influence current design decisions:
 
-- **Web UI**: A browser-based viewer for stored memories
 - **Vector search in core**: Vector search is a future hybrid plugin, not part of the core
 - **LLM-based summarization in core**: Plugins may add this; the core uses rule-based chunking only
 - **Cloud sync**: Out of scope; users are expected to use shared filesystems if they want sharing
