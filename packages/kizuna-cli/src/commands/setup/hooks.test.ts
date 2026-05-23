@@ -3,26 +3,26 @@ import { mkdtempSync, readFileSync, writeFileSync, mkdirSync, rmSync, existsSync
 import { resolve } from "node:path";
 import { tmpdir, homedir } from "node:os";
 import type { ClaudeSettings, McpJsonConfig } from "./hooks.js";
-import { configureHooks, toTildePath } from "./hooks.js";
+import { configureHooks, toPortablePath } from "./hooks.js";
 
-describe("toTildePath", () => {
-  it("should replace homedir prefix with ~", () => {
+describe("toPortablePath", () => {
+  it("should replace homedir prefix with ${HOME}", () => {
     const home = homedir();
-    expect(toTildePath(`${home}/projects/foo`)).toBe("~/projects/foo");
+    expect(toPortablePath(`${home}/projects/foo`)).toBe("${HOME}/projects/foo");
   });
 
   it("should return path unchanged if not under homedir", () => {
-    expect(toTildePath("/opt/some/path")).toBe("/opt/some/path");
+    expect(toPortablePath("/opt/some/path")).toBe("/opt/some/path");
   });
 
   it("should not match partial homedir prefix", () => {
     const home = homedir();
-    expect(toTildePath(`${home}-suffix/foo`)).toBe(`${home}-suffix/foo`);
+    expect(toPortablePath(`${home}-suffix/foo`)).toBe(`${home}-suffix/foo`);
   });
 
   it("should handle homedir exactly", () => {
     const home = homedir();
-    expect(toTildePath(home)).toBe("~");
+    expect(toPortablePath(home)).toBe("${HOME}");
   });
 });
 
@@ -170,9 +170,9 @@ describe("configureHooks", () => {
     expect(mcpJson.mcpServers!["kizuna"]).toBeDefined();
     expect(mcpJson.mcpServers!["kizuna"]!.command).toBe("node");
     expect(mcpJson.mcpServers!["kizuna"]!.env!["KIZUNA_DB_PATH"]).toBe(
-      toTildePath(resolve(kizunaDir, "memory.db")),
+      toPortablePath(resolve(kizunaDir, "memory.db")),
     );
-    expect(mcpJson.mcpServers!["kizuna"]!.env!["KIZUNA_PROJECT_DIR"]).toBe(toTildePath(tmpDir));
+    expect(mcpJson.mcpServers!["kizuna"]!.env!["KIZUNA_PROJECT_DIR"]).toBe(toPortablePath(tmpDir));
 
     const settings = JSON.parse(readFileSync(settingsPath, "utf-8")) as ClaudeSettings;
     expect(settings.mcpServers).toBeUndefined();
@@ -235,7 +235,7 @@ describe("configureHooks", () => {
 
     const mcpJsonPath = resolve(tmpDir, ".mcp.json");
     const mcpJson = JSON.parse(readFileSync(mcpJsonPath, "utf-8")) as McpJsonConfig;
-    expect(mcpJson.mcpServers!["kizuna"]!.args[0]).toMatch(/^~\//);
+    expect(mcpJson.mcpServers!["kizuna"]!.args[0]).toMatch(/^\$\{HOME\}\//);
   });
 
   it("should remove empty mcpServers from settings.json after migration", () => {

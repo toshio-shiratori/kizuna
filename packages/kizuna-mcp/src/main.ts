@@ -5,9 +5,10 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { Database, loadPluginManager } from "@kizuna/core";
 import { createServer } from "./server.js";
 
-function expandTilde(p: string): string {
+function expandHome(p: string): string {
   if (p === "~") return homedir();
   if (p.startsWith("~/")) return homedir() + p.slice(1);
+  if (p.startsWith("${HOME}")) return homedir() + p.slice(7);
   return p;
 }
 
@@ -17,8 +18,8 @@ if (!rawDbPath) {
   process.exit(1);
 }
 
-const dbPath = expandTilde(rawDbPath);
-const projectDir = expandTilde(process.env["KIZUNA_PROJECT_DIR"] ?? dirname(dirname(dbPath)));
+const dbPath = expandHome(rawDbPath);
+const projectDir = expandHome(process.env["KIZUNA_PROJECT_DIR"] ?? dirname(dirname(dbPath)));
 
 const stderrLogger = {
   debug() {},
