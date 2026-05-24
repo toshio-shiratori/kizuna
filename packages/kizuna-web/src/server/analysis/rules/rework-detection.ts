@@ -1,7 +1,7 @@
 import type { AnalysisRule, AnalysisInput, Finding, ChunkData } from "../types.js";
 
 // Japanese keywords (no word boundaries needed)
-const jaKeywords = ["やり直し", "元に戻す", "前の", "取り消"];
+const jaKeywords = ["やり直し", "元に戻す", "前の状態に戻", "取り消"];
 
 // English keywords (use word-boundary matching)
 const enKeywords = ["revert", "undo", "go back", "restore", "roll back", "rollback"];
