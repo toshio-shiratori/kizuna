@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { searchMemory } from "@kizuna/core";
 import type { Database } from "@kizuna/core";
+import { runAnalysis } from "../analysis/index.js";
 
 export function createApiRoutes(db: Database): Hono {
   const api = new Hono();
@@ -40,6 +41,15 @@ export function createApiRoutes(db: Database): Hono {
     }
     const chunks = db.getChunksBySession(sessionId);
     return c.json({ session, chunks });
+  });
+
+  api.get("/analysis", (c) => {
+    const project = c.req.query("project");
+    if (!project || project.trim().length === 0) {
+      return c.json({ error: "Missing required parameter: project" }, 400);
+    }
+    const report = runAnalysis(db, project.trim());
+    return c.json(report);
   });
 
   return api;
