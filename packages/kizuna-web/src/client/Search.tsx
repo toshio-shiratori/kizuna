@@ -62,8 +62,11 @@ function highlightMatches(content: string, query: string): ReactNode[] {
   const terms = extractSearchTerms(query);
   if (terms.length === 0) return [content];
 
-  // Build a regex that matches any of the terms (case-insensitive)
-  const escaped = terms.map((t) => t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+  // Sort by length descending so longer terms match first (e.g. "JavaScript" before "Java")
+  const escaped = terms
+    .slice()
+    .sort((a, b) => b.length - a.length)
+    .map((t) => t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
   const pattern = new RegExp(`(${escaped.join("|")})`, "gi");
   const parts = content.split(pattern);
 
