@@ -8,3 +8,10 @@
   --color-border: #334155;
   --color-accent: #38bdf8;
 }
+
+mark {
+  background-color: color-mix(in srgb, var(--color-accent) 30%, transparent);
+  color: inherit;
+  border-radius: 2px;
+  padding: 0 1px;
+}

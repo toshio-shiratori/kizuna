@@ -7,6 +7,7 @@ import type {
   SessionListItem,
   Session,
   StoredChunk,
+  SearchResult,
 } from "@kizuna/core";
 import { createApiRoutes } from "../routes/api.js";
 
@@ -312,6 +313,186 @@ describe("API routes", () => {
 
       const body = (await res.json()) as { error: string };
       expect(body.error).toBe("Session not found");
+    });
+  });
+
+  describe("GET /search", () => {
+    it("returns 400 when q is missing", async () => {
+      const app = new Hono();
+      app.route("/api", createApiRoutes(db));
+
+      const res = await app.request("/api/search");
+      expect(res.status).toBe(400);
+
+      const body = (await res.json()) as { error: string };
+      expect(body.error).toBe("Missing required parameter: q");
+    });
+
+    it("returns 400 when q is empty", async () => {
+      const app = new Hono();
+      app.route("/api", createApiRoutes(db));
+
+      const res = await app.request("/api/search?q=");
+      expect(res.status).toBe(400);
+
+      const body = (await res.json()) as { error: string };
+      expect(body.error).toBe("Missing required parameter: q");
+    });
+
+    it("returns 400 when q is whitespace only", async () => {
+      const app = new Hono();
+      app.route("/api", createApiRoutes(db));
+
+      const res = await app.request("/api/search?q=%20%20");
+      expect(res.status).toBe(400);
+
+      const body = (await res.json()) as { error: string };
+      expect(body.error).toBe("Missing required parameter: q");
+    });
+
+    it("returns empty results for query with no matches", async () => {
+      db.insertSession({
+        id: "session-1",
+        projectId: "project-alpha",
+        startedAt: new Date().toISOString(),
+        endedAt: null,
+        transcriptPath: null,
+        metadata: {},
+      });
+      db.insertChunk({
+        sessionId: "session-1",
+        turnIndex: 0,
+        role: "user",
+        content: "Hello world",
+        metadata: {},
+        createdAt: new Date().toISOString(),
+      });
+
+      const app = new Hono();
+      app.route("/api", createApiRoutes(db));
+
+      const res = await app.request("/api/search?q=nonexistent");
+      expect(res.status).toBe(200);
+
+      const body = (await res.json()) as { results: SearchResult[]; query: string };
+      expect(body.results).toEqual([]);
+      expect(body.query).toBe("nonexistent");
+    });
+
+    it("returns results with scores for matching content", async () => {
+      const now = new Date().toISOString();
+      db.insertSession({
+        id: "session-1",
+        projectId: "project-alpha",
+        startedAt: now,
+        endedAt: null,
+        transcriptPath: null,
+        metadata: {},
+      });
+      db.insertChunk({
+        sessionId: "session-1",
+        turnIndex: 0,
+        role: "user",
+        content: "TypeScript is a typed superset of JavaScript",
+        metadata: {},
+        createdAt: now,
+      });
+      db.insertChunk({
+        sessionId: "session-1",
+        turnIndex: 1,
+        role: "assistant",
+        content: "Yes, TypeScript adds static typing to JavaScript",
+        metadata: {},
+        createdAt: now,
+      });
+
+      const app = new Hono();
+      app.route("/api", createApiRoutes(db));
+
+      const res = await app.request("/api/search?q=TypeScript");
+      expect(res.status).toBe(200);
+
+      const body = (await res.json()) as { results: SearchResult[]; query: string };
+      expect(body.query).toBe("TypeScript");
+      expect(body.results.length).toBeGreaterThan(0);
+      for (const result of body.results) {
+        expect(result.score).toBeGreaterThan(0);
+        expect(result.chunk.content.toLowerCase()).toContain("typescript");
+      }
+    });
+
+    it("respects limit parameter", async () => {
+      const now = new Date().toISOString();
+      db.insertSession({
+        id: "session-1",
+        projectId: "project-alpha",
+        startedAt: now,
+        endedAt: null,
+        transcriptPath: null,
+        metadata: {},
+      });
+
+      for (let i = 0; i < 5; i++) {
+        db.insertChunk({
+          sessionId: "session-1",
+          turnIndex: i,
+          role: "user",
+          content: `Testing chunk number ${i} with testing content`,
+          metadata: {},
+          createdAt: now,
+        });
+      }
+
+      const app = new Hono();
+      app.route("/api", createApiRoutes(db));
+
+      const res = await app.request("/api/search?q=testing&limit=2");
+      expect(res.status).toBe(200);
+
+      const body = (await res.json()) as { results: SearchResult[]; query: string };
+      expect(body.results.length).toBeLessThanOrEqual(2);
+    });
+
+    it("results are sorted by score descending", async () => {
+      const now = new Date().toISOString();
+      db.insertSession({
+        id: "session-1",
+        projectId: "project-alpha",
+        startedAt: now,
+        endedAt: null,
+        transcriptPath: null,
+        metadata: {},
+      });
+
+      db.insertChunk({
+        sessionId: "session-1",
+        turnIndex: 0,
+        role: "user",
+        content: "apple banana cherry",
+        metadata: {},
+        createdAt: now,
+      });
+      db.insertChunk({
+        sessionId: "session-1",
+        turnIndex: 1,
+        role: "user",
+        content: "apple apple apple apple apple",
+        metadata: {},
+        createdAt: now,
+      });
+
+      const app = new Hono();
+      app.route("/api", createApiRoutes(db));
+
+      const res = await app.request("/api/search?q=apple");
+      expect(res.status).toBe(200);
+
+      const body = (await res.json()) as { results: SearchResult[]; query: string };
+      expect(body.results.length).toBe(2);
+      // Scores should be in descending order
+      for (let i = 1; i < body.results.length; i++) {
+        expect(body.results[i - 1]!.score).toBeGreaterThanOrEqual(body.results[i]!.score);
+      }
     });
   });
 });

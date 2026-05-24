@@ -1,11 +1,15 @@
 import { useState, useEffect } from "react";
 import { Dashboard } from "./Dashboard.js";
 import { SessionBrowser } from "./SessionBrowser.js";
+import { Search } from "./Search.js";
 
-type Page = "dashboard" | "sessions";
+type Page = "dashboard" | "sessions" | "search";
 
 function getPageFromHash(): Page {
-  return window.location.hash === "#sessions" ? "sessions" : "dashboard";
+  const hash = window.location.hash;
+  if (hash === "#sessions") return "sessions";
+  if (hash === "#search") return "search";
+  return "dashboard";
 }
 
 export function App() {
@@ -34,9 +38,17 @@ export function App() {
           >
             Sessions
           </a>
+          <a
+            href="#search"
+            className={`text-sm ${page === "search" ? "text-accent" : "text-text-secondary hover:text-text-primary"}`}
+          >
+            Search
+          </a>
         </div>
       </nav>
-      {page === "dashboard" ? <Dashboard /> : <SessionBrowser />}
+      {page === "dashboard" && <Dashboard />}
+      {page === "sessions" && <SessionBrowser />}
+      {page === "search" && <Search />}
     </div>
   );
 }
