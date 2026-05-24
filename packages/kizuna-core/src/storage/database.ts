@@ -118,6 +118,10 @@ export class Database {
     return chunkQueries.getChunksBySession(this.db, sessionId);
   }
 
+  updateChunkImportance(id: number, importance: number): boolean {
+    return chunkQueries.updateChunkImportance(this.db, id, importance);
+  }
+
   deleteChunks(ids: number[]): number {
     return chunkQueries.deleteChunks(this.db, ids);
   }

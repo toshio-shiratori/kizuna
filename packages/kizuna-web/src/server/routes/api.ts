@@ -25,6 +25,10 @@ export function createApiRoutes(db: Database, options?: ApiRouteOptions): Hono {
     return c.json({ ok: true });
   });
 
+  api.get("/config", (c) => {
+    return c.json({ write: options?.write ?? false });
+  });
+
   api.get("/stats", (c) => {
     return c.json(db.getStats());
   });
@@ -56,6 +60,53 @@ export function createApiRoutes(db: Database, options?: ApiRouteOptions): Hono {
     }
     const chunks = db.getChunksBySession(sessionId);
     return c.json({ session, chunks });
+  });
+
+  // ─── Chunks ─────────────────────────────────────────
+
+  api.patch("/chunks/:id", async (c) => {
+    if (!options?.write) {
+      return c.json({ error: "Write mode is not enabled" }, 403);
+    }
+    const id = Number(c.req.param("id"));
+    if (isNaN(id)) {
+      return c.json({ error: "Invalid chunk ID" }, 400);
+    }
+    let body: Record<string, unknown>;
+    try {
+      body = (await c.req.json()) as Record<string, unknown>;
+    } catch {
+      return c.json({ error: "Invalid JSON body" }, 400);
+    }
+    const { importance } = body;
+    if (
+      typeof importance !== "number" ||
+      importance < 0 ||
+      importance > 10 ||
+      !Number.isInteger(importance)
+    ) {
+      return c.json({ error: "importance must be an integer between 0 and 10" }, 400);
+    }
+    const updated = db.updateChunkImportance(id, importance);
+    if (!updated) {
+      return c.json({ error: "Chunk not found" }, 404);
+    }
+    return c.json({ ok: true, id, importance });
+  });
+
+  api.delete("/chunks/:id", (c) => {
+    if (!options?.write) {
+      return c.json({ error: "Write mode is not enabled" }, 403);
+    }
+    const id = Number(c.req.param("id"));
+    if (isNaN(id)) {
+      return c.json({ error: "Invalid chunk ID" }, 400);
+    }
+    const deleted = db.deleteChunks([id]);
+    if (deleted === 0) {
+      return c.json({ error: "Chunk not found" }, 404);
+    }
+    return c.json({ ok: true });
   });
 
   api.get("/analysis", (c) => {
