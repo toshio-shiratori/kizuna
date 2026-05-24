@@ -82,6 +82,17 @@ Settings are merged in order: **built-in defaults < global config < project conf
 
 Both files are optional. If neither exists, built-in defaults are used.
 
+### Web UI
+
+Browse and manage memories in the browser:
+
+```bash
+kizuna web
+# Open http://localhost:4100
+```
+
+Features: dashboard, session browser, full-text search, workflow analysis, reports, telepathy, export. Use `--write` to enable chunk editing. See [packages/kizuna-web](packages/kizuna-web/) for details.
+
 ### Search Memories
 
 ```bash
@@ -99,6 +110,7 @@ kizuna/
 │   ├── kizuna-core/                 Core memory engine (SQLite + FTS5)
 │   ├── kizuna-cli/                  CLI (setup, search, hooks)
 │   ├── kizuna-mcp/                  MCP server (stdio transport)
+│   ├── kizuna-web/                  Web UI (Hono + React)
 │   ├── plugin-pii-sanitizer/        Redacts secrets before storage
 │   ├── plugin-multi-repo-sharing/   Cross-repo memory sharing
 │   └── plugin-telepathy/            Real-time context sharing between sessions
