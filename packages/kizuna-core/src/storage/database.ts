@@ -8,11 +8,13 @@ import type {
   MaintenanceRun,
   SessionPreview,
   SessionListItem,
+  Report,
 } from "../index.js";
 import { runCoreMigrations } from "./migrator.js";
 import * as sessionQueries from "./queries/session.js";
 import * as chunkQueries from "./queries/chunk.js";
 import * as maintenanceQueries from "./queries/maintenance.js";
+import * as reportQueries from "./queries/report.js";
 
 export interface DatabaseOptions {
   readonly?: boolean;
@@ -175,5 +177,38 @@ export class Database {
 
   vacuum(): void {
     maintenanceQueries.vacuum(this.db);
+  }
+
+  // ─── Reports ────────────────────────────────────────────
+
+  insertReport(params: {
+    type: "analysis" | "proposal";
+    source: "webui" | "claude";
+    title: string;
+    content: string;
+  }): Report {
+    return reportQueries.insertReport(this.db, params);
+  }
+
+  getReport(id: number): Report | null {
+    return reportQueries.getReport(this.db, id);
+  }
+
+  listReports(opts?: {
+    status?: string;
+    type?: string;
+    source?: string;
+    limit?: number;
+    offset?: number;
+  }): { reports: Report[]; total: number } {
+    return reportQueries.listReports(this.db, opts);
+  }
+
+  updateReportStatus(id: number, status: "unread" | "read"): boolean {
+    return reportQueries.updateReportStatus(this.db, id, status);
+  }
+
+  deleteReport(id: number): boolean {
+    return reportQueries.deleteReport(this.db, id);
   }
 }

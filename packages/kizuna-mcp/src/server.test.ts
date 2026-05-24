@@ -273,6 +273,64 @@ describe("kizuna_delete", () => {
   });
 });
 
+describe("kizuna_report_save", () => {
+  it("creates a report and returns confirmation", async () => {
+    await setupClient();
+    const result = await client.callTool({
+      name: "kizuna_report_save",
+      arguments: {
+        type: "analysis",
+        source: "webui",
+        title: "Workflow Analysis",
+        content: "Some analysis content",
+      },
+    });
+    const text = (result.content as Array<{ type: string; text: string }>)[0]!.text;
+    expect(text).toContain("Saved report");
+    expect(text).toContain("id:");
+    expect(text).toContain("analysis");
+    expect(text).toContain("webui");
+  });
+});
+
+describe("kizuna_report_read", () => {
+  it("returns unread reports and marks them as read", async () => {
+    db.insertReport({
+      type: "analysis",
+      source: "webui",
+      title: "Test Analysis",
+      content: "Analysis content here",
+    });
+
+    await setupClient();
+    const result = await client.callTool({
+      name: "kizuna_report_read",
+      arguments: {},
+    });
+    const text = (result.content as Array<{ type: string; text: string }>)[0]!.text;
+    expect(text).toContain("Test Analysis");
+    expect(text).toContain("Analysis content here");
+
+    // Second call should return no unread reports
+    const result2 = await client.callTool({
+      name: "kizuna_report_read",
+      arguments: {},
+    });
+    const text2 = (result2.content as Array<{ type: string; text: string }>)[0]!.text;
+    expect(text2).toBe("No unread reports.");
+  });
+
+  it("returns 'No unread reports.' when empty", async () => {
+    await setupClient();
+    const result = await client.callTool({
+      name: "kizuna_report_read",
+      arguments: {},
+    });
+    const text = (result.content as Array<{ type: string; text: string }>)[0]!.text;
+    expect(text).toBe("No unread reports.");
+  });
+});
+
 describe("MCP server plugin tool registration", () => {
   it("handles plugin tools with no inputSchema", async () => {
     const manager = new PluginManager({

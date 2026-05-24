@@ -367,6 +367,153 @@ describe("Database", () => {
     });
   });
 
+  describe("reports", () => {
+    it("inserts and retrieves a report", () => {
+      const report = db.insertReport({
+        type: "analysis",
+        source: "webui",
+        title: "Test Report",
+        content: "Some analysis content",
+      });
+      expect(report.id).toBeGreaterThan(0);
+      expect(report.type).toBe("analysis");
+      expect(report.source).toBe("webui");
+      expect(report.title).toBe("Test Report");
+      expect(report.content).toBe("Some analysis content");
+      expect(report.status).toBe("unread");
+      expect(report.createdAt).toBeTruthy();
+
+      const got = db.getReport(report.id);
+      expect(got).toEqual(report);
+    });
+
+    it("returns null for non-existent report", () => {
+      expect(db.getReport(99999)).toBeNull();
+    });
+
+    it("lists reports with filtering by status", () => {
+      db.insertReport({
+        type: "analysis",
+        source: "webui",
+        title: "Unread Report",
+        content: "content",
+      });
+      const r2 = db.insertReport({
+        type: "proposal",
+        source: "claude",
+        title: "Read Report",
+        content: "content",
+      });
+      db.updateReportStatus(r2.id, "read");
+
+      const { reports: unread, total: unreadTotal } = db.listReports({ status: "unread" });
+      expect(unreadTotal).toBe(1);
+      expect(unread).toHaveLength(1);
+      expect(unread[0]!.title).toBe("Unread Report");
+
+      const { reports: read, total: readTotal } = db.listReports({ status: "read" });
+      expect(readTotal).toBe(1);
+      expect(read).toHaveLength(1);
+      expect(read[0]!.title).toBe("Read Report");
+    });
+
+    it("lists reports with filtering by type", () => {
+      db.insertReport({
+        type: "analysis",
+        source: "webui",
+        title: "Analysis",
+        content: "content",
+      });
+      db.insertReport({
+        type: "proposal",
+        source: "claude",
+        title: "Proposal",
+        content: "content",
+      });
+
+      const { reports, total } = db.listReports({ type: "proposal" });
+      expect(total).toBe(1);
+      expect(reports).toHaveLength(1);
+      expect(reports[0]!.title).toBe("Proposal");
+    });
+
+    it("lists reports with filtering by source", () => {
+      db.insertReport({
+        type: "analysis",
+        source: "webui",
+        title: "From WebUI",
+        content: "content",
+      });
+      db.insertReport({
+        type: "proposal",
+        source: "claude",
+        title: "From Claude",
+        content: "content",
+      });
+
+      const { reports, total } = db.listReports({ source: "claude" });
+      expect(total).toBe(1);
+      expect(reports).toHaveLength(1);
+      expect(reports[0]!.title).toBe("From Claude");
+    });
+
+    it("lists all reports without filters", () => {
+      db.insertReport({
+        type: "analysis",
+        source: "webui",
+        title: "Report 1",
+        content: "content",
+      });
+      db.insertReport({
+        type: "proposal",
+        source: "claude",
+        title: "Report 2",
+        content: "content",
+      });
+
+      const { reports, total } = db.listReports();
+      expect(total).toBe(2);
+      expect(reports).toHaveLength(2);
+    });
+
+    it("updates report status", () => {
+      const report = db.insertReport({
+        type: "analysis",
+        source: "webui",
+        title: "Test",
+        content: "content",
+      });
+      expect(report.status).toBe("unread");
+
+      const updated = db.updateReportStatus(report.id, "read");
+      expect(updated).toBe(true);
+
+      const got = db.getReport(report.id);
+      expect(got!.status).toBe("read");
+    });
+
+    it("updateReportStatus returns false for non-existent report", () => {
+      expect(db.updateReportStatus(99999, "read")).toBe(false);
+    });
+
+    it("deletes a report", () => {
+      const report = db.insertReport({
+        type: "analysis",
+        source: "webui",
+        title: "To Delete",
+        content: "content",
+      });
+
+      const deleted = db.deleteReport(report.id);
+      expect(deleted).toBe(true);
+      expect(db.getReport(report.id)).toBeNull();
+    });
+
+    it("deleteReport returns false for non-existent report", () => {
+      expect(db.deleteReport(99999)).toBe(false);
+    });
+  });
+
   describe("migrations", () => {
     it("is idempotent — opening twice doesn't fail", () => {
       const dbPath = join(dir, "test.db");

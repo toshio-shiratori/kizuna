@@ -251,6 +251,18 @@ export interface Plugin {
   cliCommands?(): CLICommandDefinition[];
 }
 
+// ─── Report Types ────────────────────────────────────────
+
+export interface Report {
+  id: number;
+  type: "analysis" | "proposal";
+  source: "webui" | "claude";
+  title: string;
+  content: string;
+  status: "unread" | "read";
+  createdAt: string;
+}
+
 // ─── Maintenance Types ────────────────────────────────────
 
 export interface MaintenanceRun {

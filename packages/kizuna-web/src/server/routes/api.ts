@@ -52,5 +52,94 @@ export function createApiRoutes(db: Database): Hono {
     return c.json(report);
   });
 
+  // ─── Reports ────────────────────────────────────────────
+
+  api.post("/reports", async (c) => {
+    let body: Record<string, unknown>;
+    try {
+      body = (await c.req.json()) as Record<string, unknown>;
+    } catch {
+      return c.json({ error: "Invalid JSON body" }, 400);
+    }
+
+    const { type, source, title, content } = body;
+
+    if (!type || !source || !title || !content) {
+      return c.json({ error: "Missing required fields: type, source, title, content" }, 400);
+    }
+
+    if (type !== "analysis" && type !== "proposal") {
+      return c.json({ error: 'Invalid type: must be "analysis" or "proposal"' }, 400);
+    }
+
+    if (source !== "webui" && source !== "claude") {
+      return c.json({ error: 'Invalid source: must be "webui" or "claude"' }, 400);
+    }
+
+    if (typeof title !== "string" || typeof content !== "string") {
+      return c.json({ error: "title and content must be strings" }, 400);
+    }
+
+    const report = db.insertReport({
+      type: type as "analysis" | "proposal",
+      source: source as "webui" | "claude",
+      title,
+      content,
+    });
+    return c.json(report, 201);
+  });
+
+  api.get("/reports", (c) => {
+    const status = c.req.query("status");
+    const type = c.req.query("type");
+    const source = c.req.query("source");
+    const limit = Math.min(100, Math.max(1, Number(c.req.query("limit")) || 20));
+    const offset = Math.max(0, Number(c.req.query("offset")) || 0);
+
+    const { reports, total } = db.listReports({ status, type, source, limit, offset });
+    return c.json({ reports, total });
+  });
+
+  api.patch("/reports/:id", async (c) => {
+    const id = Number(c.req.param("id"));
+    if (isNaN(id)) {
+      return c.json({ error: "Invalid report ID" }, 400);
+    }
+
+    let body: Record<string, unknown>;
+    try {
+      body = (await c.req.json()) as Record<string, unknown>;
+    } catch {
+      return c.json({ error: "Invalid JSON body" }, 400);
+    }
+
+    const { status } = body;
+    if (status !== "unread" && status !== "read") {
+      return c.json({ error: 'Invalid status: must be "unread" or "read"' }, 400);
+    }
+
+    const existing = db.getReport(id);
+    if (!existing) {
+      return c.json({ error: "Report not found" }, 404);
+    }
+
+    db.updateReportStatus(id, status as "unread" | "read");
+    return c.json({ ...existing, status });
+  });
+
+  api.delete("/reports/:id", (c) => {
+    const id = Number(c.req.param("id"));
+    if (isNaN(id)) {
+      return c.json({ error: "Invalid report ID" }, 400);
+    }
+
+    const deleted = db.deleteReport(id);
+    if (!deleted) {
+      return c.json({ error: "Report not found" }, 404);
+    }
+
+    return c.json({ ok: true });
+  });
+
   return api;
 }
