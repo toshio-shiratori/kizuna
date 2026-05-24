@@ -716,4 +716,179 @@ describe("API routes", () => {
       expect(body.error).toBe("Report not found");
     });
   });
+
+  describe("GET /telepathy/references", () => {
+    it("returns empty references when projectDir is not configured", async () => {
+      const app = new Hono();
+      app.route("/api", createApiRoutes(db));
+
+      const res = await app.request("/api/telepathy/references");
+      expect(res.status).toBe(200);
+
+      const body = (await res.json()) as { references: unknown[] };
+      expect(body.references).toEqual([]);
+    });
+
+    it("returns references when projectDir is configured", async () => {
+      const app = new Hono();
+      // Use a non-existent path (discoverReferences returns [] for missing dirs)
+      app.route(
+        "/api",
+        createApiRoutes(db, { projectDir: "/tmp/nonexistent-test-dir", write: false }),
+      );
+
+      const res = await app.request("/api/telepathy/references");
+      expect(res.status).toBe(200);
+
+      const body = (await res.json()) as { references: unknown[] };
+      expect(body.references).toEqual([]);
+    });
+  });
+
+  describe("POST /telepathy/send", () => {
+    it("returns 403 when write mode is not enabled", async () => {
+      const app = new Hono();
+      app.route("/api", createApiRoutes(db, { projectDir: "/tmp/test", write: false }));
+
+      const res = await app.request("/api/telepathy/send", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: "test" }),
+      });
+      expect(res.status).toBe(403);
+
+      const body = (await res.json()) as { error: string };
+      expect(body.error).toBe("Write mode is not enabled");
+    });
+
+    it("returns 503 when telepathy table does not exist", async () => {
+      const app = new Hono();
+      app.route("/api", createApiRoutes(db, { projectDir: "/tmp/test", write: true }));
+
+      const res = await app.request("/api/telepathy/send", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: "test" }),
+      });
+      expect(res.status).toBe(503);
+
+      const body = (await res.json()) as { error: string };
+      expect(body.error).toBe("Telepathy plugin is not enabled");
+    });
+
+    it("returns 400 when message is missing", async () => {
+      // Create the telepathy table
+      db.db.exec(`
+        CREATE TABLE telepathy_messages (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          message TEXT NOT NULL,
+          created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        )
+      `);
+
+      const app = new Hono();
+      app.route("/api", createApiRoutes(db, { projectDir: "/tmp/test", write: true }));
+
+      const res = await app.request("/api/telepathy/send", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      });
+      expect(res.status).toBe(400);
+
+      const body = (await res.json()) as { error: string };
+      expect(body.error).toBe("message is required and must be a string");
+    });
+
+    it("sends a message successfully", async () => {
+      // Create the telepathy table
+      db.db.exec(`
+        CREATE TABLE telepathy_messages (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          message TEXT NOT NULL,
+          created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        )
+      `);
+
+      const app = new Hono();
+      app.route("/api", createApiRoutes(db, { projectDir: "/tmp/test", write: true }));
+
+      const res = await app.request("/api/telepathy/send", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: "Hello from web UI" }),
+      });
+      expect(res.status).toBe(200);
+
+      const body = (await res.json()) as { ok: boolean; length: number };
+      expect(body.ok).toBe(true);
+      expect(body.length).toBe("Hello from web UI".length);
+
+      // Verify in DB
+      const row = db.db.prepare("SELECT message FROM telepathy_messages LIMIT 1").get() as {
+        message: string;
+      };
+      expect(row.message).toBe("Hello from web UI");
+    });
+
+    it("overwrites previous message on second send", async () => {
+      db.db.exec(`
+        CREATE TABLE telepathy_messages (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          message TEXT NOT NULL,
+          created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        )
+      `);
+
+      const app = new Hono();
+      app.route("/api", createApiRoutes(db, { projectDir: "/tmp/test", write: true }));
+
+      await app.request("/api/telepathy/send", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: "First message" }),
+      });
+
+      await app.request("/api/telepathy/send", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: "Second message" }),
+      });
+
+      const rows = db.db.prepare("SELECT message FROM telepathy_messages").all() as {
+        message: string;
+      }[];
+      expect(rows).toHaveLength(1);
+      expect(rows[0]!.message).toBe("Second message");
+    });
+  });
+
+  describe("GET /telepathy/receive", () => {
+    it("returns empty when projectDir is not configured", async () => {
+      const app = new Hono();
+      app.route("/api", createApiRoutes(db));
+
+      const res = await app.request("/api/telepathy/receive");
+      expect(res.status).toBe(200);
+
+      const body = (await res.json()) as { messages: unknown[]; note?: string };
+      expect(body.messages).toEqual([]);
+      expect(body.note).toBe("Project directory not configured");
+    });
+
+    it("returns empty when no references are found", async () => {
+      const app = new Hono();
+      app.route(
+        "/api",
+        createApiRoutes(db, { projectDir: "/tmp/nonexistent-test-dir", write: false }),
+      );
+
+      const res = await app.request("/api/telepathy/receive");
+      expect(res.status).toBe(200);
+
+      const body = (await res.json()) as { messages: unknown[]; note?: string };
+      expect(body.messages).toEqual([]);
+      expect(body.note).toBe("No referenced projects found");
+    });
+  });
 });
