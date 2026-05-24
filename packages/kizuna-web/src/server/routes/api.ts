@@ -1,6 +1,6 @@
 import { Hono } from "hono";
-import { searchMemory } from "@kizuna/core";
-import type { Database } from "@kizuna/core";
+import { searchMemory, exportMemory } from "@kizuna/core";
+import type { Database, ExportFormat } from "@kizuna/core";
 import { discoverReferences } from "@kizuna/plugin-multi-repo-sharing";
 import { hasTelepathyTable, sendMessage, receiveMessages } from "@kizuna/plugin-telepathy";
 import type { RepoReference } from "@kizuna/plugin-telepathy";
@@ -9,6 +9,7 @@ import { runAnalysis } from "../analysis/index.js";
 export interface ApiRouteOptions {
   projectDir: string;
   write: boolean;
+  sessionExportLimit?: number;
 }
 
 const webLogger = {
@@ -116,6 +117,87 @@ export function createApiRoutes(db: Database, options?: ApiRouteOptions): Hono {
     }
     const report = runAnalysis(db, project.trim());
     return c.json(report);
+  });
+
+  // ─── Export ─────────────────────────────────────────────
+
+  api.get("/export/session/:id", async (c) => {
+    const sessionId = c.req.param("id");
+    const session = db.getSession(sessionId);
+    if (!session) {
+      return c.json({ error: "Session not found" }, 404);
+    }
+
+    const formatParam = c.req.query("format") ?? "json";
+    if (formatParam !== "json" && formatParam !== "markdown") {
+      return c.json({ error: 'Invalid format: must be "json" or "markdown"' }, 400);
+    }
+    const format: ExportFormat = formatParam;
+    const exportLimit = options?.sessionExportLimit ?? 10_000;
+
+    const totalChunks = (
+      db.db.prepare("SELECT COUNT(*) as cnt FROM chunks WHERE session_id = ?").get(sessionId) as {
+        cnt: number;
+      }
+    ).cnt;
+
+    let text = await exportMemory(db, {
+      sessionIds: [sessionId],
+      format,
+      limit: exportLimit,
+    });
+
+    const truncated = totalChunks > exportLimit;
+    if (truncated) {
+      if (format === "json") {
+        const parsed = JSON.parse(text) as Record<string, unknown>;
+        const meta = parsed.meta as Record<string, unknown>;
+        meta.truncated = true;
+        meta.totalAvailable = totalChunks;
+        text = JSON.stringify(parsed, null, 2) + "\n";
+      } else {
+        text =
+          `> **Warning**: This export is truncated. Showing ${exportLimit.toLocaleString()} of ${totalChunks.toLocaleString()} chunks.\n\n` +
+          text;
+      }
+    }
+
+    const shortId = sessionId.slice(0, 8);
+    const ext = format === "json" ? "json" : "md";
+    const contentType =
+      format === "json" ? "application/json; charset=utf-8" : "text/markdown; charset=utf-8";
+
+    return c.body(text, 200, {
+      "Content-Type": contentType,
+      "Content-Disposition": `attachment; filename="kizuna-session-${shortId}.${ext}"`,
+    });
+  });
+
+  api.get("/export/search", async (c) => {
+    const q = c.req.query("q");
+    if (!q || q.trim().length === 0) {
+      return c.json({ error: "Missing required parameter: q" }, 400);
+    }
+
+    const formatParam = c.req.query("format") ?? "json";
+    if (formatParam !== "json" && formatParam !== "markdown") {
+      return c.json({ error: 'Invalid format: must be "json" or "markdown"' }, 400);
+    }
+    const format: ExportFormat = formatParam;
+
+    const limit = Math.min(1000, Math.max(1, Number(c.req.query("limit")) || 100));
+
+    const text = await exportMemory(db, { query: q, format, limit });
+
+    const querySlug = q.replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 40) || "results";
+    const ext = format === "json" ? "json" : "md";
+    const contentType =
+      format === "json" ? "application/json; charset=utf-8" : "text/markdown; charset=utf-8";
+
+    return c.body(text, 200, {
+      "Content-Type": contentType,
+      "Content-Disposition": `attachment; filename="kizuna-search-${querySlug}.${ext}"`,
+    });
   });
 
   // ─── Reports ────────────────────────────────────────────
