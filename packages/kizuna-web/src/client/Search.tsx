@@ -261,9 +261,27 @@ export function Search() {
 
       {!loading && results.length > 0 && (
         <div>
-          <p className="mb-4 text-sm text-text-secondary">
-            {results.length} result{results.length !== 1 ? "s" : ""}
-          </p>
+          <div className="mb-4 flex items-center justify-between">
+            <p className="text-sm text-text-secondary">
+              {results.length} result{results.length !== 1 ? "s" : ""}
+            </p>
+            <div className="flex items-center gap-2">
+              <a
+                href={`/api/export/search?q=${encodeURIComponent(submittedQuery)}&format=json`}
+                className="rounded border border-border px-3 py-1 text-sm text-text-secondary hover:bg-border hover:text-text-primary"
+                download
+              >
+                Export JSON
+              </a>
+              <a
+                href={`/api/export/search?q=${encodeURIComponent(submittedQuery)}&format=markdown`}
+                className="rounded border border-border px-3 py-1 text-sm text-text-secondary hover:bg-border hover:text-text-primary"
+                download
+              >
+                Export MD
+              </a>
+            </div>
+          </div>
           <div className="space-y-3">
             {results.map((result) => (
               <SearchResultCard key={result.chunk.id} result={result} query={submittedQuery} />

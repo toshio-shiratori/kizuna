@@ -977,6 +977,281 @@ describe("API routes", () => {
     });
   });
 
+  describe("GET /export/session/:id", () => {
+    function seedSession() {
+      db.insertSession({
+        id: "session-export-1",
+        projectId: "project-alpha",
+        startedAt: "2025-01-01T00:00:00Z",
+        endedAt: "2025-01-01T01:00:00Z",
+        transcriptPath: null,
+        metadata: {},
+      });
+      db.insertChunk({
+        sessionId: "session-export-1",
+        turnIndex: 0,
+        role: "user",
+        content: "Hello export test",
+        metadata: {},
+        createdAt: "2025-01-01T00:00:00Z",
+      });
+      db.insertChunk({
+        sessionId: "session-export-1",
+        turnIndex: 1,
+        role: "assistant",
+        content: "Export reply",
+        metadata: {},
+        createdAt: "2025-01-01T00:30:00Z",
+      });
+    }
+
+    it("returns 404 for non-existent session", async () => {
+      const app = new Hono();
+      app.route("/api", createApiRoutes(db));
+
+      const res = await app.request("/api/export/session/non-existent");
+      expect(res.status).toBe(404);
+
+      const body = (await res.json()) as { error: string };
+      expect(body.error).toBe("Session not found");
+    });
+
+    it("returns 400 for invalid format", async () => {
+      seedSession();
+
+      const app = new Hono();
+      app.route("/api", createApiRoutes(db));
+
+      const res = await app.request("/api/export/session/session-export-1?format=xml");
+      expect(res.status).toBe(400);
+
+      const body = (await res.json()) as { error: string };
+      expect(body.error).toContain("Invalid format");
+    });
+
+    it("exports session as JSON with correct headers", async () => {
+      seedSession();
+
+      const app = new Hono();
+      app.route("/api", createApiRoutes(db));
+
+      const res = await app.request("/api/export/session/session-export-1?format=json");
+      expect(res.status).toBe(200);
+      expect(res.headers.get("Content-Type")).toBe("application/json; charset=utf-8");
+      expect(res.headers.get("Content-Disposition")).toContain("attachment");
+      expect(res.headers.get("Content-Disposition")).toContain("kizuna-session-session-");
+      expect(res.headers.get("Content-Disposition")).toContain(".json");
+
+      const text = await res.text();
+      const parsed = JSON.parse(text) as { meta: { chunkCount: number }; chunks: unknown[] };
+      expect(parsed.meta.chunkCount).toBe(2);
+      expect(parsed.chunks).toHaveLength(2);
+    });
+
+    it("exports session as Markdown with correct headers", async () => {
+      seedSession();
+
+      const app = new Hono();
+      app.route("/api", createApiRoutes(db));
+
+      const res = await app.request("/api/export/session/session-export-1?format=markdown");
+      expect(res.status).toBe(200);
+      expect(res.headers.get("Content-Type")).toBe("text/markdown; charset=utf-8");
+      expect(res.headers.get("Content-Disposition")).toContain(".md");
+
+      const text = await res.text();
+      expect(text.startsWith("# Kizuna Memory Export")).toBe(true);
+    });
+
+    it("defaults to JSON format when format is not specified", async () => {
+      seedSession();
+
+      const app = new Hono();
+      app.route("/api", createApiRoutes(db));
+
+      const res = await app.request("/api/export/session/session-export-1");
+      expect(res.status).toBe(200);
+      expect(res.headers.get("Content-Type")).toBe("application/json; charset=utf-8");
+
+      const text = await res.text();
+      const parsed = JSON.parse(text) as { chunks: unknown[] };
+      expect(parsed.chunks).toHaveLength(2);
+    });
+  });
+
+  describe("GET /export/search", () => {
+    function seedSearchData() {
+      const now = new Date().toISOString();
+      db.insertSession({
+        id: "session-search-export",
+        projectId: "project-alpha",
+        startedAt: now,
+        endedAt: null,
+        transcriptPath: null,
+        metadata: {},
+      });
+      db.insertChunk({
+        sessionId: "session-search-export",
+        turnIndex: 0,
+        role: "user",
+        content: "TypeScript export testing content",
+        metadata: {},
+        createdAt: now,
+      });
+      db.insertChunk({
+        sessionId: "session-search-export",
+        turnIndex: 1,
+        role: "assistant",
+        content: "TypeScript is great for export",
+        metadata: {},
+        createdAt: now,
+      });
+    }
+
+    it("returns 400 when q is missing", async () => {
+      const app = new Hono();
+      app.route("/api", createApiRoutes(db));
+
+      const res = await app.request("/api/export/search");
+      expect(res.status).toBe(400);
+
+      const body = (await res.json()) as { error: string };
+      expect(body.error).toBe("Missing required parameter: q");
+    });
+
+    it("returns 400 when q is empty", async () => {
+      const app = new Hono();
+      app.route("/api", createApiRoutes(db));
+
+      const res = await app.request("/api/export/search?q=");
+      expect(res.status).toBe(400);
+
+      const body = (await res.json()) as { error: string };
+      expect(body.error).toBe("Missing required parameter: q");
+    });
+
+    it("returns 400 for invalid format", async () => {
+      const app = new Hono();
+      app.route("/api", createApiRoutes(db));
+
+      const res = await app.request("/api/export/search?q=test&format=csv");
+      expect(res.status).toBe(400);
+
+      const body = (await res.json()) as { error: string };
+      expect(body.error).toContain("Invalid format");
+    });
+
+    it("exports search results as JSON with correct headers", async () => {
+      seedSearchData();
+
+      const app = new Hono();
+      app.route("/api", createApiRoutes(db));
+
+      const res = await app.request("/api/export/search?q=TypeScript&format=json");
+      expect(res.status).toBe(200);
+      expect(res.headers.get("Content-Type")).toBe("application/json; charset=utf-8");
+      expect(res.headers.get("Content-Disposition")).toContain("attachment");
+      expect(res.headers.get("Content-Disposition")).toContain("kizuna-search-TypeScript");
+      expect(res.headers.get("Content-Disposition")).toContain(".json");
+
+      const text = await res.text();
+      const parsed = JSON.parse(text) as { meta: { chunkCount: number }; chunks: unknown[] };
+      expect(parsed.chunks.length).toBeGreaterThan(0);
+      expect(parsed.meta.chunkCount).toBe(parsed.chunks.length);
+    });
+
+    it("exports search results as Markdown with correct headers", async () => {
+      seedSearchData();
+
+      const app = new Hono();
+      app.route("/api", createApiRoutes(db));
+
+      const res = await app.request("/api/export/search?q=TypeScript&format=markdown");
+      expect(res.status).toBe(200);
+      expect(res.headers.get("Content-Type")).toBe("text/markdown; charset=utf-8");
+      expect(res.headers.get("Content-Disposition")).toContain(".md");
+
+      const text = await res.text();
+      expect(text.startsWith("# Kizuna Memory Export")).toBe(true);
+    });
+
+    it("defaults to JSON format when format is not specified", async () => {
+      seedSearchData();
+
+      const app = new Hono();
+      app.route("/api", createApiRoutes(db));
+
+      const res = await app.request("/api/export/search?q=TypeScript");
+      expect(res.status).toBe(200);
+      expect(res.headers.get("Content-Type")).toBe("application/json; charset=utf-8");
+    });
+
+    it("respects limit parameter", async () => {
+      const now = new Date().toISOString();
+      db.insertSession({
+        id: "session-limit-export",
+        projectId: "project-alpha",
+        startedAt: now,
+        endedAt: null,
+        transcriptPath: null,
+        metadata: {},
+      });
+
+      for (let i = 0; i < 5; i++) {
+        db.insertChunk({
+          sessionId: "session-limit-export",
+          turnIndex: i,
+          role: "user",
+          content: `Export limit testing chunk number ${i}`,
+          metadata: {},
+          createdAt: now,
+        });
+      }
+
+      const app = new Hono();
+      app.route("/api", createApiRoutes(db));
+
+      const res = await app.request(
+        "/api/export/search?q=Export+limit+testing&format=json&limit=2",
+      );
+      expect(res.status).toBe(200);
+
+      const text = await res.text();
+      const parsed = JSON.parse(text) as { chunks: unknown[] };
+      expect(parsed.chunks.length).toBeLessThanOrEqual(2);
+    });
+
+    it("returns empty export when no matches found", async () => {
+      db.insertSession({
+        id: "session-empty-export",
+        projectId: "project-alpha",
+        startedAt: new Date().toISOString(),
+        endedAt: null,
+        transcriptPath: null,
+        metadata: {},
+      });
+      db.insertChunk({
+        sessionId: "session-empty-export",
+        turnIndex: 0,
+        role: "user",
+        content: "Hello world",
+        metadata: {},
+        createdAt: new Date().toISOString(),
+      });
+
+      const app = new Hono();
+      app.route("/api", createApiRoutes(db));
+
+      const res = await app.request("/api/export/search?q=nonexistent&format=json");
+      expect(res.status).toBe(200);
+
+      const text = await res.text();
+      const parsed = JSON.parse(text) as { meta: { chunkCount: number }; chunks: unknown[] };
+      expect(parsed.meta.chunkCount).toBe(0);
+      expect(parsed.chunks).toEqual([]);
+    });
+  });
+
   describe("GET /telepathy/references", () => {
     it("returns empty references when projectDir is not configured", async () => {
       const app = new Hono();

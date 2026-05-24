@@ -207,12 +207,28 @@ function SessionDetail({
           </p>
           <p className="mt-1 font-mono text-xs text-text-secondary">{data.session.id}</p>
         </div>
-        <button
-          onClick={onClose}
-          className="rounded border border-border px-3 py-1 text-sm text-text-secondary hover:bg-border hover:text-text-primary"
-        >
-          Close
-        </button>
+        <div className="flex items-center gap-2">
+          <a
+            href={`/api/export/session/${encodeURIComponent(sessionId)}?format=json`}
+            className="rounded border border-border px-3 py-1 text-sm text-text-secondary hover:bg-border hover:text-text-primary"
+            download
+          >
+            Export JSON
+          </a>
+          <a
+            href={`/api/export/session/${encodeURIComponent(sessionId)}?format=markdown`}
+            className="rounded border border-border px-3 py-1 text-sm text-text-secondary hover:bg-border hover:text-text-primary"
+            download
+          >
+            Export MD
+          </a>
+          <button
+            onClick={onClose}
+            className="rounded border border-border px-3 py-1 text-sm text-text-secondary hover:bg-border hover:text-text-primary"
+          >
+            Close
+          </button>
+        </div>
       </div>
       <div className="space-y-3">
         {data.chunks.map((chunk) => (
