@@ -800,6 +800,30 @@ describe("API routes", () => {
       expect(body.error).toBe("message is required and must be a string");
     });
 
+    it("returns 400 when message exceeds max length", async () => {
+      db.db.exec(`
+        CREATE TABLE telepathy_messages (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          message TEXT NOT NULL,
+          created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        )
+      `);
+
+      const app = new Hono();
+      app.route("/api", createApiRoutes(db, { projectDir: "/tmp/test", write: true }));
+
+      const longMessage = "x".repeat(100_001);
+      const res = await app.request("/api/telepathy/send", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: longMessage }),
+      });
+      expect(res.status).toBe(400);
+
+      const body = (await res.json()) as { error: string };
+      expect(body.error).toContain("Message too long");
+    });
+
     it("sends a message successfully", async () => {
       // Create the telepathy table
       db.db.exec(`

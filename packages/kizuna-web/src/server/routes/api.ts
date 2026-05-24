@@ -11,11 +11,11 @@ export interface ApiRouteOptions {
   write: boolean;
 }
 
-const noopLogger = {
+const webLogger = {
   debug() {},
   info() {},
-  warn() {},
-  error() {},
+  warn: console.warn,
+  error: console.error,
 };
 
 export function createApiRoutes(db: Database, options?: ApiRouteOptions): Hono {
@@ -187,6 +187,14 @@ export function createApiRoutes(db: Database, options?: ApiRouteOptions): Hono {
       return c.json({ error: "message is required and must be a string" }, 400);
     }
 
+    const MAX_MESSAGE_LENGTH = 100_000;
+    if (message.length > MAX_MESSAGE_LENGTH) {
+      return c.json(
+        { error: `Message too long: ${message.length} chars (max ${MAX_MESSAGE_LENGTH})` },
+        400,
+      );
+    }
+
     sendMessage(db.db, message);
     return c.json({ ok: true, length: message.length });
   });
@@ -201,7 +209,7 @@ export function createApiRoutes(db: Database, options?: ApiRouteOptions): Hono {
       return c.json({ messages: [], note: "No referenced projects found" });
     }
 
-    const messages = receiveMessages(references, noopLogger);
+    const messages = receiveMessages(references, webLogger);
     return c.json({ messages });
   });
 
