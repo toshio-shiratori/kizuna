@@ -49,6 +49,15 @@ export function getChunksBySession(db: BetterSqlite3.Database, sessionId: string
   return rows.map(chunkRowToStoredChunk);
 }
 
+export function updateChunkImportance(
+  db: BetterSqlite3.Database,
+  id: number,
+  importance: number,
+): boolean {
+  const result = db.prepare("UPDATE chunks SET importance = ? WHERE id = ?").run(importance, id);
+  return result.changes > 0;
+}
+
 export function deleteChunks(db: BetterSqlite3.Database, ids: number[]): number {
   if (ids.length === 0) return 0;
   const placeholders = ids.map(() => "?").join(",");

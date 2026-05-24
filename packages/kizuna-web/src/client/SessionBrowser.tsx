@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import type { PaginatedResult, SessionListItem, Session, StoredChunk } from "@kizuna/core";
 
 function formatDate(iso: string): string {
@@ -23,7 +23,66 @@ function RoleBadge({ role }: { role: "user" | "assistant" }) {
   );
 }
 
-function ChunkCard({ chunk }: { chunk: StoredChunk }) {
+function ChunkCard({
+  chunk,
+  writeMode,
+  onImportanceChange,
+  onDelete,
+}: {
+  chunk: StoredChunk;
+  writeMode: boolean;
+  onImportanceChange?: (id: number, importance: number) => void;
+  onDelete?: (id: number) => void;
+}) {
+  const [localImportance, setLocalImportance] = useState(chunk.importance);
+  const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
+  const isDirty = localImportance !== chunk.importance;
+
+  const handleSave = useCallback(async () => {
+    if (!isDirty || saving) return;
+    setSaving(true);
+    try {
+      const res = await fetch(`/api/chunks/${chunk.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ importance: localImportance }),
+      });
+      if (!res.ok) {
+        const err = (await res.json()) as { error: string };
+        throw new Error(err.error);
+      }
+      onImportanceChange?.(chunk.id, localImportance);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Unknown error";
+      alert(`Failed to update importance: ${msg}`);
+      setLocalImportance(chunk.importance);
+    } finally {
+      setSaving(false);
+    }
+  }, [chunk.id, chunk.importance, localImportance, isDirty, saving, onImportanceChange]);
+
+  const handleDelete = useCallback(async () => {
+    const confirmed = window.confirm(
+      `Delete this chunk? (ID: ${chunk.id}, ${chunk.role}, turn ${chunk.turnIndex})`,
+    );
+    if (!confirmed) return;
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/chunks/${chunk.id}`, { method: "DELETE" });
+      if (!res.ok) {
+        const err = (await res.json()) as { error: string };
+        throw new Error(err.error);
+      }
+      onDelete?.(chunk.id);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Unknown error";
+      alert(`Failed to delete chunk: ${msg}`);
+      setDeleting(false);
+    }
+  }, [chunk.id, chunk.role, chunk.turnIndex, onDelete]);
+
   return (
     <div className="rounded-lg border border-border bg-bg p-4">
       <div className="mb-2 flex flex-wrap items-center gap-3 text-xs text-text-secondary">
@@ -35,11 +94,50 @@ function ChunkCard({ chunk }: { chunk: StoredChunk }) {
       <pre className="max-h-80 overflow-auto whitespace-pre-wrap break-words text-sm text-text-primary">
         {chunk.content}
       </pre>
+      {writeMode && (
+        <div className="mt-3 flex flex-wrap items-center gap-3 border-t border-border pt-3">
+          <label className="flex items-center gap-2 text-xs text-text-secondary">
+            <span>importance:</span>
+            <input
+              type="range"
+              min={0}
+              max={10}
+              step={1}
+              value={localImportance}
+              onChange={(e) => setLocalImportance(Number(e.target.value))}
+              className="h-1.5 w-24 cursor-pointer accent-accent"
+            />
+            <span className="w-5 text-center font-mono text-text-primary">{localImportance}</span>
+          </label>
+          <button
+            onClick={handleSave}
+            disabled={!isDirty || saving}
+            className="rounded border border-accent/30 px-3 py-1 text-xs text-accent hover:bg-accent/20 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            {saving ? "Saving..." : "Save"}
+          </button>
+          <button
+            onClick={handleDelete}
+            disabled={deleting}
+            className="ml-auto rounded border border-red-500/30 px-3 py-1 text-xs text-red-400 hover:bg-red-500/20 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            {deleting ? "Deleting..." : "Delete"}
+          </button>
+        </div>
+      )}
     </div>
   );
 }
 
-function SessionDetail({ sessionId, onClose }: { sessionId: string; onClose: () => void }) {
+function SessionDetail({
+  sessionId,
+  writeMode,
+  onClose,
+}: {
+  sessionId: string;
+  writeMode: boolean;
+  onClose: () => void;
+}) {
   const [data, setData] = useState<{ session: Session; chunks: StoredChunk[] } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -61,6 +159,32 @@ function SessionDetail({ sessionId, onClose }: { sessionId: string; onClose: () 
         setLoading(false);
       });
   }, [sessionId]);
+
+  const handleImportanceChange = useCallback(
+    (id: number, importance: number) => {
+      setData((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          chunks: prev.chunks.map((c) => (c.id === id ? { ...c, importance } : c)),
+        };
+      });
+    },
+    [setData],
+  );
+
+  const handleDelete = useCallback(
+    (id: number) => {
+      setData((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          chunks: prev.chunks.filter((c) => c.id !== id),
+        };
+      });
+    },
+    [setData],
+  );
 
   if (loading) {
     return <div className="py-4 text-center text-text-secondary">Loading chunks...</div>;
@@ -92,7 +216,13 @@ function SessionDetail({ sessionId, onClose }: { sessionId: string; onClose: () 
       </div>
       <div className="space-y-3">
         {data.chunks.map((chunk) => (
-          <ChunkCard key={chunk.id} chunk={chunk} />
+          <ChunkCard
+            key={chunk.id}
+            chunk={chunk}
+            writeMode={writeMode}
+            onImportanceChange={handleImportanceChange}
+            onDelete={handleDelete}
+          />
         ))}
       </div>
     </div>
@@ -158,7 +288,20 @@ export function SessionBrowser() {
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [selectedSession, setSelectedSession] = useState<string | null>(null);
+  const [writeMode, setWriteMode] = useState(false);
   const limit = 20;
+
+  useEffect(() => {
+    fetch("/api/config")
+      .then(async (res) => {
+        if (!res.ok) return;
+        const cfg = (await res.json()) as { write: boolean };
+        setWriteMode(cfg.write);
+      })
+      .catch(() => {
+        /* ignore - default to read-only */
+      });
+  }, []);
 
   useEffect(() => {
     setLoading(true);
@@ -252,7 +395,11 @@ export function SessionBrowser() {
       <Pagination page={result.page} totalPages={result.totalPages} onPageChange={setPage} />
 
       {selectedSession && (
-        <SessionDetail sessionId={selectedSession} onClose={() => setSelectedSession(null)} />
+        <SessionDetail
+          sessionId={selectedSession}
+          writeMode={writeMode}
+          onClose={() => setSelectedSession(null)}
+        />
       )}
     </div>
   );

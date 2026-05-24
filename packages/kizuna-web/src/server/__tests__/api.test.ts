@@ -317,6 +317,266 @@ describe("API routes", () => {
     });
   });
 
+  describe("GET /config", () => {
+    it("returns write: false by default", async () => {
+      const app = new Hono();
+      app.route("/api", createApiRoutes(db));
+
+      const res = await app.request("/api/config");
+      expect(res.status).toBe(200);
+
+      const body = (await res.json()) as { write: boolean };
+      expect(body.write).toBe(false);
+    });
+
+    it("returns write: false when write option is false", async () => {
+      const app = new Hono();
+      app.route("/api", createApiRoutes(db, { projectDir: "/tmp/test", write: false }));
+
+      const res = await app.request("/api/config");
+      expect(res.status).toBe(200);
+
+      const body = (await res.json()) as { write: boolean };
+      expect(body.write).toBe(false);
+    });
+
+    it("returns write: true when write option is true", async () => {
+      const app = new Hono();
+      app.route("/api", createApiRoutes(db, { projectDir: "/tmp/test", write: true }));
+
+      const res = await app.request("/api/config");
+      expect(res.status).toBe(200);
+
+      const body = (await res.json()) as { write: boolean };
+      expect(body.write).toBe(true);
+    });
+  });
+
+  describe("PATCH /chunks/:id", () => {
+    it("returns 403 when write mode is not enabled", async () => {
+      const app = new Hono();
+      app.route("/api", createApiRoutes(db, { projectDir: "/tmp/test", write: false }));
+
+      const res = await app.request("/api/chunks/1", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ importance: 7 }),
+      });
+      expect(res.status).toBe(403);
+
+      const body = (await res.json()) as { error: string };
+      expect(body.error).toBe("Write mode is not enabled");
+    });
+
+    it("returns 403 when options are not provided", async () => {
+      const app = new Hono();
+      app.route("/api", createApiRoutes(db));
+
+      const res = await app.request("/api/chunks/1", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ importance: 7 }),
+      });
+      expect(res.status).toBe(403);
+    });
+
+    it("returns 400 for invalid chunk ID", async () => {
+      const app = new Hono();
+      app.route("/api", createApiRoutes(db, { projectDir: "/tmp/test", write: true }));
+
+      const res = await app.request("/api/chunks/abc", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ importance: 7 }),
+      });
+      expect(res.status).toBe(400);
+
+      const body = (await res.json()) as { error: string };
+      expect(body.error).toBe("Invalid chunk ID");
+    });
+
+    it("returns 400 for invalid importance values", async () => {
+      db.insertSession({
+        id: "session-1",
+        projectId: "project-alpha",
+        startedAt: "2025-01-01T00:00:00Z",
+        endedAt: null,
+        transcriptPath: null,
+        metadata: {},
+      });
+      const chunk = db.insertChunk({
+        sessionId: "session-1",
+        turnIndex: 0,
+        role: "user",
+        content: "Hello",
+        metadata: {},
+        createdAt: "2025-01-01T00:00:00Z",
+      });
+
+      const app = new Hono();
+      app.route("/api", createApiRoutes(db, { projectDir: "/tmp/test", write: true }));
+
+      // Non-integer
+      const res1 = await app.request(`/api/chunks/${chunk.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ importance: 5.5 }),
+      });
+      expect(res1.status).toBe(400);
+
+      // Negative
+      const res2 = await app.request(`/api/chunks/${chunk.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ importance: -1 }),
+      });
+      expect(res2.status).toBe(400);
+
+      // Over 10
+      const res3 = await app.request(`/api/chunks/${chunk.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ importance: 11 }),
+      });
+      expect(res3.status).toBe(400);
+
+      // Not a number
+      const res4 = await app.request(`/api/chunks/${chunk.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ importance: "high" }),
+      });
+      expect(res4.status).toBe(400);
+    });
+
+    it("returns 404 for non-existent chunk", async () => {
+      const app = new Hono();
+      app.route("/api", createApiRoutes(db, { projectDir: "/tmp/test", write: true }));
+
+      const res = await app.request("/api/chunks/99999", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ importance: 7 }),
+      });
+      expect(res.status).toBe(404);
+
+      const body = (await res.json()) as { error: string };
+      expect(body.error).toBe("Chunk not found");
+    });
+
+    it("updates chunk importance successfully", async () => {
+      db.insertSession({
+        id: "session-1",
+        projectId: "project-alpha",
+        startedAt: "2025-01-01T00:00:00Z",
+        endedAt: null,
+        transcriptPath: null,
+        metadata: {},
+      });
+      const chunk = db.insertChunk({
+        sessionId: "session-1",
+        turnIndex: 0,
+        role: "user",
+        content: "Hello",
+        metadata: {},
+        createdAt: "2025-01-01T00:00:00Z",
+      });
+
+      const app = new Hono();
+      app.route("/api", createApiRoutes(db, { projectDir: "/tmp/test", write: true }));
+
+      const res = await app.request(`/api/chunks/${chunk.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ importance: 8 }),
+      });
+      expect(res.status).toBe(200);
+
+      const body = (await res.json()) as { ok: boolean; id: number; importance: number };
+      expect(body.ok).toBe(true);
+      expect(body.id).toBe(chunk.id);
+      expect(body.importance).toBe(8);
+
+      // Verify in DB
+      const got = db.getChunk(chunk.id);
+      expect(got!.importance).toBe(8);
+    });
+  });
+
+  describe("DELETE /chunks/:id", () => {
+    it("returns 403 when write mode is not enabled", async () => {
+      const app = new Hono();
+      app.route("/api", createApiRoutes(db, { projectDir: "/tmp/test", write: false }));
+
+      const res = await app.request("/api/chunks/1", { method: "DELETE" });
+      expect(res.status).toBe(403);
+
+      const body = (await res.json()) as { error: string };
+      expect(body.error).toBe("Write mode is not enabled");
+    });
+
+    it("returns 403 when options are not provided", async () => {
+      const app = new Hono();
+      app.route("/api", createApiRoutes(db));
+
+      const res = await app.request("/api/chunks/1", { method: "DELETE" });
+      expect(res.status).toBe(403);
+    });
+
+    it("returns 400 for invalid chunk ID", async () => {
+      const app = new Hono();
+      app.route("/api", createApiRoutes(db, { projectDir: "/tmp/test", write: true }));
+
+      const res = await app.request("/api/chunks/abc", { method: "DELETE" });
+      expect(res.status).toBe(400);
+
+      const body = (await res.json()) as { error: string };
+      expect(body.error).toBe("Invalid chunk ID");
+    });
+
+    it("returns 404 for non-existent chunk", async () => {
+      const app = new Hono();
+      app.route("/api", createApiRoutes(db, { projectDir: "/tmp/test", write: true }));
+
+      const res = await app.request("/api/chunks/99999", { method: "DELETE" });
+      expect(res.status).toBe(404);
+
+      const body = (await res.json()) as { error: string };
+      expect(body.error).toBe("Chunk not found");
+    });
+
+    it("deletes a chunk successfully", async () => {
+      db.insertSession({
+        id: "session-1",
+        projectId: "project-alpha",
+        startedAt: "2025-01-01T00:00:00Z",
+        endedAt: null,
+        transcriptPath: null,
+        metadata: {},
+      });
+      const chunk = db.insertChunk({
+        sessionId: "session-1",
+        turnIndex: 0,
+        role: "user",
+        content: "Hello",
+        metadata: {},
+        createdAt: "2025-01-01T00:00:00Z",
+      });
+
+      const app = new Hono();
+      app.route("/api", createApiRoutes(db, { projectDir: "/tmp/test", write: true }));
+
+      const res = await app.request(`/api/chunks/${chunk.id}`, { method: "DELETE" });
+      expect(res.status).toBe(200);
+
+      const body = (await res.json()) as { ok: boolean };
+      expect(body.ok).toBe(true);
+
+      // Verify deleted
+      expect(db.getChunk(chunk.id)).toBeNull();
+    });
+  });
+
   describe("GET /search", () => {
     it("returns 400 when q is missing", async () => {
       const app = new Hono();

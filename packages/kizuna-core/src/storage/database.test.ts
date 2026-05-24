@@ -188,6 +188,21 @@ describe("Database", () => {
       expect(stored2.importance).toBe(9);
     });
 
+    it("updates chunk importance", () => {
+      const stored = db.insertChunk(makeChunk());
+      expect(stored.importance).toBe(5);
+
+      const updated = db.updateChunkImportance(stored.id, 8);
+      expect(updated).toBe(true);
+
+      const got = db.getChunk(stored.id);
+      expect(got!.importance).toBe(8);
+    });
+
+    it("updateChunkImportance returns false for non-existent chunk", () => {
+      expect(db.updateChunkImportance(99999, 5)).toBe(false);
+    });
+
     it("deletes chunks by id", () => {
       const c1 = db.insertChunk(makeChunk({ turnIndex: 0 }));
       const c2 = db.insertChunk(makeChunk({ turnIndex: 1 }));
