@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { ConfirmModal } from "./ConfirmModal";
 
 interface TelepathyReference {
   name: string;
@@ -35,6 +36,7 @@ export function Telepathy() {
   const [message, setMessage] = useState("");
   const [sending, setSending] = useState(false);
   const [sendResult, setSendResult] = useState<{ ok: boolean; text: string } | null>(null);
+  const [confirmOpen, setConfirmOpen] = useState(false);
 
   const [messages, setMessages] = useState<TelepathyMessage[]>([]);
   const [receiving, setReceiving] = useState(false);
@@ -104,14 +106,13 @@ export function Telepathy() {
     fetchMessages();
   }, [fetchMessages]);
 
-  function handleSend() {
+  function handleSendClick() {
     if (!message.trim()) return;
+    setConfirmOpen(true);
+  }
 
-    const ok = window.confirm(
-      `Send this message (${message.trim().length} chars) via telepathy?\n\nOther projects will be able to read it.`,
-    );
-    if (!ok) return;
-
+  function handleConfirmSend() {
+    setConfirmOpen(false);
     setSending(true);
     setSendResult(null);
 
@@ -192,7 +193,7 @@ export function Telepathy() {
 
           <div className="flex items-center gap-3">
             <button
-              onClick={handleSend}
+              onClick={handleSendClick}
               disabled={sending || !message.trim()}
               className="rounded-lg border border-accent bg-accent/20 px-6 py-2 text-sm font-medium text-accent hover:bg-accent/30 disabled:cursor-not-allowed disabled:opacity-40"
             >
@@ -274,6 +275,23 @@ export function Telepathy() {
           )}
         </div>
       </div>
+
+      <ConfirmModal
+        open={confirmOpen}
+        title="Send Telepathy Message"
+        confirmLabel="Send"
+        cancelLabel="Cancel"
+        onConfirm={handleConfirmSend}
+        onCancel={() => setConfirmOpen(false)}
+      >
+        <p className="mb-3 text-sm text-text-secondary">
+          Send this message ({message.trim().length} chars) via telepathy? Other projects will be
+          able to read it.
+        </p>
+        <pre className="max-h-40 overflow-auto rounded-lg border border-border bg-bg p-3 text-sm text-text-primary whitespace-pre-wrap break-words">
+          {message.trim()}
+        </pre>
+      </ConfirmModal>
     </div>
   );
 }
