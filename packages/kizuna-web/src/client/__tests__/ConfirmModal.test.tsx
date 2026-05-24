@@ -4,6 +4,7 @@ import { ConfirmModal } from "../ConfirmModal.js";
 
 afterEach(() => {
   cleanup();
+  vi.clearAllMocks();
 });
 
 describe("ConfirmModal", () => {
@@ -40,7 +41,7 @@ describe("ConfirmModal", () => {
     const onConfirm = vi.fn();
     render(<ConfirmModal {...defaultProps} onConfirm={onConfirm} />);
 
-    fireEvent.click(screen.getByText("Confirm"));
+    fireEvent.click(screen.getByRole("button", { name: "Confirm" }));
 
     expect(onConfirm).toHaveBeenCalledOnce();
   });
@@ -49,7 +50,7 @@ describe("ConfirmModal", () => {
     const onCancel = vi.fn();
     render(<ConfirmModal {...defaultProps} onCancel={onCancel} />);
 
-    fireEvent.click(screen.getByText("Cancel"));
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
 
     expect(onCancel).toHaveBeenCalledOnce();
   });
@@ -66,14 +67,12 @@ describe("ConfirmModal", () => {
   it("traps focus: Tab from last element wraps to first", () => {
     render(<ConfirmModal {...defaultProps} />);
 
-    const cancelButton = screen.getByText("Cancel");
-    const confirmButton = screen.getByText("Confirm");
+    const cancelButton = screen.getByRole("button", { name: "Cancel" });
+    const confirmButton = screen.getByRole("button", { name: "Confirm" });
 
-    // Focus the last focusable element (confirm button)
     confirmButton.focus();
     expect(document.activeElement).toBe(confirmButton);
 
-    // Tab should wrap to the first element (cancel button)
     fireEvent.keyDown(screen.getByRole("dialog"), { key: "Tab" });
     expect(document.activeElement).toBe(cancelButton);
   });
@@ -81,8 +80,8 @@ describe("ConfirmModal", () => {
   it("traps focus: Shift+Tab from first element wraps to last", () => {
     render(<ConfirmModal {...defaultProps} />);
 
-    const cancelButton = screen.getByText("Cancel");
-    const confirmButton = screen.getByText("Confirm");
+    const cancelButton = screen.getByRole("button", { name: "Cancel" });
+    const confirmButton = screen.getByRole("button", { name: "Confirm" });
 
     // Focus the first focusable element (cancel button)
     cancelButton.focus();
@@ -99,7 +98,7 @@ describe("ConfirmModal", () => {
   it("uses custom button labels when provided", () => {
     render(<ConfirmModal {...defaultProps} confirmLabel="Delete" cancelLabel="Keep" />);
 
-    expect(screen.getByText("Delete")).toBeInTheDocument();
-    expect(screen.getByText("Keep")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Delete" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Keep" })).toBeInTheDocument();
   });
 });
