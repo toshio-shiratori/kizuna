@@ -8,6 +8,7 @@ import type {
   Session,
   StoredChunk,
   SearchResult,
+  Report,
 } from "@kizuna/core";
 import { createApiRoutes } from "../routes/api.js";
 
@@ -493,6 +494,226 @@ describe("API routes", () => {
       for (let i = 1; i < body.results.length; i++) {
         expect(body.results[i - 1]!.score).toBeGreaterThanOrEqual(body.results[i]!.score);
       }
+    });
+  });
+
+  describe("POST /reports", () => {
+    it("creates a report and returns 201", async () => {
+      const app = new Hono();
+      app.route("/api", createApiRoutes(db));
+
+      const res = await app.request("/api/reports", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type: "analysis",
+          source: "webui",
+          title: "Test Analysis",
+          content: "Analysis content",
+        }),
+      });
+      expect(res.status).toBe(201);
+
+      const body = (await res.json()) as Report;
+      expect(body.id).toBeGreaterThan(0);
+      expect(body.type).toBe("analysis");
+      expect(body.source).toBe("webui");
+      expect(body.title).toBe("Test Analysis");
+      expect(body.content).toBe("Analysis content");
+      expect(body.status).toBe("unread");
+    });
+
+    it("returns 400 for missing fields", async () => {
+      const app = new Hono();
+      app.route("/api", createApiRoutes(db));
+
+      const res = await app.request("/api/reports", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type: "analysis" }),
+      });
+      expect(res.status).toBe(400);
+
+      const body = (await res.json()) as { error: string };
+      expect(body.error).toContain("Missing required fields");
+    });
+  });
+
+  describe("GET /reports", () => {
+    it("returns list of reports", async () => {
+      db.insertReport({
+        type: "analysis",
+        source: "webui",
+        title: "Report 1",
+        content: "Content 1",
+      });
+      db.insertReport({
+        type: "proposal",
+        source: "claude",
+        title: "Report 2",
+        content: "Content 2",
+      });
+
+      const app = new Hono();
+      app.route("/api", createApiRoutes(db));
+
+      const res = await app.request("/api/reports");
+      expect(res.status).toBe(200);
+
+      const body = (await res.json()) as { reports: Report[]; total: number };
+      expect(body.total).toBe(2);
+      expect(body.reports).toHaveLength(2);
+    });
+
+    it("returns reports filtered by status", async () => {
+      db.insertReport({
+        type: "analysis",
+        source: "webui",
+        title: "Unread",
+        content: "content",
+      });
+      const r2 = db.insertReport({
+        type: "proposal",
+        source: "claude",
+        title: "Read",
+        content: "content",
+      });
+      db.updateReportStatus(r2.id, "read");
+
+      const app = new Hono();
+      app.route("/api", createApiRoutes(db));
+
+      const res = await app.request("/api/reports?status=unread");
+      expect(res.status).toBe(200);
+
+      const body = (await res.json()) as { reports: Report[]; total: number };
+      expect(body.total).toBe(1);
+      expect(body.reports[0]!.title).toBe("Unread");
+    });
+
+    it("returns reports filtered by type and source", async () => {
+      db.insertReport({
+        type: "analysis",
+        source: "webui",
+        title: "Analysis from WebUI",
+        content: "content",
+      });
+      db.insertReport({
+        type: "proposal",
+        source: "claude",
+        title: "Proposal from Claude",
+        content: "content",
+      });
+
+      const app = new Hono();
+      app.route("/api", createApiRoutes(db));
+
+      const res = await app.request("/api/reports?type=proposal&source=claude");
+      expect(res.status).toBe(200);
+
+      const body = (await res.json()) as { reports: Report[]; total: number };
+      expect(body.total).toBe(1);
+      expect(body.reports[0]!.title).toBe("Proposal from Claude");
+    });
+  });
+
+  describe("PATCH /reports/:id", () => {
+    it("updates report status", async () => {
+      const report = db.insertReport({
+        type: "analysis",
+        source: "webui",
+        title: "Test",
+        content: "content",
+      });
+
+      const app = new Hono();
+      app.route("/api", createApiRoutes(db));
+
+      const res = await app.request(`/api/reports/${report.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "read" }),
+      });
+      expect(res.status).toBe(200);
+
+      const body = (await res.json()) as Report;
+      expect(body.status).toBe("read");
+
+      // Verify in DB
+      const got = db.getReport(report.id);
+      expect(got!.status).toBe("read");
+    });
+
+    it("returns 404 for non-existent report", async () => {
+      const app = new Hono();
+      app.route("/api", createApiRoutes(db));
+
+      const res = await app.request("/api/reports/99999", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "read" }),
+      });
+      expect(res.status).toBe(404);
+
+      const body = (await res.json()) as { error: string };
+      expect(body.error).toBe("Report not found");
+    });
+
+    it("returns 400 for invalid status", async () => {
+      const report = db.insertReport({
+        type: "analysis",
+        source: "webui",
+        title: "Test",
+        content: "content",
+      });
+
+      const app = new Hono();
+      app.route("/api", createApiRoutes(db));
+
+      const res = await app.request(`/api/reports/${report.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "invalid" }),
+      });
+      expect(res.status).toBe(400);
+    });
+  });
+
+  describe("DELETE /reports/:id", () => {
+    it("deletes a report", async () => {
+      const report = db.insertReport({
+        type: "analysis",
+        source: "webui",
+        title: "To Delete",
+        content: "content",
+      });
+
+      const app = new Hono();
+      app.route("/api", createApiRoutes(db));
+
+      const res = await app.request(`/api/reports/${report.id}`, {
+        method: "DELETE",
+      });
+      expect(res.status).toBe(200);
+
+      const body = (await res.json()) as { ok: boolean };
+      expect(body.ok).toBe(true);
+
+      // Verify deleted
+      expect(db.getReport(report.id)).toBeNull();
+    });
+
+    it("returns 404 for non-existent report", async () => {
+      const app = new Hono();
+      app.route("/api", createApiRoutes(db));
+
+      const res = await app.request("/api/reports/99999", {
+        method: "DELETE",
+      });
+      expect(res.status).toBe(404);
+
+      const body = (await res.json()) as { error: string };
+      expect(body.error).toBe("Report not found");
     });
   });
 });

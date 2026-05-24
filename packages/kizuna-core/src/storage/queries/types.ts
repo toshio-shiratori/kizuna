@@ -1,4 +1,4 @@
-import type { StoredChunk, Session, MaintenanceRun } from "../../index.js";
+import type { StoredChunk, Session, MaintenanceRun, Report } from "../../index.js";
 
 export interface ChunkRow {
   id: number;
@@ -73,6 +73,28 @@ export function sessionRowToSession(row: SessionRow): Session {
     endedAt: row.ended_at,
     transcriptPath: row.transcript_path,
     metadata: JSON.parse(row.metadata) as Record<string, unknown>,
+  };
+}
+
+export interface ReportRow {
+  id: number;
+  type: string;
+  source: string;
+  title: string;
+  content: string;
+  status: string;
+  created_at: string;
+}
+
+export function reportRowToReport(row: ReportRow): Report {
+  return {
+    id: row.id,
+    type: row.type as "analysis" | "proposal",
+    source: row.source as "webui" | "claude",
+    title: row.title,
+    content: row.content,
+    status: row.status as "unread" | "read",
+    createdAt: row.created_at,
   };
 }
 

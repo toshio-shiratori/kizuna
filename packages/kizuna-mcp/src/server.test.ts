@@ -36,7 +36,7 @@ afterEach(async () => {
 });
 
 describe("MCP server tool listing", () => {
-  it("lists all four core tools", async () => {
+  it("lists all six core tools", async () => {
     await setupClient();
     const result = await client.listTools();
     const names = result.tools.map((t) => t.name);
@@ -44,6 +44,8 @@ describe("MCP server tool listing", () => {
     expect(names).toContain("kizuna_save");
     expect(names).toContain("kizuna_list");
     expect(names).toContain("kizuna_delete");
+    expect(names).toContain("kizuna_report_save");
+    expect(names).toContain("kizuna_report_read");
   });
 });
 
@@ -270,6 +272,74 @@ describe("kizuna_delete", () => {
     const result = await client.callTool({ name: "kizuna_delete", arguments: { ids: [99999] } });
     const text = (result.content as Array<{ type: string; text: string }>)[0]!.text;
     expect(text).toBe("Deleted 0 chunk(s).");
+  });
+});
+
+describe("kizuna_report_save", () => {
+  it("creates a report and returns confirmation", async () => {
+    await setupClient();
+    const result = await client.callTool({
+      name: "kizuna_report_save",
+      arguments: {
+        type: "analysis",
+        source: "webui",
+        title: "Workflow Analysis",
+        content: "Some analysis content",
+      },
+    });
+    const text = (result.content as Array<{ type: string; text: string }>)[0]!.text;
+    expect(text).toContain("Saved report");
+    expect(text).toContain("id:");
+    expect(text).toContain("analysis");
+    expect(text).toContain("webui");
+  });
+});
+
+describe("kizuna_report_read", () => {
+  it("returns unread reports and marks them as read", async () => {
+    db.insertReport({
+      type: "analysis",
+      source: "webui",
+      title: "Test Analysis",
+      content: "Analysis content here",
+    });
+
+    await setupClient();
+    const result = await client.callTool({
+      name: "kizuna_report_read",
+      arguments: {},
+    });
+    const text = (result.content as Array<{ type: string; text: string }>)[0]!.text;
+    expect(text).toContain("Test Analysis");
+    expect(text).toContain("Analysis content here");
+
+    // Second call should return no unread reports
+    const result2 = await client.callTool({
+      name: "kizuna_report_read",
+      arguments: {},
+    });
+    const text2 = (result2.content as Array<{ type: string; text: string }>)[0]!.text;
+    expect(text2).toBe("No unread reports.");
+  });
+
+  it("returns 'No unread reports.' when empty", async () => {
+    await setupClient();
+    const result = await client.callTool({
+      name: "kizuna_report_read",
+      arguments: {},
+    });
+    const text = (result.content as Array<{ type: string; text: string }>)[0]!.text;
+    expect(text).toBe("No unread reports.");
+  });
+
+  it("returns 'No reports found.' when filtering by status read with no data", async () => {
+    await setupClient();
+    const result = await client.callTool({
+      name: "kizuna_report_read",
+      arguments: { status: "read" },
+    });
+    const text = (result.content as Array<{ type: string; text: string }>)[0]!.text;
+    expect(text).toBe("No reports found.");
   });
 });
 

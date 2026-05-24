@@ -221,6 +221,90 @@ export function createServer(options: KizunaMcpServerOptions): McpServer {
     },
   );
 
+  mcp.registerTool(
+    "kizuna_report_save",
+    {
+      description:
+        "Save a report to Kizuna. Used by Claude Code to write proposals or by Web UI to save analysis results.",
+      inputSchema: {
+        type: z.enum(["analysis", "proposal"]).describe("Report type"),
+        source: z.enum(["webui", "claude"]).describe("Who created this report"),
+        title: z.string().describe("Report title"),
+        content: z.string().describe("Report content"),
+      },
+    },
+    async (args) => {
+      const report = db.insertReport({
+        type: args.type,
+        source: args.source,
+        title: args.title,
+        content: args.content,
+      });
+      return {
+        content: [
+          {
+            type: "text" as const,
+            text: `Saved report (id: ${report.id}, type: ${report.type}, source: ${report.source}).`,
+          },
+        ],
+      };
+    },
+  );
+
+  mcp.registerTool(
+    "kizuna_report_read",
+    {
+      description:
+        "Read reports from Kizuna. By default reads unread reports and marks them as read.",
+      inputSchema: {
+        status: z
+          .enum(["unread", "read"])
+          .default("unread")
+          .describe("Filter by status (default: unread)"),
+        type: z.enum(["analysis", "proposal"]).optional().describe("Filter by report type"),
+        limit: z
+          .number()
+          .int()
+          .min(1)
+          .max(100)
+          .default(10)
+          .describe("Maximum number of reports to return"),
+      },
+    },
+    async (args) => {
+      const { reports } = db.listReports({
+        status: args.status,
+        type: args.type,
+        limit: args.limit,
+      });
+
+      if (reports.length === 0) {
+        const msg = args.status === "unread" ? "No unread reports." : "No reports found.";
+        return {
+          content: [{ type: "text" as const, text: msg }],
+        };
+      }
+
+      // Mark returned reports as read in a transaction
+      db.db.transaction(() => {
+        for (const report of reports) {
+          if (report.status === "unread") {
+            db.updateReportStatus(report.id, "read");
+          }
+        }
+      })();
+
+      const lines = reports.map((r) => {
+        const date = r.createdAt.slice(0, 10);
+        return `### [${date}] ${r.type} by ${r.source} (id: ${r.id})\n**${r.title}**\n${r.content}`;
+      });
+
+      return {
+        content: [{ type: "text" as const, text: lines.join("\n\n---\n\n") }],
+      };
+    },
+  );
+
   if (pluginManager) {
     for (const entry of pluginManager.getPlugins()) {
       if (!entry.initialized || entry.initFailed) continue;
