@@ -7,6 +7,7 @@ import type {
   MaintenanceResult,
   MaintenanceRun,
   SessionPreview,
+  SessionListItem,
 } from "../index.js";
 import { runCoreMigrations } from "./migrator.js";
 import * as sessionQueries from "./queries/session.js";
@@ -78,6 +79,13 @@ export class Database {
 
   listSessionsWithPreview(limit: number = 10): SessionPreview[] {
     return sessionQueries.listSessionsWithPreview(this.db, limit);
+  }
+
+  listSessionsPaginated(
+    offset: number,
+    limit: number,
+  ): { sessions: SessionListItem[]; total: number } {
+    return sessionQueries.listSessionsPaginated(this.db, offset, limit);
   }
 
   getSessionsByDate(date: string): Session[] {

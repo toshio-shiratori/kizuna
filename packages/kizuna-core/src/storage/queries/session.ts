@@ -1,6 +1,6 @@
 import type BetterSqlite3 from "better-sqlite3";
-import type { Session, SessionPreview } from "../../index.js";
-import type { SessionRow, SessionPreviewRow } from "./types.js";
+import type { Session, SessionPreview, SessionListItem } from "../../index.js";
+import type { SessionRow, SessionPreviewRow, SessionPaginatedRow } from "./types.js";
 import { sessionRowToSession } from "./types.js";
 
 export function insertSession(db: BetterSqlite3.Database, session: Session): void {
@@ -121,4 +121,42 @@ export function getMaxTurnIndex(db: BetterSqlite3.Database, sessionId: string): 
     .prepare("SELECT MAX(turn_index) AS max_turn FROM chunks WHERE session_id = ?")
     .get(sessionId) as { max_turn: number | null };
   return row.max_turn;
+}
+
+export function listSessionsPaginated(
+  db: BetterSqlite3.Database,
+  offset: number,
+  limit: number,
+): { sessions: SessionListItem[]; total: number } {
+  const totalRow = db
+    .prepare(
+      `SELECT COUNT(*) AS cnt FROM sessions s
+       WHERE EXISTS (SELECT 1 FROM chunks c WHERE c.session_id = s.id)`,
+    )
+    .get() as { cnt: number };
+  const total = totalRow.cnt;
+
+  const rows = db
+    .prepare(
+      `SELECT s.id AS session_id, s.started_at, s.ended_at, s.project_id,
+         (SELECT COUNT(*) FROM chunks WHERE session_id = s.id) AS chunk_count,
+         (SELECT content FROM chunks WHERE session_id = s.id
+          ORDER BY created_at ASC, turn_index ASC LIMIT 1) AS preview
+       FROM sessions s
+       WHERE EXISTS (SELECT 1 FROM chunks c WHERE c.session_id = s.id)
+       ORDER BY s.started_at DESC
+       LIMIT ? OFFSET ?`,
+    )
+    .all(limit, offset) as SessionPaginatedRow[];
+
+  const sessions = rows.map((row) => ({
+    sessionId: row.session_id,
+    startedAt: row.started_at,
+    endedAt: row.ended_at,
+    projectId: row.project_id,
+    chunkCount: row.chunk_count,
+    preview: row.preview.split("\n")[0]!,
+  }));
+
+  return { sessions, total };
 }
