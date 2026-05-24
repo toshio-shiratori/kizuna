@@ -82,6 +82,14 @@ Automatic synchronization of active session state would generate excessive noise
 
 The use case is ephemeral context transfer — a clipboard, not a mailbox. Retaining history adds complexity (pagination, cleanup) without clear benefit. If the context is important enough to persist, it will naturally be captured by Kizuna's normal session-end memory system.
 
+### Why manual refresh only (no polling)
+
+The Web UI's telepathy receive section uses manual refresh exclusively. Automatic polling was considered and rejected because:
+
+- Telepathy messages are ephemeral and infrequent — they change only when a user explicitly sends from another project
+- Polling would add unnecessary network/database load for a feature that is inherently pull-based
+- The user controls when to check for messages, consistent with the explicit send/receive design
+
 ### Why no recipient addressing
 
 Addressing adds configuration overhead and limits the broadcast use case. In a typical multi-repo setup with 2–3 projects, receiving all messages (at most one per project) is manageable. The user can quickly scan and decide relevance.

@@ -3,14 +3,16 @@ import { Dashboard } from "./Dashboard.js";
 import { SessionBrowser } from "./SessionBrowser.js";
 import { Search } from "./Search.js";
 import { Analysis } from "./Analysis.js";
+import { Telepathy } from "./Telepathy.js";
 
-type Page = "dashboard" | "sessions" | "search" | "analysis";
+type Page = "dashboard" | "sessions" | "search" | "analysis" | "telepathy";
 
 function getPageFromHash(): Page {
   const hash = window.location.hash;
   if (hash === "#sessions") return "sessions";
   if (hash === "#search") return "search";
   if (hash === "#analysis") return "analysis";
+  if (hash === "#telepathy") return "telepathy";
   return "dashboard";
 }
 
@@ -52,12 +54,19 @@ export function App() {
           >
             Analysis
           </a>
+          <a
+            href="#telepathy"
+            className={`text-sm ${page === "telepathy" ? "text-accent" : "text-text-secondary hover:text-text-primary"}`}
+          >
+            Telepathy
+          </a>
         </div>
       </nav>
       {page === "dashboard" && <Dashboard />}
       {page === "sessions" && <SessionBrowser />}
       {page === "search" && <Search />}
       {page === "analysis" && <Analysis />}
+      {page === "telepathy" && <Telepathy />}
     </div>
   );
 }
