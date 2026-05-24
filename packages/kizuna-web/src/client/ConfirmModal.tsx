@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef } from "react";
+import { useCallback, useEffect, useId, useRef } from "react";
 
 interface ConfirmModalProps {
   open: boolean;
@@ -20,28 +20,49 @@ export function ConfirmModal({
   onCancel,
 }: ConfirmModalProps) {
   const cancelRef = useRef<HTMLButtonElement>(null);
+  const confirmRef = useRef<HTMLButtonElement>(null);
+  const previousFocusRef = useRef<Element | null>(null);
   const titleId = useId();
 
-  // Focus Cancel button when modal opens
   useEffect(() => {
     if (open) {
+      previousFocusRef.current = document.activeElement;
       cancelRef.current?.focus();
-    }
-  }, [open]);
-
-  // ESC key closes modal
-  useEffect(() => {
-    if (!open) return;
-
-    function handleKeyDown(e: KeyboardEvent) {
-      if (e.key === "Escape") {
-        onCancel();
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+      if (previousFocusRef.current instanceof HTMLElement) {
+        previousFocusRef.current.focus();
+        previousFocusRef.current = null;
       }
     }
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [open]);
 
-    document.addEventListener("keydown", handleKeyDown);
-    return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [open, onCancel]);
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (e.key === "Escape") {
+        onCancel();
+        return;
+      }
+      if (e.key === "Tab") {
+        const focusable = [cancelRef.current, confirmRef.current].filter(Boolean) as HTMLElement[];
+        if (focusable.length === 0) return;
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        if (e.shiftKey && document.activeElement === first) {
+          e.preventDefault();
+          last.focus();
+        } else if (!e.shiftKey && document.activeElement === last) {
+          e.preventDefault();
+          first.focus();
+        }
+      }
+    },
+    [onCancel],
+  );
 
   if (!open) return null;
 
@@ -52,6 +73,7 @@ export function ConfirmModal({
       aria-modal="true"
       aria-labelledby={titleId}
       onClick={onCancel}
+      onKeyDown={handleKeyDown}
     >
       <div
         className="mx-4 w-full max-w-lg rounded-lg border border-border bg-bg-surface p-6 shadow-lg"
@@ -72,6 +94,7 @@ export function ConfirmModal({
             {cancelLabel}
           </button>
           <button
+            ref={confirmRef}
             onClick={onConfirm}
             className="rounded-lg border border-accent bg-accent/20 px-6 py-2 text-sm font-medium text-accent hover:bg-accent/30"
           >
