@@ -58,26 +58,23 @@ function extractSearchTerms(query: string): string[] {
   return terms;
 }
 
-function highlightMatches(content: string, query: string): ReactNode[] {
+function buildMatchPattern(query: string): RegExp | null {
   const terms = extractSearchTerms(query);
-  if (terms.length === 0) return [content];
-
-  // Sort by length descending so longer terms match first (e.g. "JavaScript" before "Java")
+  if (terms.length === 0) return null;
   const escaped = terms
     .slice()
     .sort((a, b) => b.length - a.length)
     .map((t) => t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
-  const pattern = new RegExp(`(${escaped.join("|")})`, "gi");
+  return new RegExp(`(${escaped.join("|")})`, "gi");
+}
+
+function highlightMatches(content: string, query: string): ReactNode[] {
+  const pattern = buildMatchPattern(query);
+  if (!pattern) return [content];
   const parts = content.split(pattern);
 
-  return parts.map((part, i) => {
-    if (pattern.test(part)) {
-      // Reset lastIndex since we're using 'g' flag
-      pattern.lastIndex = 0;
-      return <mark key={i}>{part}</mark>;
-    }
-    return part;
-  });
+  // split(/(capture)/) places matches at odd indices
+  return parts.map((part, i) => (i % 2 === 1 ? <mark key={i}>{part}</mark> : part));
 }
 
 function formatDate(iso: string): string {
@@ -102,14 +99,29 @@ function RoleBadge({ role }: { role: "user" | "assistant" }) {
   );
 }
 
-function truncateContent(content: string, maxLength: number = 500): string {
+function truncateAroundMatch(content: string, query: string, maxLength: number = 500): string {
   if (content.length <= maxLength) return content;
-  return content.slice(0, maxLength) + "...";
+
+  const pattern = buildMatchPattern(query);
+  if (!pattern) return content.slice(0, maxLength) + "...";
+
+  const match = pattern.exec(content);
+  if (!match || match.index < maxLength) {
+    return content.slice(0, maxLength) + "...";
+  }
+
+  const center = match.index;
+  const half = Math.floor(maxLength / 2);
+  const start = Math.max(0, center - half);
+  const end = Math.min(content.length, start + maxLength);
+  const prefix = start > 0 ? "..." : "";
+  const suffix = end < content.length ? "..." : "";
+  return prefix + content.slice(start, end) + suffix;
 }
 
 function SearchResultCard({ result, query }: { result: SearchResult; query: string }) {
   const chunk: StoredChunk = result.chunk;
-  const preview = truncateContent(chunk.content);
+  const preview = truncateAroundMatch(chunk.content, query);
 
   return (
     <div className="rounded-lg border border-border bg-bg-surface p-4">
@@ -141,6 +153,7 @@ export function Search() {
   const [error, setError] = useState<string | null>(null);
   const [searched, setSearched] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const requestIdRef = useRef(0);
 
   useEffect(() => {
     if (debounceRef.current) {
@@ -168,6 +181,7 @@ export function Search() {
   }, [query]);
 
   function performSearch(q: string) {
+    const id = ++requestIdRef.current;
     setLoading(true);
     setError(null);
     setSearched(true);
@@ -179,10 +193,12 @@ export function Search() {
         return res.json() as Promise<SearchApiResponse>;
       })
       .then((data) => {
+        if (id !== requestIdRef.current) return;
         setResults(data.results);
         setLoading(false);
       })
       .catch((err: unknown) => {
+        if (id !== requestIdRef.current) return;
         setError(err instanceof Error ? err.message : "Unknown error");
         setLoading(false);
       });
