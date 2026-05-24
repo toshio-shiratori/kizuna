@@ -279,8 +279,9 @@ export function createServer(options: KizunaMcpServerOptions): McpServer {
       });
 
       if (reports.length === 0) {
+        const msg = args.status === "unread" ? "No unread reports." : "No reports found.";
         return {
-          content: [{ type: "text" as const, text: "No unread reports." }],
+          content: [{ type: "text" as const, text: msg }],
         };
       }
 

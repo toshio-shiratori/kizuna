@@ -36,7 +36,7 @@ afterEach(async () => {
 });
 
 describe("MCP server tool listing", () => {
-  it("lists all four core tools", async () => {
+  it("lists all six core tools", async () => {
     await setupClient();
     const result = await client.listTools();
     const names = result.tools.map((t) => t.name);
@@ -44,6 +44,8 @@ describe("MCP server tool listing", () => {
     expect(names).toContain("kizuna_save");
     expect(names).toContain("kizuna_list");
     expect(names).toContain("kizuna_delete");
+    expect(names).toContain("kizuna_report_save");
+    expect(names).toContain("kizuna_report_read");
   });
 });
 
@@ -328,6 +330,16 @@ describe("kizuna_report_read", () => {
     });
     const text = (result.content as Array<{ type: string; text: string }>)[0]!.text;
     expect(text).toBe("No unread reports.");
+  });
+
+  it("returns 'No reports found.' when filtering by status read with no data", async () => {
+    await setupClient();
+    const result = await client.callTool({
+      name: "kizuna_report_read",
+      arguments: { status: "read" },
+    });
+    const text = (result.content as Array<{ type: string; text: string }>)[0]!.text;
+    expect(text).toBe("No reports found.");
   });
 });
 
