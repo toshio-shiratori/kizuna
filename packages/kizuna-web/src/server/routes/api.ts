@@ -9,6 +9,7 @@ import { runAnalysis } from "../analysis/index.js";
 export interface ApiRouteOptions {
   projectDir: string;
   write: boolean;
+  sessionExportLimit?: number;
 }
 
 const webLogger = {
@@ -132,12 +133,34 @@ export function createApiRoutes(db: Database, options?: ApiRouteOptions): Hono {
       return c.json({ error: 'Invalid format: must be "json" or "markdown"' }, 400);
     }
     const format: ExportFormat = formatParam;
+    const exportLimit = options?.sessionExportLimit ?? 10_000;
 
-    const text = await exportMemory(db, {
+    const totalChunks = (
+      db.db.prepare("SELECT COUNT(*) as cnt FROM chunks WHERE session_id = ?").get(sessionId) as {
+        cnt: number;
+      }
+    ).cnt;
+
+    let text = await exportMemory(db, {
       sessionIds: [sessionId],
       format,
-      limit: 10_000,
+      limit: exportLimit,
     });
+
+    const truncated = totalChunks > exportLimit;
+    if (truncated) {
+      if (format === "json") {
+        const parsed = JSON.parse(text) as Record<string, unknown>;
+        const meta = parsed.meta as Record<string, unknown>;
+        meta.truncated = true;
+        meta.totalAvailable = totalChunks;
+        text = JSON.stringify(parsed, null, 2) + "\n";
+      } else {
+        text =
+          `> **Warning**: This export is truncated. Showing ${exportLimit.toLocaleString()} of ${totalChunks.toLocaleString()} chunks.\n\n` +
+          text;
+      }
+    }
 
     const shortId = sessionId.slice(0, 8);
     const ext = format === "json" ? "json" : "md";

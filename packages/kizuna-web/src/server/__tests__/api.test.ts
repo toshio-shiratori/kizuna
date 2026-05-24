@@ -1077,6 +1077,60 @@ describe("API routes", () => {
       const parsed = JSON.parse(text) as { chunks: unknown[] };
       expect(parsed.chunks).toHaveLength(2);
     });
+
+    it("includes truncation warning in JSON when chunks exceed limit", async () => {
+      seedSession();
+
+      const app = new Hono();
+      app.route(
+        "/api",
+        createApiRoutes(db, { projectDir: "", write: false, sessionExportLimit: 1 }),
+      );
+
+      const res = await app.request("/api/export/session/session-export-1?format=json");
+      expect(res.status).toBe(200);
+
+      const text = await res.text();
+      const parsed = JSON.parse(text) as {
+        meta: { truncated: boolean; totalAvailable: number; chunkCount: number };
+        chunks: unknown[];
+      };
+      expect(parsed.meta.truncated).toBe(true);
+      expect(parsed.meta.totalAvailable).toBe(2);
+      expect(parsed.meta.chunkCount).toBe(1);
+      expect(parsed.chunks).toHaveLength(1);
+    });
+
+    it("includes truncation warning in Markdown when chunks exceed limit", async () => {
+      seedSession();
+
+      const app = new Hono();
+      app.route(
+        "/api",
+        createApiRoutes(db, { projectDir: "", write: false, sessionExportLimit: 1 }),
+      );
+
+      const res = await app.request("/api/export/session/session-export-1?format=markdown");
+      expect(res.status).toBe(200);
+
+      const text = await res.text();
+      expect(text.startsWith("> **Warning**:")).toBe(true);
+      expect(text).toContain("1 of 2");
+    });
+
+    it("does not include truncation warning when all chunks fit", async () => {
+      seedSession();
+
+      const app = new Hono();
+      app.route("/api", createApiRoutes(db));
+
+      const res = await app.request("/api/export/session/session-export-1?format=json");
+      expect(res.status).toBe(200);
+
+      const text = await res.text();
+      const parsed = JSON.parse(text) as { meta: { truncated?: boolean } };
+      expect(parsed.meta.truncated).toBeUndefined();
+    });
   });
 
   describe("GET /export/search", () => {
