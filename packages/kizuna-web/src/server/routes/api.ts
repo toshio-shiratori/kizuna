@@ -133,7 +133,11 @@ export function createApiRoutes(db: Database, options?: ApiRouteOptions): Hono {
     }
     const format: ExportFormat = formatParam;
 
-    const text = await exportMemory(db, { sessionIds: [sessionId], format });
+    const text = await exportMemory(db, {
+      sessionIds: [sessionId],
+      format,
+      limit: 10_000,
+    });
 
     const shortId = sessionId.slice(0, 8);
     const ext = format === "json" ? "json" : "md";
