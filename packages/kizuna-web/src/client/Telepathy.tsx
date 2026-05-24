@@ -107,6 +107,11 @@ export function Telepathy() {
   function handleSend() {
     if (!message.trim()) return;
 
+    const ok = window.confirm(
+      `Send this message (${message.trim().length} chars) via telepathy?\n\nOther projects will be able to read it.`,
+    );
+    if (!ok) return;
+
     setSending(true);
     setSendResult(null);
 
