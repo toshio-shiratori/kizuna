@@ -23,7 +23,7 @@ export function hasHooksForCategory(plugin: Plugin, category: HookCategory): boo
 }
 
 export async function loadPluginManager(db: Database, cwd: string, hookCategory?: HookCategory) {
-  return coreLoadPluginManager(db.db, cwd, {
+  return coreLoadPluginManager(db.getConnection(), cwd, {
     logger: stderrLogger,
     filterPlugin: hookCategory ? (plugin) => hasHooksForCategory(plugin, hookCategory) : undefined,
   });

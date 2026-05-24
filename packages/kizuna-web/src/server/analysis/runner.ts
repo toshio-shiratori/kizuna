@@ -39,7 +39,8 @@ interface RawChunk {
 }
 
 function loadProjectData(db: Database, projectId: string): AnalysisInput {
-  const rawSessions = db.db
+  const rawSessions = db
+    .getConnection()
     .prepare(
       `SELECT id, project_id, started_at, ended_at FROM sessions WHERE project_id = ? ORDER BY started_at DESC`,
     )
@@ -52,7 +53,8 @@ function loadProjectData(db: Database, projectId: string): AnalysisInput {
     endedAt: s.ended_at,
   }));
 
-  const rawChunks = db.db
+  const rawChunks = db
+    .getConnection()
     .prepare(
       `SELECT c.id, c.session_id, c.turn_index, c.role, c.content, c.token_count, c.created_at
        FROM chunks c

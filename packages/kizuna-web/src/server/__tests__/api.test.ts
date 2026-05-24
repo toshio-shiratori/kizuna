@@ -1367,7 +1367,7 @@ describe("API routes", () => {
 
     it("returns 400 when message is missing", async () => {
       // Create the telepathy table
-      db.db.exec(`
+      db.getConnection().exec(`
         CREATE TABLE telepathy_messages (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
           message TEXT NOT NULL,
@@ -1390,7 +1390,7 @@ describe("API routes", () => {
     });
 
     it("returns 400 when message exceeds max length", async () => {
-      db.db.exec(`
+      db.getConnection().exec(`
         CREATE TABLE telepathy_messages (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
           message TEXT NOT NULL,
@@ -1415,7 +1415,7 @@ describe("API routes", () => {
 
     it("sends a message successfully", async () => {
       // Create the telepathy table
-      db.db.exec(`
+      db.getConnection().exec(`
         CREATE TABLE telepathy_messages (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
           message TEXT NOT NULL,
@@ -1438,14 +1438,17 @@ describe("API routes", () => {
       expect(body.length).toBe("Hello from web UI".length);
 
       // Verify in DB
-      const row = db.db.prepare("SELECT message FROM telepathy_messages LIMIT 1").get() as {
+      const row = db
+        .getConnection()
+        .prepare("SELECT message FROM telepathy_messages LIMIT 1")
+        .get() as {
         message: string;
       };
       expect(row.message).toBe("Hello from web UI");
     });
 
     it("overwrites previous message on second send", async () => {
-      db.db.exec(`
+      db.getConnection().exec(`
         CREATE TABLE telepathy_messages (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
           message TEXT NOT NULL,
@@ -1468,7 +1471,7 @@ describe("API routes", () => {
         body: JSON.stringify({ message: "Second message" }),
       });
 
-      const rows = db.db.prepare("SELECT message FROM telepathy_messages").all() as {
+      const rows = db.getConnection().prepare("SELECT message FROM telepathy_messages").all() as {
         message: string;
       }[];
       expect(rows).toHaveLength(1);

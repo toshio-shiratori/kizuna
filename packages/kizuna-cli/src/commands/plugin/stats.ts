@@ -55,7 +55,7 @@ export function registerStats(pluginCmd: Command): void {
       const db = new Database(resolveDbPath(opts.cwd));
       try {
         if (pluginDef.shortName === "pii-sanitizer") {
-          const storage = new SqlitePluginStorage(db.db, PII_PLUGIN_NAME);
+          const storage = new SqlitePluginStorage(db.getConnection(), PII_PLUGIN_NAME);
           const stats = await storage.get<PiiSanitizerStats>(PII_STATS_KEY);
           if (!stats) {
             console.log("No redaction statistics recorded yet.");

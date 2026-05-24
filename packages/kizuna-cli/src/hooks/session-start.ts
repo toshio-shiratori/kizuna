@@ -15,10 +15,12 @@ export async function handleSessionStart(): Promise<void> {
   try {
     db = new Database(dbPath);
     const chunkCount = (
-      db.db.prepare("SELECT COUNT(*) AS count FROM chunks").get() as { count: number }
+      db.getConnection().prepare("SELECT COUNT(*) AS count FROM chunks").get() as { count: number }
     ).count;
     const sessionCount = (
-      db.db.prepare("SELECT COUNT(*) AS count FROM sessions").get() as { count: number }
+      db.getConnection().prepare("SELECT COUNT(*) AS count FROM sessions").get() as {
+        count: number;
+      }
     ).count;
 
     if (chunkCount > 0) {

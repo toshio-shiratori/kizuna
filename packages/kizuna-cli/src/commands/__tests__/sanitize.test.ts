@@ -134,12 +134,18 @@ describe("sanitize command", () => {
     // Record original token counts
     const originalChunks = db.getChunksBySession("session-1");
     const originalTokenCount0 = (
-      db.db.prepare("SELECT token_count FROM chunks WHERE id = ?").get(originalChunks[0]!.id) as {
+      db
+        .getConnection()
+        .prepare("SELECT token_count FROM chunks WHERE id = ?")
+        .get(originalChunks[0]!.id) as {
         token_count: number;
       }
     ).token_count;
     const originalTokenCount1 = (
-      db.db.prepare("SELECT token_count FROM chunks WHERE id = ?").get(originalChunks[1]!.id) as {
+      db
+        .getConnection()
+        .prepare("SELECT token_count FROM chunks WHERE id = ?")
+        .get(originalChunks[1]!.id) as {
         token_count: number;
       }
     ).token_count;

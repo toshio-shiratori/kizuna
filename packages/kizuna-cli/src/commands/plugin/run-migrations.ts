@@ -39,7 +39,7 @@ export async function runPluginMigrationsForProject(
   const db = new Database(dbPath);
   try {
     const logger = options?.silent ? undefined : { logger: consoleLogger };
-    const manager = await loadPluginManager(db.db, cwd, logger);
+    const manager = await loadPluginManager(db.getConnection(), cwd, logger);
     if (!manager) {
       return { ran: false, pluginCount: 0, failedCount: 0 };
     }

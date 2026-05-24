@@ -40,7 +40,8 @@ export function findLowQualityChunks(
   db: Database,
   noisePatterns?: readonly string[],
 ): CleanupTarget[] {
-  const rows = db.db
+  const rows = db
+    .getConnection()
     .prepare("SELECT id, content, role, session_id, created_at FROM chunks")
     .all() as AllChunkRow[];
 
@@ -66,7 +67,10 @@ export function findChunksByQuery(db: Database, query: string): CleanupTarget[] 
          FROM chunks_fts
          JOIN chunks c ON chunks_fts.rowid = c.id
          WHERE ${likeConditions}`;
-      const rows = db.db.prepare(sql).all(...likePatterns) as AllChunkRow[];
+      const rows = db
+        .getConnection()
+        .prepare(sql)
+        .all(...likePatterns) as AllChunkRow[];
       return rows.map(toCleanupTarget);
     }
 
@@ -82,7 +86,10 @@ export function findChunksByQuery(db: Database, query: string): CleanupTarget[] 
          FROM chunks_fts
          JOIN chunks c ON chunks_fts.rowid = c.id
          WHERE ${conditions.join(" AND ")}`;
-    const rows = db.db.prepare(sql).all(...params) as AllChunkRow[];
+    const rows = db
+      .getConnection()
+      .prepare(sql)
+      .all(...params) as AllChunkRow[];
     return rows.map(toCleanupTarget);
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);

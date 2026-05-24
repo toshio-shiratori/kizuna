@@ -266,7 +266,9 @@ describe("Plugin integration via hooks", () => {
     const db = new Database(join(kizunaDir, "memory.db"));
     try {
       const count = (
-        db.db.prepare("SELECT COUNT(*) AS count FROM chunks").get() as { count: number }
+        db.getConnection().prepare("SELECT COUNT(*) AS count FROM chunks").get() as {
+          count: number;
+        }
       ).count;
       expect(count).toBeGreaterThan(0);
     } finally {
@@ -292,7 +294,9 @@ describe("Plugin integration via hooks", () => {
     const db = new Database(join(kizunaDir, "memory.db"));
     try {
       const count = (
-        db.db.prepare("SELECT COUNT(*) AS count FROM chunks").get() as { count: number }
+        db.getConnection().prepare("SELECT COUNT(*) AS count FROM chunks").get() as {
+          count: number;
+        }
       ).count;
       expect(count).toBeGreaterThan(0);
     } finally {
@@ -326,7 +330,9 @@ describe("Plugin integration via hooks", () => {
     const db = new Database(join(kizunaDir, "memory.db"));
     try {
       const count = (
-        db.db.prepare("SELECT COUNT(*) AS count FROM chunks").get() as { count: number }
+        db.getConnection().prepare("SELECT COUNT(*) AS count FROM chunks").get() as {
+          count: number;
+        }
       ).count;
       expect(count).toBeGreaterThan(0);
     } finally {

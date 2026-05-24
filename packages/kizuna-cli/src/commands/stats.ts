@@ -48,7 +48,7 @@ export function registerStats(program: Command): void {
         }
 
         // Plugin statistics
-        const piiStorage = new SqlitePluginStorage(db.db, PII_PLUGIN_NAME);
+        const piiStorage = new SqlitePluginStorage(db.getConnection(), PII_PLUGIN_NAME);
         const piiStats = await piiStorage.get<PiiSanitizerStats>(PII_STATS_KEY);
         if (piiStats) {
           console.log("");

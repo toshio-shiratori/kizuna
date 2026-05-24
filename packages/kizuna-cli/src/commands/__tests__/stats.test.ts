@@ -34,7 +34,7 @@ describe("stats command", () => {
 
   it("should show pii-sanitizer stats when data exists", async () => {
     const db = seedDatabase(tempDir);
-    const storage = new SqlitePluginStorage(db.db, PII_PLUGIN_NAME);
+    const storage = new SqlitePluginStorage(db.getConnection(), PII_PLUGIN_NAME);
     await storage.set(PII_STATS_KEY, {
       totalRedacted: 15,
       byPattern: { anthropic_key: 8, github_token: 5, generic_secret: 2 },
@@ -74,7 +74,7 @@ describe("plugin stats command", () => {
 
   it("should show pii-sanitizer stats", async () => {
     const db = seedDatabase(tempDir);
-    const storage = new SqlitePluginStorage(db.db, PII_PLUGIN_NAME);
+    const storage = new SqlitePluginStorage(db.getConnection(), PII_PLUGIN_NAME);
     await storage.set(PII_STATS_KEY, {
       totalRedacted: 10,
       byPattern: { anthropic_key: 6, github_token: 4 },
@@ -125,7 +125,7 @@ describe("plugin stats command", () => {
 
   it("should sort patterns by count descending", async () => {
     const db = seedDatabase(tempDir);
-    const storage = new SqlitePluginStorage(db.db, PII_PLUGIN_NAME);
+    const storage = new SqlitePluginStorage(db.getConnection(), PII_PLUGIN_NAME);
     await storage.set(PII_STATS_KEY, {
       totalRedacted: 20,
       byPattern: { generic_secret: 2, anthropic_key: 12, github_token: 6 },

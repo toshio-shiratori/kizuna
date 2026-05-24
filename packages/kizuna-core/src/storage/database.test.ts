@@ -47,6 +47,12 @@ describe("Database", () => {
     rmSync(dir, { recursive: true, force: true });
   });
 
+  describe("getConnection", () => {
+    it("returns the same underlying BetterSqlite3 instance as db.db", () => {
+      expect(db.getConnection()).toBe(db.db);
+    });
+  });
+
   describe("sessions", () => {
     it("inserts and retrieves a session", () => {
       const session = makeSession();

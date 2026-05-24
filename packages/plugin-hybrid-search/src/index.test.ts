@@ -53,7 +53,7 @@ const noopLogger: Logger = {
 
 function makeContext(db: Database): PluginContext {
   return {
-    db: db.db,
+    db: db.getConnection(),
     config: { enabled: true, options: {} },
     projectConfig: { id: "test-project" },
     logger: noopLogger,
@@ -178,10 +178,11 @@ describe("createHybridSearchPlugin", () => {
 
   it("init creates table and prepares statements", async () => {
     const plugin = createHybridSearchPlugin({ embeddingProvider: mockProvider });
-    db.db.exec(plugin.migrations!()[0]!.up);
+    db.getConnection().exec(plugin.migrations!()[0]!.up);
     await plugin.init!(ctx);
 
-    const tables = db.db
+    const tables = db
+      .getConnection()
       .prepare(
         "SELECT name FROM sqlite_master WHERE type='table' AND name='hybrid_search_embeddings'",
       )
@@ -191,14 +192,15 @@ describe("createHybridSearchPlugin", () => {
 
   it("afterCapture stores embedding for chunk", async () => {
     const plugin = createHybridSearchPlugin({ embeddingProvider: mockProvider });
-    db.db.exec(plugin.migrations!()[0]!.up);
+    db.getConnection().exec(plugin.migrations!()[0]!.up);
     await plugin.init!(ctx);
 
     const chunk = makeStoredChunk(1, "TypeScriptでデータベースを実装する");
     db.insertChunk(chunk);
     await plugin.afterCapture!(chunk, ctx);
 
-    const row = db.db
+    const row = db
+      .getConnection()
       .prepare("SELECT embedding FROM hybrid_search_embeddings WHERE chunk_id = ?")
       .get(1) as { embedding: Buffer } | undefined;
     expect(row).toBeDefined();
@@ -211,7 +213,7 @@ describe("createHybridSearchPlugin", () => {
       embeddingProvider: mockProvider,
       alpha: 0.5,
     });
-    db.db.exec(plugin.migrations!()[0]!.up);
+    db.getConnection().exec(plugin.migrations!()[0]!.up);
     await plugin.init!(ctx);
 
     const chunks = [
@@ -247,7 +249,7 @@ describe("createHybridSearchPlugin", () => {
       embeddingProvider: mockProvider,
       alpha: 0.0,
     });
-    db.db.exec(plugin.migrations!()[0]!.up);
+    db.getConnection().exec(plugin.migrations!()[0]!.up);
     await plugin.init!(ctx);
 
     const chunk = makeStoredChunk(1, "test content");
@@ -268,7 +270,7 @@ describe("createHybridSearchPlugin", () => {
       embeddingProvider: mockProvider,
       alpha: 1.0,
     });
-    db.db.exec(plugin.migrations!()[0]!.up);
+    db.getConnection().exec(plugin.migrations!()[0]!.up);
     await plugin.init!(ctx);
 
     const chunk = makeStoredChunk(1, "test content");
@@ -287,7 +289,7 @@ describe("createHybridSearchPlugin", () => {
 
   it("returns results unchanged when no embeddings exist", async () => {
     const plugin = createHybridSearchPlugin({ embeddingProvider: mockProvider });
-    db.db.exec(plugin.migrations!()[0]!.up);
+    db.getConnection().exec(plugin.migrations!()[0]!.up);
     await plugin.init!(ctx);
 
     const query: SearchQuery = { text: "test", limit: 10 };
@@ -301,7 +303,7 @@ describe("createHybridSearchPlugin", () => {
 
   it("handles empty results", async () => {
     const plugin = createHybridSearchPlugin({ embeddingProvider: mockProvider });
-    db.db.exec(plugin.migrations!()[0]!.up);
+    db.getConnection().exec(plugin.migrations!()[0]!.up);
     await plugin.init!(ctx);
 
     const query: SearchQuery = { text: "test", limit: 10 };
@@ -315,14 +317,17 @@ describe("createHybridSearchPlugin", () => {
     const plugin = createHybridSearchPlugin({
       embeddingProvider: new FailingEmbeddingProvider(),
     });
-    db.db.exec(plugin.migrations!()[0]!.up);
+    db.getConnection().exec(plugin.migrations!()[0]!.up);
     await plugin.init!(ctx);
 
     const chunk = makeStoredChunk(1, "test");
     db.insertChunk(chunk);
     await plugin.afterCapture!(chunk, ctx);
 
-    const row = db.db.prepare("SELECT * FROM hybrid_search_embeddings WHERE chunk_id = ?").get(1);
+    const row = db
+      .getConnection()
+      .prepare("SELECT * FROM hybrid_search_embeddings WHERE chunk_id = ?")
+      .get(1);
     expect(row).toBeUndefined();
   });
 
@@ -330,7 +335,7 @@ describe("createHybridSearchPlugin", () => {
     const plugin = createHybridSearchPlugin({
       embeddingProvider: new FailingEmbeddingProvider(),
     });
-    db.db.exec(plugin.migrations!()[0]!.up);
+    db.getConnection().exec(plugin.migrations!()[0]!.up);
     await plugin.init!(ctx);
 
     const query: SearchQuery = { text: "test", limit: 10 };
@@ -347,7 +352,7 @@ describe("createHybridSearchPlugin", () => {
       embeddingProvider: mockProvider,
       alpha: 0.5,
     });
-    db.db.exec(plugin.migrations!()[0]!.up);
+    db.getConnection().exec(plugin.migrations!()[0]!.up);
     await plugin.init!(ctx);
 
     const chunks = [makeStoredChunk(1, "first chunk"), makeStoredChunk(2, "second chunk")];
@@ -372,7 +377,7 @@ describe("createHybridSearchPlugin", () => {
 
   it("preserves existing annotations", async () => {
     const plugin = createHybridSearchPlugin({ embeddingProvider: mockProvider });
-    db.db.exec(plugin.migrations!()[0]!.up);
+    db.getConnection().exec(plugin.migrations!()[0]!.up);
     await plugin.init!(ctx);
 
     const chunk = makeStoredChunk(1, "test");

@@ -41,6 +41,10 @@ export class Database {
     this.db.close();
   }
 
+  getConnection(): BetterSqlite3.Database {
+    return this.db;
+  }
+
   beginTransaction(): void {
     this.db.exec("BEGIN");
   }

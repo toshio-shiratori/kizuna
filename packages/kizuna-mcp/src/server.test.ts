@@ -346,7 +346,7 @@ describe("kizuna_report_read", () => {
 describe("MCP server plugin tool registration", () => {
   it("handles plugin tools with no inputSchema", async () => {
     const manager = new PluginManager({
-      db: db.db,
+      db: db.getConnection(),
       projectConfig: { id: "test" },
     });
 
@@ -377,7 +377,7 @@ describe("MCP server plugin tool registration", () => {
 
   it("passes inputSchema and args to plugin-provided tools", async () => {
     const manager = new PluginManager({
-      db: db.db,
+      db: db.getConnection(),
       projectConfig: { id: "test" },
     });
 
@@ -415,7 +415,7 @@ describe("MCP server plugin tool registration", () => {
 describe("MCP server with PluginManager", () => {
   it("passes pluginManager to search pipeline", async () => {
     const manager = new PluginManager({
-      db: db.db,
+      db: db.getConnection(),
       projectConfig: { id: "test" },
     });
 

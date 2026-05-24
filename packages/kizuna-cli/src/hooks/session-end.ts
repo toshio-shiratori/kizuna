@@ -65,7 +65,7 @@ export async function handleSessionEnd(): Promise<void> {
     const config = loadConfig(input.cwd);
 
     // Read pre-capture stats for pii-sanitizer diff
-    const piiStorage = new SqlitePluginStorage(db.db, PII_PLUGIN_NAME);
+    const piiStorage = new SqlitePluginStorage(db.getConnection(), PII_PLUGIN_NAME);
     const statsBefore = await piiStorage.get<PiiSanitizerStats>(PII_STATS_KEY);
 
     const result = await captureTranscript(db, {

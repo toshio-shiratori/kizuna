@@ -145,7 +145,10 @@ function listChunksChronological(db: Database, options: ListOptions): StoredChun
 
   const sql = `SELECT * FROM chunks ${whereClause} ORDER BY created_at DESC LIMIT ?`;
 
-  const rows = db.db.prepare(sql).all(...params) as ChunkRow[];
+  const rows = db
+    .getConnection()
+    .prepare(sql)
+    .all(...params) as ChunkRow[];
 
   return rows.map(chunkRowToStoredChunk);
 }
