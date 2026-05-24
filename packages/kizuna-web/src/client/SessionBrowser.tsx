@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
 import type { PaginatedResult, SessionListItem, Session, StoredChunk } from "@kizuna/core";
+import { ConfirmModal } from "./ConfirmModal";
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString(undefined, {
@@ -37,6 +38,7 @@ function ChunkCard({
   const [localImportance, setLocalImportance] = useState(chunk.importance);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
 
   const isDirty = localImportance !== chunk.importance;
 
@@ -63,11 +65,12 @@ function ChunkCard({
     }
   }, [chunk.id, chunk.importance, localImportance, isDirty, saving, onImportanceChange]);
 
-  const handleDelete = useCallback(async () => {
-    const confirmed = window.confirm(
-      `Delete this chunk? (ID: ${chunk.id}, ${chunk.role}, turn ${chunk.turnIndex})`,
-    );
-    if (!confirmed) return;
+  const handleDelete = useCallback(() => {
+    setConfirmOpen(true);
+  }, []);
+
+  const handleConfirmDelete = useCallback(async () => {
+    setConfirmOpen(false);
     setDeleting(true);
     try {
       const res = await fetch(`/api/chunks/${chunk.id}`, { method: "DELETE" });
@@ -81,7 +84,7 @@ function ChunkCard({
       alert(`Failed to delete chunk: ${msg}`);
       setDeleting(false);
     }
-  }, [chunk.id, chunk.role, chunk.turnIndex, onDelete]);
+  }, [chunk.id, onDelete]);
 
   return (
     <div className="rounded-lg border border-border bg-bg p-4">
@@ -125,6 +128,28 @@ function ChunkCard({
           </button>
         </div>
       )}
+
+      <ConfirmModal
+        open={confirmOpen}
+        title="Delete Chunk"
+        confirmLabel="Delete"
+        onConfirm={handleConfirmDelete}
+        onCancel={() => setConfirmOpen(false)}
+      >
+        <p className="mb-3 text-sm text-text-secondary">
+          Are you sure you want to delete this chunk?
+        </p>
+        <div className="rounded-lg border border-border bg-bg p-3 text-sm">
+          <div className="mb-2 flex flex-wrap items-center gap-3 text-xs text-text-secondary">
+            <span>ID: {chunk.id}</span>
+            <RoleBadge role={chunk.role} />
+            <span>turn {chunk.turnIndex}</span>
+          </div>
+          <pre className="max-h-40 overflow-auto whitespace-pre-wrap break-words text-text-primary">
+            {chunk.content}
+          </pre>
+        </div>
+      </ConfirmModal>
     </div>
   );
 }
