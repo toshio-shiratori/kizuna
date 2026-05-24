@@ -475,7 +475,7 @@ describe("searchMemory", () => {
 
   describe("with plugins", () => {
     it("runs beforeSearch to modify query", async () => {
-      const pm = new PluginManager({ db: db.db, projectConfig: { id: "test" } });
+      const pm = new PluginManager({ db: db.getConnection(), projectConfig: { id: "test" } });
       const plugin: Plugin = {
         name: "query-rewriter",
         version: "1.0.0",
@@ -496,7 +496,7 @@ describe("searchMemory", () => {
     });
 
     it("runs afterSearch to filter results", async () => {
-      const pm = new PluginManager({ db: db.db, projectConfig: { id: "test" } });
+      const pm = new PluginManager({ db: db.getConnection(), projectConfig: { id: "test" } });
       const plugin: Plugin = {
         name: "result-filter",
         version: "1.0.0",
@@ -518,7 +518,7 @@ describe("searchMemory", () => {
     });
 
     it("continues search when plugin throws in beforeSearch", async () => {
-      const pm = new PluginManager({ db: db.db, projectConfig: { id: "test" } });
+      const pm = new PluginManager({ db: db.getConnection(), projectConfig: { id: "test" } });
       pm.register({
         name: "error-plugin",
         version: "1.0.0",

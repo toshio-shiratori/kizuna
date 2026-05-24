@@ -136,7 +136,10 @@ export function createApiRoutes(db: Database, options?: ApiRouteOptions): Hono {
     const exportLimit = options?.sessionExportLimit ?? 10_000;
 
     const totalChunks = (
-      db.db.prepare("SELECT COUNT(*) as cnt FROM chunks WHERE session_id = ?").get(sessionId) as {
+      db
+        .getConnection()
+        .prepare("SELECT COUNT(*) as cnt FROM chunks WHERE session_id = ?")
+        .get(sessionId) as {
         cnt: number;
       }
     ).cnt;
@@ -304,7 +307,7 @@ export function createApiRoutes(db: Database, options?: ApiRouteOptions): Hono {
       return c.json({ error: "Write mode is not enabled" }, 403);
     }
 
-    if (!hasTelepathyTable(db.db)) {
+    if (!hasTelepathyTable(db.getConnection())) {
       return c.json({ error: "Telepathy plugin is not enabled" }, 503);
     }
 
@@ -328,7 +331,7 @@ export function createApiRoutes(db: Database, options?: ApiRouteOptions): Hono {
       );
     }
 
-    sendMessage(db.db, message);
+    sendMessage(db.getConnection(), message);
     return c.json({ ok: true, length: message.length });
   });
 

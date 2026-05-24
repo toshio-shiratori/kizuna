@@ -166,7 +166,9 @@ export function createServer(options: KizunaMcpServerOptions): McpServer {
           chunks = chunks.slice(0, args.limit);
         }
       } else {
-        const stmt = db.db.prepare("SELECT * FROM chunks ORDER BY created_at DESC LIMIT ?");
+        const stmt = db
+          .getConnection()
+          .prepare("SELECT * FROM chunks ORDER BY created_at DESC LIMIT ?");
         const rows = stmt.all(args.limit) as Array<{
           id: number;
           session_id: string;
@@ -286,7 +288,7 @@ export function createServer(options: KizunaMcpServerOptions): McpServer {
       }
 
       // Mark returned reports as read in a transaction
-      db.db.transaction(() => {
+      db.getConnection().transaction(() => {
         for (const report of reports) {
           if (report.status === "unread") {
             db.updateReportStatus(report.id, "read");

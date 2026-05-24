@@ -249,7 +249,7 @@ describe("injectMemory", () => {
   });
 
   it("includes enrichContext blocks from plugins", async () => {
-    const pm = new PluginManager({ db: db.db, projectConfig: { id: "test" } });
+    const pm = new PluginManager({ db: db.getConnection(), projectConfig: { id: "test" } });
     const plugin: Plugin = {
       name: "context-enricher",
       version: "1.0.0",
@@ -276,7 +276,7 @@ describe("injectMemory", () => {
   });
 
   it("continues injection when enrichContext plugin throws", async () => {
-    const pm = new PluginManager({ db: db.db, projectConfig: { id: "test" } });
+    const pm = new PluginManager({ db: db.getConnection(), projectConfig: { id: "test" } });
     pm.register({
       name: "error-plugin",
       version: "1.0.0",
@@ -291,7 +291,7 @@ describe("injectMemory", () => {
   });
 
   it("reserves token budget for plugins with tokenBudget", async () => {
-    const pm = new PluginManager({ db: db.db, projectConfig: { id: "test" } });
+    const pm = new PluginManager({ db: db.getConnection(), projectConfig: { id: "test" } });
     const pluginContent = "## API Info\n\n" + "x".repeat(300);
     const plugin: Plugin = {
       name: "api-enricher",
@@ -331,7 +331,7 @@ describe("injectMemory", () => {
       });
     }
 
-    const pmWithout = new PluginManager({ db: db.db, projectConfig: { id: "test" } });
+    const pmWithout = new PluginManager({ db: db.getConnection(), projectConfig: { id: "test" } });
     const pluginContent = "## OpenAPI\n\nGET /api/users - returns user list";
     const pluginFactory = (): Plugin => ({
       name: "openapi",
@@ -355,7 +355,7 @@ describe("injectMemory", () => {
       tokenBudget: 800,
     });
 
-    const pmWith = new PluginManager({ db: db.db, projectConfig: { id: "test" } });
+    const pmWith = new PluginManager({ db: db.getConnection(), projectConfig: { id: "test" } });
     pmWith.register(pluginFactory());
     await pmWith.initAll();
     const withReservation = await injectMemory(db, "TypeScript authentication", {
@@ -368,7 +368,7 @@ describe("injectMemory", () => {
   });
 
   it("handles overcommitted plugin budgets with proportional scaling", async () => {
-    const pm = new PluginManager({ db: db.db, projectConfig: { id: "test" } });
+    const pm = new PluginManager({ db: db.getConnection(), projectConfig: { id: "test" } });
     const plugin1: Plugin = {
       name: "plugin-a",
       version: "1.0.0",
@@ -412,7 +412,7 @@ describe("injectMemory", () => {
   });
 
   it("plugins without tokenBudget use remaining space as before", async () => {
-    const pm = new PluginManager({ db: db.db, projectConfig: { id: "test" } });
+    const pm = new PluginManager({ db: db.getConnection(), projectConfig: { id: "test" } });
     const plugin: Plugin = {
       name: "no-budget-plugin",
       version: "1.0.0",

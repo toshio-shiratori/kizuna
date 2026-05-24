@@ -148,7 +148,10 @@ function buildFilteredQuery(
   ORDER BY (bm25(chunks_fts) * exp(-0.693 * (julianday('now') - julianday(c.created_at)) / ?) * (1.0 + c.importance / 10.0)) DESC
   LIMIT ?`;
 
-  const rows = db.db.prepare(sql).all(...params) as FtsRow[];
+  const rows = db
+    .getConnection()
+    .prepare(sql)
+    .all(...params) as FtsRow[];
   return rows.map(ftsRowToSearchResult);
 }
 
@@ -181,7 +184,10 @@ function buildLikeOnlyFilteredQuery(
   ORDER BY (exp(-0.693 * (julianday('now') - julianday(c.created_at)) / ?) * (1.0 + c.importance / 10.0)) DESC
   LIMIT ?`;
 
-  const rows = db.db.prepare(sql).all(...params) as FtsRow[];
+  const rows = db
+    .getConnection()
+    .prepare(sql)
+    .all(...params) as FtsRow[];
   return rows.map(ftsRowToSearchResult);
 }
 

@@ -360,7 +360,7 @@ describe("captureTranscript", () => {
   });
 
   it("runs beforeCapture hooks on each chunk", async () => {
-    const pm = new PluginManager({ db: db.db, projectConfig: { id: "test" } });
+    const pm = new PluginManager({ db: db.getConnection(), projectConfig: { id: "test" } });
     const plugin: Plugin = {
       name: "upper-plugin",
       version: "1.0.0",
@@ -391,7 +391,7 @@ describe("captureTranscript", () => {
   });
 
   it("skips chunks when beforeCapture returns null", async () => {
-    const pm = new PluginManager({ db: db.db, projectConfig: { id: "test" } });
+    const pm = new PluginManager({ db: db.getConnection(), projectConfig: { id: "test" } });
     const plugin: Plugin = {
       name: "filter-plugin",
       version: "1.0.0",
@@ -433,7 +433,7 @@ describe("captureTranscript", () => {
 
   it("calls afterCapture for each stored chunk", async () => {
     const afterCaptureFn = vi.fn();
-    const pm = new PluginManager({ db: db.db, projectConfig: { id: "test" } });
+    const pm = new PluginManager({ db: db.getConnection(), projectConfig: { id: "test" } });
     pm.register({
       name: "after-plugin",
       version: "1.0.0",
@@ -599,7 +599,7 @@ describe("captureTranscript", () => {
   });
 
   it("continues capture when a plugin throws in beforeCapture", async () => {
-    const pm = new PluginManager({ db: db.db, projectConfig: { id: "test" } });
+    const pm = new PluginManager({ db: db.getConnection(), projectConfig: { id: "test" } });
     pm.register({
       name: "error-plugin",
       version: "1.0.0",

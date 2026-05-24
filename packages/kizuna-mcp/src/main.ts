@@ -35,7 +35,9 @@ const stderrLogger = {
 };
 
 const db = new Database(dbPath);
-const pluginManager = await loadPluginManager(db.db, projectDir, { logger: stderrLogger });
+const pluginManager = await loadPluginManager(db.getConnection(), projectDir, {
+  logger: stderrLogger,
+});
 
 if (pluginManager) {
   const names = pluginManager.getPlugins().map((e) => e.plugin.name);

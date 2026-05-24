@@ -743,14 +743,16 @@ describe("plugin command", () => {
 
       const db = new Database(dbPath, { readonly: true });
       try {
-        const tables = db.db
+        const tables = db
+          .getConnection()
           .prepare(
             "SELECT name FROM sqlite_master WHERE type='table' AND name='hybrid_search_embeddings'",
           )
           .all() as { name: string }[];
         expect(tables).toHaveLength(1);
 
-        const versions = db.db
+        const versions = db
+          .getConnection()
           .prepare(
             "SELECT component, version FROM schema_versions WHERE component='@kizuna/plugin-hybrid-search'",
           )
@@ -782,7 +784,8 @@ describe("plugin command", () => {
       const dbPath = join(kizunaDir, "memory.db");
       const db = new Database(dbPath, { readonly: true });
       try {
-        const tables = db.db
+        const tables = db
+          .getConnection()
           .prepare(
             "SELECT name FROM sqlite_master WHERE type='table' AND name='hybrid_search_embeddings'",
           )

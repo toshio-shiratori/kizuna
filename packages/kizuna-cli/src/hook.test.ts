@@ -121,7 +121,8 @@ describe("Hook handlers", () => {
 
       const db = new Database(dbPath);
       try {
-        const chunks = db.db
+        const chunks = db
+          .getConnection()
           .prepare("SELECT role FROM chunks WHERE session_id = ?")
           .all("test-session-123") as { role: string }[];
         expect(chunks.length).toBe(2);
@@ -130,7 +131,8 @@ describe("Hook handlers", () => {
         expect(roles).toContain("user");
         expect(roles).toContain("assistant");
 
-        const session = db.db
+        const session = db
+          .getConnection()
           .prepare("SELECT * FROM sessions WHERE id = ?")
           .get("test-session-123") as { id: string } | undefined;
         expect(session).toBeDefined();
@@ -245,7 +247,8 @@ describe("Hook handlers", () => {
 
       const db = new Database(dbPath);
       try {
-        const chunks = db.db
+        const chunks = db
+          .getConnection()
           .prepare("SELECT role FROM chunks WHERE session_id = ?")
           .all("stop-test-session") as { role: string }[];
         expect(chunks.length).toBe(2);

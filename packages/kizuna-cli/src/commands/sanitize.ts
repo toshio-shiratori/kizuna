@@ -138,7 +138,9 @@ export function registerSanitize(program: Command): void {
           ? "SELECT id, content, metadata FROM chunks WHERE session_id = ?"
           : "SELECT id, content, metadata FROM chunks";
         const rows = (
-          opts.session ? db.db.prepare(query).all(opts.session) : db.db.prepare(query).all()
+          opts.session
+            ? db.getConnection().prepare(query).all(opts.session)
+            : db.getConnection().prepare(query).all()
         ) as ChunkRow[];
 
         // 5. Scan for matches
@@ -201,9 +203,9 @@ export function registerSanitize(program: Command): void {
         }
 
         // 7. Apply sanitization in a transaction
-        const updateStmt = db.db.prepare(
-          "UPDATE chunks SET content = ?, metadata = ?, token_count = ? WHERE id = ?",
-        );
+        const updateStmt = db
+          .getConnection()
+          .prepare("UPDATE chunks SET content = ?, metadata = ?, token_count = ? WHERE id = ?");
 
         db.beginTransaction();
         try {

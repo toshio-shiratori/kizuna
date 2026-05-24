@@ -40,7 +40,8 @@ export function registerList(program: Command): void {
           console.log(`${chunks.length} chunk(s) in session.`);
         } else {
           const limit = opts.limit ?? config.display.listLimit;
-          const rows = db.db
+          const rows = db
+            .getConnection()
             .prepare(`SELECT * FROM chunks ORDER BY created_at DESC LIMIT ?`)
             .all(limit) as Array<{
             id: number;
