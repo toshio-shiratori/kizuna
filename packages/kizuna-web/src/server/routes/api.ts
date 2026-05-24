@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import { searchMemory } from "@kizuna/core";
 import type { Database } from "@kizuna/core";
 
 export function createApiRoutes(db: Database): Hono {
@@ -19,6 +20,16 @@ export function createApiRoutes(db: Database): Hono {
     const { sessions, total } = db.listSessionsPaginated(offset, limit);
     const totalPages = Math.ceil(total / limit);
     return c.json({ items: sessions, total, page, limit, totalPages });
+  });
+
+  api.get("/search", async (c) => {
+    const q = c.req.query("q");
+    if (!q || q.trim().length === 0) {
+      return c.json({ error: "Missing required parameter: q" }, 400);
+    }
+    const limit = Math.min(100, Math.max(1, Number(c.req.query("limit")) || 20));
+    const results = await searchMemory(db, { text: q, limit });
+    return c.json({ results, query: q });
   });
 
   api.get("/sessions/:id/chunks", (c) => {
