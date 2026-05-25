@@ -2,26 +2,7 @@ import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/re
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { SessionBrowser } from "../SessionBrowser.js";
 import type { PaginatedResult, SessionListItem, Session, StoredChunk } from "@kizuna/core";
-
-interface FetchHandler {
-  match: (url: string, init?: RequestInit) => boolean;
-  response: unknown;
-  ok?: boolean;
-  status?: number;
-}
-
-function mockFetchByUrl(handlers: FetchHandler[]) {
-  return vi.fn((input: RequestInfo, init?: RequestInit) => {
-    const url = typeof input === "string" ? input : input.url;
-    const h = handlers.find((handler) => handler.match(url, init));
-    if (!h) return Promise.reject(new Error(`Unmocked: ${url}`));
-    return Promise.resolve({
-      ok: h.ok ?? true,
-      status: h.status ?? 200,
-      json: () => Promise.resolve(h.response),
-    } as Response);
-  });
-}
+import { type FetchHandler, mockFetchByUrl } from "./helpers.js";
 
 const mockSession: SessionListItem = {
   sessionId: "session-abc123",
@@ -483,6 +464,88 @@ describe("SessionBrowser - write mode", () => {
     // The chunk should be removed
     await waitFor(() => {
       expect(screen.queryByText("User message content")).not.toBeInTheDocument();
+    });
+  });
+
+  it("calls alert when save fails", async () => {
+    const alertMock = vi.fn();
+    vi.stubGlobal("alert", alertMock);
+
+    vi.stubGlobal(
+      "fetch",
+      mockFetchByUrl(
+        defaultHandlers({
+          config: {
+            match: (url) => url.startsWith("/api/config"),
+            response: { write: true },
+          },
+          patchChunk: {
+            match: (url, init) => url.startsWith("/api/chunks/") && init?.method === "PATCH",
+            response: { error: "DB locked" },
+            ok: false,
+            status: 500,
+          },
+        }),
+      ),
+    );
+
+    render(<SessionBrowser />);
+
+    await screen.findByText("test-project");
+    fireEvent.click(screen.getByText("This is a session preview"));
+    await screen.findByText("User message content");
+
+    const sliders = screen.getAllByRole("slider");
+    fireEvent.change(sliders[0]!, { target: { value: "9" } });
+
+    const saveButtons = screen.getAllByRole("button", { name: "Save" });
+    fireEvent.click(saveButtons[0]!);
+
+    await waitFor(() => {
+      expect(alertMock).toHaveBeenCalledWith(
+        expect.stringContaining("Failed to update importance"),
+      );
+    });
+  });
+
+  it("calls alert when delete fails", async () => {
+    const alertMock = vi.fn();
+    vi.stubGlobal("alert", alertMock);
+
+    vi.stubGlobal(
+      "fetch",
+      mockFetchByUrl(
+        defaultHandlers({
+          config: {
+            match: (url) => url.startsWith("/api/config"),
+            response: { write: true },
+          },
+          deleteChunk: {
+            match: (url, init) => url.startsWith("/api/chunks/") && init?.method === "DELETE",
+            response: { error: "Permission denied" },
+            ok: false,
+            status: 403,
+          },
+        }),
+      ),
+    );
+
+    render(<SessionBrowser />);
+
+    await screen.findByText("test-project");
+    fireEvent.click(screen.getByText("This is a session preview"));
+    await screen.findByText("User message content");
+
+    const deleteButtons = screen.getAllByRole("button", { name: "Delete" });
+    fireEvent.click(deleteButtons[0]!);
+
+    const dialog = await screen.findByRole("dialog");
+    const allDeleteButtons = screen.getAllByRole("button", { name: "Delete" });
+    const modalDeleteButton = allDeleteButtons.find((btn) => dialog.contains(btn));
+    fireEvent.click(modalDeleteButton!);
+
+    await waitFor(() => {
+      expect(alertMock).toHaveBeenCalledWith(expect.stringContaining("Failed to delete chunk"));
     });
   });
 });
