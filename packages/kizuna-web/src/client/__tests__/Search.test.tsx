@@ -143,6 +143,7 @@ describe("Search", () => {
   });
 
   it("triggers search with debounce on typing", async () => {
+    vi.useFakeTimers();
     const results = [makeSearchResult()];
     stubSearchFetch(results);
 
@@ -151,8 +152,15 @@ describe("Search", () => {
     const input = screen.getByPlaceholderText("Search memories...");
     fireEvent.change(input, { target: { value: "debounced query" } });
 
-    // After debounce, results should appear
-    expect(await screen.findByText("1 result", {}, { timeout: 1000 })).toBeInTheDocument();
+    // Before debounce fires, no fetch should be called
+    expect(fetch).not.toHaveBeenCalled();
+
+    // Advance past the 300ms debounce
+    await vi.advanceTimersByTimeAsync(300);
+
+    expect(fetch).toHaveBeenCalledWith(expect.stringContaining("/api/search"));
+
+    vi.useRealTimers();
   });
 
   it("clears results when query is emptied", async () => {

@@ -188,17 +188,28 @@ describe("Telepathy", () => {
     expect(await screen.findByText("No messages from other projects")).toBeInTheDocument();
   });
 
-  it("shows refresh button and can refresh messages", async () => {
+  it("shows refresh button and triggers a new receive fetch", async () => {
+    const fetchMock = mockFetchByUrl(defaultHandlers());
+    vi.stubGlobal("fetch", fetchMock);
+
     render(<Telepathy />);
 
     const refreshButton = await screen.findByRole("button", { name: "Refresh" });
     expect(refreshButton).toBeInTheDocument();
 
+    const callsBefore = fetchMock.mock.calls.filter(
+      (call: [RequestInfo, RequestInit?]) =>
+        typeof call[0] === "string" && call[0].startsWith("/api/telepathy/receive"),
+    ).length;
+
     fireEvent.click(refreshButton);
 
-    // After clicking, it should show "Loading..." temporarily
     await waitFor(() => {
-      expect(screen.getByText("No messages from other projects")).toBeInTheDocument();
+      const callsAfter = fetchMock.mock.calls.filter(
+        (call: [RequestInfo, RequestInit?]) =>
+          typeof call[0] === "string" && call[0].startsWith("/api/telepathy/receive"),
+      ).length;
+      expect(callsAfter).toBeGreaterThan(callsBefore);
     });
   });
 

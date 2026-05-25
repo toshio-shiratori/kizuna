@@ -309,6 +309,64 @@ describe("SessionBrowser - pagination", () => {
     expect(screen.getByRole("button", { name: "Next" })).not.toBeDisabled();
   });
 
+  it("navigates to next page when Next is clicked", async () => {
+    const page2Session: SessionListItem = {
+      sessionId: "session-page2",
+      projectId: "page2-project",
+      startedAt: "2025-05-18T10:00:00Z",
+      chunkCount: 2,
+      preview: "Page two session preview",
+    };
+    const page2Response: PaginatedResult<SessionListItem> = {
+      items: [page2Session],
+      total: 40,
+      page: 2,
+      totalPages: 2,
+      limit: 20,
+    };
+
+    const fetchFn = vi.fn((input: RequestInfo) => {
+      const url = typeof input === "string" ? input : input.url;
+      if (url.startsWith("/api/config")) {
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          json: () => Promise.resolve({ write: false }),
+        } as Response);
+      }
+      if (url.includes("page=2")) {
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          json: () => Promise.resolve(page2Response),
+        } as Response);
+      }
+      // page=1
+      return Promise.resolve({
+        ok: true,
+        status: 200,
+        json: () =>
+          Promise.resolve({
+            items: [mockSession],
+            total: 40,
+            page: 1,
+            totalPages: 2,
+            limit: 20,
+          }),
+      } as Response);
+    });
+    vi.stubGlobal("fetch", fetchFn);
+
+    render(<SessionBrowser />);
+
+    expect(await screen.findByText("40 sessions")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Next" }));
+
+    expect(await screen.findByText("Page two session preview")).toBeInTheDocument();
+    expect(screen.getByText("page2-project")).toBeInTheDocument();
+  });
+
   it("does not show pagination for single page", async () => {
     vi.stubGlobal("fetch", mockFetchByUrl(defaultHandlers()));
 
@@ -365,6 +423,43 @@ describe("SessionBrowser - write mode", () => {
 
     expect(await screen.findByRole("dialog")).toBeInTheDocument();
     expect(screen.getByText("Delete Chunk")).toBeInTheDocument();
+  });
+
+  it("saves importance change via PATCH request", async () => {
+    const fetchMock = mockFetchByUrl(
+      defaultHandlers({
+        config: {
+          match: (url) => url.startsWith("/api/config"),
+          response: { write: true },
+        },
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<SessionBrowser />);
+
+    await screen.findByText("test-project");
+    fireEvent.click(screen.getByText("This is a session preview"));
+
+    await screen.findByText("User message content");
+
+    // Change importance slider
+    const sliders = screen.getAllByRole("slider");
+    fireEvent.change(sliders[0]!, { target: { value: "8" } });
+
+    // Save button should now be enabled and clickable
+    const saveButtons = screen.getAllByRole("button", { name: "Save" });
+    fireEvent.click(saveButtons[0]!);
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith(
+        "/api/chunks/1",
+        expect.objectContaining({
+          method: "PATCH",
+          body: JSON.stringify({ importance: 8 }),
+        }),
+      );
+    });
   });
 
   it("deletes chunk after confirmation", async () => {
