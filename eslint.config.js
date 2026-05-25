@@ -18,7 +18,7 @@ export default tseslint.config(
             "packages/kizuna-web/src/client/*.ts",
             "packages/kizuna-web/src/client/__tests__/*.test.tsx",
           ],
-          maximumDefaultProjectFileMatchCount_THIS_WILL_SLOW_DOWN_LINTING: 20,
+          maximumDefaultProjectFileMatchCount_THIS_WILL_SLOW_DOWN_LINTING: 30,
         },
         tsconfigRootDir: import.meta.dirname,
       },
