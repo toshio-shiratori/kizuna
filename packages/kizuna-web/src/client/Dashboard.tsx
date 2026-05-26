@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import type { DatabaseStats } from "@kizuna/core";
 
 function formatBytes(bytes: number): string {
@@ -55,6 +56,7 @@ export function Dashboard() {
   const [stats, setStats] = useState<DatabaseStats | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const { t } = useTranslation();
 
   useEffect(() => {
     fetch("/api/stats")
@@ -74,14 +76,16 @@ export function Dashboard() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center p-6 text-text-secondary">Loading...</div>
+      <div className="flex items-center justify-center p-6 text-text-secondary">
+        {t("common.loading")}
+      </div>
     );
   }
 
   if (error) {
     return (
       <div className="flex items-center justify-center p-6 text-red-400">
-        Failed to load stats: {error}
+        {t("dashboard.failedToLoadStats", { error })}
       </div>
     );
   }
@@ -93,28 +97,28 @@ export function Dashboard() {
 
   return (
     <div className="p-6">
-      <h1 className="mb-6 text-2xl font-bold text-text-primary">Kizuna Dashboard</h1>
+      <h1 className="mb-6 text-2xl font-bold text-text-primary">{t("dashboard.title")}</h1>
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-        <Card title="Database">
+        <Card title={t("dashboard.database")}>
           <p className="text-2xl font-semibold text-text-primary">
             {formatBytes(stats.databaseSizeBytes)}
           </p>
         </Card>
 
-        <Card title="Sessions">
+        <Card title={t("dashboard.sessions")}>
           <p className="text-2xl font-semibold text-text-primary">
             {stats.sessionCount.toLocaleString()}
           </p>
         </Card>
 
-        <Card title="Chunks">
+        <Card title={t("dashboard.chunks")}>
           <p className="text-2xl font-semibold text-text-primary">
             {stats.chunkCount.toLocaleString()}
           </p>
         </Card>
 
-        <Card title="Date Range">
+        <Card title={t("dashboard.dateRange")}>
           {stats.oldestChunkDate && stats.newestChunkDate ? (
             <p className="text-lg text-text-primary">
               {formatDate(stats.oldestChunkDate)}
@@ -122,17 +126,17 @@ export function Dashboard() {
               {formatDate(stats.newestChunkDate)}
             </p>
           ) : (
-            <p className="text-lg text-text-secondary">No data</p>
+            <p className="text-lg text-text-secondary">{t("common.noData")}</p>
           )}
         </Card>
 
-        <Card title="Maintenance">
+        <Card title={t("dashboard.maintenance")}>
           <p className="text-lg text-text-primary">
-            {stats.lastMaintenanceAt ? formatDate(stats.lastMaintenanceAt) : "Never"}
+            {stats.lastMaintenanceAt ? formatDate(stats.lastMaintenanceAt) : t("common.never")}
           </p>
         </Card>
 
-        <Card title="Projects">
+        <Card title={t("dashboard.projects")}>
           {stats.projectDistribution.length > 0 ? (
             <div className="mt-1">
               {stats.projectDistribution.map((p) => (
@@ -145,7 +149,7 @@ export function Dashboard() {
               ))}
             </div>
           ) : (
-            <p className="text-lg text-text-secondary">No data</p>
+            <p className="text-lg text-text-secondary">{t("common.noData")}</p>
           )}
         </Card>
       </div>

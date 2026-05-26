@@ -1,9 +1,11 @@
 import { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { Dashboard } from "./Dashboard.js";
 import { SessionBrowser } from "./SessionBrowser.js";
 import { Search } from "./Search.js";
 import { Analysis } from "./Analysis.js";
 import { Telepathy } from "./Telepathy.js";
+import { supportedLanguages } from "./i18n.js";
 
 type Page = "dashboard" | "sessions" | "search" | "analysis" | "telepathy";
 
@@ -16,8 +18,28 @@ function getPageFromHash(): Page {
   return "dashboard";
 }
 
+function LanguageSwitcher() {
+  const { i18n, t } = useTranslation();
+
+  return (
+    <select
+      value={i18n.language}
+      onChange={(e) => i18n.changeLanguage(e.target.value)}
+      aria-label={t("language.label")}
+      className="rounded border border-border bg-bg px-2 py-1 text-xs text-text-secondary outline-none hover:border-accent focus:border-accent"
+    >
+      {supportedLanguages.map((lng) => (
+        <option key={lng} value={lng}>
+          {lng.toUpperCase()}
+        </option>
+      ))}
+    </select>
+  );
+}
+
 export function App() {
   const [page, setPage] = useState<Page>(getPageFromHash);
+  const { t } = useTranslation();
 
   useEffect(() => {
     const onHash = () => setPage(getPageFromHash());
@@ -34,32 +56,35 @@ export function App() {
             href="#dashboard"
             className={`text-sm ${page === "dashboard" ? "text-accent" : "text-text-secondary hover:text-text-primary"}`}
           >
-            Dashboard
+            {t("nav.dashboard")}
           </a>
           <a
             href="#sessions"
             className={`text-sm ${page === "sessions" ? "text-accent" : "text-text-secondary hover:text-text-primary"}`}
           >
-            Sessions
+            {t("nav.sessions")}
           </a>
           <a
             href="#search"
             className={`text-sm ${page === "search" ? "text-accent" : "text-text-secondary hover:text-text-primary"}`}
           >
-            Search
+            {t("nav.search")}
           </a>
           <a
             href="#analysis"
             className={`text-sm ${page === "analysis" ? "text-accent" : "text-text-secondary hover:text-text-primary"}`}
           >
-            Analysis
+            {t("nav.analysis")}
           </a>
           <a
             href="#telepathy"
             className={`text-sm ${page === "telepathy" ? "text-accent" : "text-text-secondary hover:text-text-primary"}`}
           >
-            Telepathy
+            {t("nav.telepathy")}
           </a>
+          <div className="ml-auto">
+            <LanguageSwitcher />
+          </div>
         </div>
       </nav>
       {page === "dashboard" && <Dashboard />}

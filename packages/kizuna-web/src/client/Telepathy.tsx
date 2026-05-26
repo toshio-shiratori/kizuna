@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
-import { ConfirmModal } from "./ConfirmModal";
+import { useTranslation } from "react-i18next";
+import { ConfirmModal } from "./ConfirmModal.js";
 
 interface TelepathyReference {
   name: string;
@@ -48,6 +49,8 @@ export function Telepathy() {
 
   const [reports, setReports] = useState<Report[]>([]);
   const [reportsLoading, setReportsLoading] = useState(true);
+
+  const { t } = useTranslation();
 
   useEffect(() => {
     fetch("/api/reports?limit=50")
@@ -129,14 +132,14 @@ export function Telepathy() {
         return res.json() as Promise<{ ok: boolean; length: number }>;
       })
       .then((data) => {
-        setSendResult({ ok: true, text: `Sent (${data.length} chars)` });
+        setSendResult({ ok: true, text: t("telepathy.sendSuccess", { length: data.length }) });
         setMessage("");
         setSending(false);
       })
       .catch((err: unknown) => {
         setSendResult({
           ok: false,
-          text: err instanceof Error ? err.message : "Send failed",
+          text: err instanceof Error ? err.message : t("telepathy.sendFailed"),
         });
         setSending(false);
       });
@@ -144,21 +147,20 @@ export function Telepathy() {
 
   return (
     <div className="p-6">
-      <h1 className="mb-6 text-2xl font-bold text-text-primary">Telepathy</h1>
+      <h1 className="mb-6 text-2xl font-bold text-text-primary">{t("telepathy.title")}</h1>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         {/* Send Section */}
         <div className="rounded-lg border border-border bg-bg-surface p-5">
-          <h2 className="mb-4 text-lg font-semibold text-text-primary">Send Message</h2>
-          <p className="mb-3 text-sm text-text-secondary">
-            Write a message to share with other projects. The message is stored locally and other
-            projects read it via their references.
-          </p>
+          <h2 className="mb-4 text-lg font-semibold text-text-primary">
+            {t("telepathy.sendMessage")}
+          </h2>
+          <p className="mb-3 text-sm text-text-secondary">{t("telepathy.sendDescription")}</p>
 
           {!reportsLoading && reports.length > 0 && (
             <div className="mb-3">
               <label className="mb-1 block text-xs font-medium text-text-secondary">
-                Load from report
+                {t("telepathy.loadFromReport")}
               </label>
               <select
                 className="w-full rounded-lg border border-border bg-bg px-3 py-2 text-sm text-text-primary outline-none focus:border-accent"
@@ -172,7 +174,7 @@ export function Telepathy() {
                 }}
               >
                 <option value="" disabled>
-                  Select a report...
+                  {t("telepathy.selectReport")}
                 </option>
                 {reports.map((r) => (
                   <option key={r.id} value={r.id}>
@@ -186,7 +188,7 @@ export function Telepathy() {
           <textarea
             value={message}
             onChange={(e) => setMessage(e.target.value)}
-            placeholder="Enter message to share..."
+            placeholder={t("telepathy.messagePlaceholder")}
             rows={6}
             className="mb-3 w-full rounded-lg border border-border bg-bg px-4 py-2 text-sm text-text-primary placeholder-text-secondary outline-none focus:border-accent"
           />
@@ -197,7 +199,7 @@ export function Telepathy() {
               disabled={sending || !message.trim()}
               className="rounded-lg border border-accent bg-accent/20 px-6 py-2 text-sm font-medium text-accent hover:bg-accent/30 disabled:cursor-not-allowed disabled:opacity-40"
             >
-              {sending ? "Sending..." : "Send"}
+              {sending ? t("telepathy.sending") : t("common.send")}
             </button>
 
             {sendResult && (
@@ -210,7 +212,7 @@ export function Telepathy() {
           {!refsLoading && references.length > 0 && (
             <div className="mt-4 border-t border-border pt-3">
               <p className="mb-2 text-xs font-medium text-text-secondary">
-                Discoverable projects ({references.length})
+                {t("telepathy.discoverableProjects", { count: references.length })}
               </p>
               <div className="flex flex-wrap gap-2">
                 {references.map((ref) => (
@@ -230,18 +232,22 @@ export function Telepathy() {
         {/* Receive Section */}
         <div className="rounded-lg border border-border bg-bg-surface p-5">
           <div className="mb-4 flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-text-primary">Received Messages</h2>
+            <h2 className="text-lg font-semibold text-text-primary">
+              {t("telepathy.receivedMessages")}
+            </h2>
             <button
               onClick={fetchMessages}
               disabled={receiving}
               className="rounded-lg border border-border px-3 py-1 text-sm text-text-secondary hover:border-accent hover:text-accent disabled:cursor-not-allowed disabled:opacity-40"
             >
-              {receiving ? "Loading..." : "Refresh"}
+              {receiving ? t("common.loading") : t("common.refresh")}
             </button>
           </div>
 
           {receiveError && (
-            <div className="mb-3 text-sm text-red-400">Failed to load: {receiveError}</div>
+            <div className="mb-3 text-sm text-red-400">
+              {t("telepathy.failedToLoad", { error: receiveError })}
+            </div>
           )}
 
           {receiveNote && messages.length === 0 && (
@@ -252,7 +258,7 @@ export function Telepathy() {
 
           {messages.length === 0 && !receiveNote && !receiveError && !receiving && (
             <div className="rounded-lg border border-border bg-bg p-4 text-center text-sm text-text-secondary">
-              No messages from other projects
+              {t("telepathy.noMessages")}
             </div>
           )}
 
@@ -278,15 +284,14 @@ export function Telepathy() {
 
       <ConfirmModal
         open={confirmOpen}
-        title="Send Telepathy Message"
-        confirmLabel="Send"
-        cancelLabel="Cancel"
+        title={t("telepathy.sendTelepathyMessage")}
+        confirmLabel={t("common.send")}
+        cancelLabel={t("common.cancel")}
         onConfirm={handleConfirmSend}
         onCancel={() => setConfirmOpen(false)}
       >
         <p className="mb-3 text-sm text-text-secondary">
-          Send this message ({message.trim().length} chars) via telepathy? Other projects will be
-          able to read it.
+          {t("telepathy.sendConfirmation", { length: message.trim().length })}
         </p>
         <pre className="max-h-40 overflow-auto rounded-lg border border-border bg-bg p-3 text-sm text-text-primary whitespace-pre-wrap break-words">
           {message.trim()}

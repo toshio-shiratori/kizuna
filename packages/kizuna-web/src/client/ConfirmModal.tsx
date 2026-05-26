@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useId, useRef } from "react";
+import { useTranslation } from "react-i18next";
 
 interface ConfirmModalProps {
   open: boolean;
@@ -14,11 +15,14 @@ export function ConfirmModal({
   open,
   title,
   children,
-  confirmLabel = "Confirm",
-  cancelLabel = "Cancel",
+  confirmLabel,
+  cancelLabel,
   onConfirm,
   onCancel,
 }: ConfirmModalProps) {
+  const { t } = useTranslation();
+  const resolvedConfirmLabel = confirmLabel ?? t("common.confirm");
+  const resolvedCancelLabel = cancelLabel ?? t("common.cancel");
   const cancelRef = useRef<HTMLButtonElement>(null);
   const confirmRef = useRef<HTMLButtonElement>(null);
   const previousFocusRef = useRef<Element | null>(null);
@@ -91,14 +95,14 @@ export function ConfirmModal({
             onClick={onCancel}
             className="rounded-lg border border-border px-4 py-2 text-sm text-text-secondary hover:border-accent hover:text-accent"
           >
-            {cancelLabel}
+            {resolvedCancelLabel}
           </button>
           <button
             ref={confirmRef}
             onClick={onConfirm}
             className="rounded-lg border border-accent bg-accent/20 px-6 py-2 text-sm font-medium text-accent hover:bg-accent/30"
           >
-            {confirmLabel}
+            {resolvedConfirmLabel}
           </button>
         </div>
       </div>
