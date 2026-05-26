@@ -91,12 +91,11 @@ export const testFixLoopRule: AnalysisRule = {
       if (cycles >= LOOP_THRESHOLD) {
         findings.push({
           pattern: "test-fix-loop",
-          patternLabel: "Test-Fix Loop",
           severity: cycles >= 6 ? "critical" : "warning",
-          description: `Detected ${cycles} test-fix cycle(s) in this session. The pattern of running tests, encountering failures, and re-running tests repeated ${cycles} times.`,
+          descriptionKey: "analysis.descriptions.testFixLoop",
+          descriptionParams: { cycles },
           sessionIds: [sessionId],
-          suggestion:
-            "Frequent test-fix loops may indicate that changes are being made without fully understanding the test expectations. Consider improving test documentation, adding type checks before testing, or breaking changes into smaller increments.",
+          suggestionKey: "analysis.suggestions.testFixLoop",
           count: cycles,
         });
       }

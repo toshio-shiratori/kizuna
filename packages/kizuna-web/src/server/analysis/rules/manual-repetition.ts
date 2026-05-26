@@ -130,12 +130,11 @@ export const manualRepetitionRule: AnalysisRule = {
 
       findings.push({
         pattern: "manual-repetition",
-        patternLabel: "Manual Step Repetition",
         severity: sessionIds.length >= 6 ? "warning" : "info",
-        description: `The command "${original}" was manually executed in ${sessionIds.length} sessions.`,
+        descriptionKey: "analysis.descriptions.manualRepetition",
+        descriptionParams: { command: original, sessionCount: sessionIds.length },
         sessionIds,
-        suggestion:
-          "This command is repeated across many sessions. Consider automating it via a Claude Code hook (UserPromptSubmit or SessionEnd) or adding it to your project scripts.",
+        suggestionKey: "analysis.suggestions.manualRepetition",
         count: sessionIds.length,
       });
     }

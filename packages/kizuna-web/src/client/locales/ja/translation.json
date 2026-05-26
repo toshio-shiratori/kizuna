@@ -93,7 +93,34 @@
     "suggestion": "提案",
     "findingSummary_other": "{{occurrences}}回 | {{count}} セッション",
     "hideAffectedSessions": "影響セッションを隠す ({{count}})",
-    "showAffectedSessions": "影響セッションを表示 ({{count}})"
+    "showAffectedSessions": "影響セッションを表示 ({{count}})",
+    "patternLabels": {
+      "long-sessions": "長時間セッション",
+      "manual-repetition": "手動ステップの繰り返し",
+      "repeated-errors": "繰り返しエラー",
+      "rework-detection": "やり直し検出",
+      "test-fix-loop": "テスト修正ループ"
+    },
+    "descriptions": {
+      "longSessions": {
+        "chunks": "セッションのチャンク数が {{chunkCount}} 個です（閾値: {{threshold}}）。平均を大幅に上回っており、タスクに苦戦している可能性があります。",
+        "duration": "セッションの所要時間が {{hours}} 時間です（閾値: {{threshold}} 時間）。平均を大幅に上回っています。"
+      },
+      "manualRepetition": "コマンド \"{{command}}\" が {{sessionCount}} セッションで手動実行されています。",
+      "repeatedErrors": "同じエラーが {{sessionCount}} セッションで発生しています: \"{{error}}\"",
+      "reworkDetection": "{{sessionCount}} セッションで {{instanceCount}} 件のやり直し要求を検出しました。ユーザーメッセージに「やり直し」「元に戻す」「undo」「revert」などのキーワードが含まれ、アシスタントが修正を行っています。",
+      "testFixLoop": "このセッションで {{cycles}} 回のテスト修正サイクルを検出しました。テスト実行→失敗→修正→再テストのパターンが {{cycles}} 回繰り返されています。"
+    },
+    "suggestions": {
+      "longSessions": {
+        "chunks": "長時間セッションはタスクの難航を示唆します。複雑なタスクをサブタスクに分割する、フックで初期コンテキストを改善する、CLAUDE.md に共通パターンを記載するなどを検討してください。",
+        "duration": "長時間セッションはタスクの難航を示唆します。フックでより多くのコンテキストを提供する、作業をより小さな単位に分割するなどを検討してください。"
+      },
+      "manualRepetition": "このコマンドは多くのセッションで繰り返されています。Claude Code フック（UserPromptSubmit または SessionEnd）で自動化するか、プロジェクトスクリプトに追加することを検討してください。",
+      "repeatedErrors": "このエラーはセッションをまたいで繰り返し発生しています。プロジェクト設定の修正、ドキュメントの更新、または既知の問題を警告するフックの作成を検討してください。",
+      "reworkDetection": "頻繁なやり直しは、初期指示が不明確であるか、フックのコンテキストが不足している可能性を示唆します。UserPromptSubmit フックまたは CLAUDE.md のルールに、より具体的なガイダンスを追加することを検討してください。",
+      "testFixLoop": "頻繁なテスト修正ループは、テストの期待を十分に理解せずに変更している可能性を示唆します。テストドキュメントの改善、テスト前の型チェック追加、変更をより小さな単位に分割するなどを検討してください。"
+    }
   },
   "telepathy": {
     "title": "テレパシー",

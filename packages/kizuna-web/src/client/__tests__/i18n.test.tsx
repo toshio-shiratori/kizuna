@@ -95,19 +95,19 @@ function stubFetchForAllPages() {
               analyzedSessions: 5,
               findings: [
                 {
-                  pattern: "large-turns",
-                  patternLabel: "Large Turns",
+                  pattern: "long-sessions",
                   severity: "critical",
-                  description: "Some sessions have very large turns",
+                  descriptionKey: "analysis.descriptions.longSessions.chunks",
+                  descriptionParams: { chunkCount: 80, threshold: 50 },
                   sessionIds: ["s-1", "s-2"],
-                  suggestion: "Break into smaller chunks",
+                  suggestionKey: "analysis.suggestions.longSessions.chunks",
                   count: 3,
                 },
               ],
               summary: {
                 totalFindings: 3,
                 bySeverity: { critical: 3, warning: 0, info: 0 },
-                byPattern: { "large-turns": 3 },
+                byPattern: { "long-sessions": 3 },
               },
             }),
         } as Response);
@@ -233,19 +233,19 @@ describe("i18n", () => {
         analyzedSessions: 1,
         findings: [
           {
-            pattern: "test-pattern",
-            patternLabel: "Test Pattern",
+            pattern: "test-fix-loop",
             severity: "warning" as const,
-            description: "Test description",
+            descriptionKey: "analysis.descriptions.testFixLoop",
+            descriptionParams: { cycles: 4 },
             sessionIds: ["session-1"],
-            suggestion: "Test suggestion",
+            suggestionKey: "analysis.suggestions.testFixLoop",
             count: 4,
           },
         ],
         summary: {
           totalFindings: 4,
           bySeverity: { critical: 0, warning: 4, info: 0 },
-          byPattern: { "test-pattern": 4 },
+          byPattern: { "test-fix-loop": 4 },
         },
       };
 

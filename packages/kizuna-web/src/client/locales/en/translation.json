@@ -96,7 +96,34 @@
     "findingSummary_one": "{{occurrences}}x | {{count}} session",
     "findingSummary_other": "{{occurrences}}x | {{count}} sessions",
     "hideAffectedSessions": "Hide affected sessions ({{count}})",
-    "showAffectedSessions": "Show affected sessions ({{count}})"
+    "showAffectedSessions": "Show affected sessions ({{count}})",
+    "patternLabels": {
+      "long-sessions": "Long Sessions",
+      "manual-repetition": "Manual Step Repetition",
+      "repeated-errors": "Repeated Errors",
+      "rework-detection": "Rework Detection",
+      "test-fix-loop": "Test-Fix Loop"
+    },
+    "descriptions": {
+      "longSessions": {
+        "chunks": "Session has {{chunkCount}} chunks (threshold: {{threshold}}). This is significantly more than average and may indicate struggling with a task.",
+        "duration": "Session lasted {{hours}} hours (threshold: {{threshold}}h). This is significantly longer than average."
+      },
+      "manualRepetition": "The command \"{{command}}\" was manually executed in {{sessionCount}} sessions.",
+      "repeatedErrors": "The same error appeared in {{sessionCount}} sessions: \"{{error}}\"",
+      "reworkDetection": "Detected {{instanceCount}} rework request(s) across {{sessionCount}} session(s). Keywords like \"undo\", \"revert\", \"やり直し\" were found in user messages followed by assistant corrections.",
+      "testFixLoop": "Detected {{cycles}} test-fix cycle(s) in this session. The pattern of running tests, encountering failures, and re-running tests repeated {{cycles}} times."
+    },
+    "suggestions": {
+      "longSessions": {
+        "chunks": "Long sessions often indicate difficulty with a task. Consider breaking complex tasks into smaller sub-tasks, improving initial context via hooks, or documenting common patterns in CLAUDE.md.",
+        "duration": "Long-running sessions may indicate difficulty with a task. Consider providing more context in hooks or breaking work into smaller increments."
+      },
+      "manualRepetition": "This command is repeated across many sessions. Consider automating it via a Claude Code hook (UserPromptSubmit or SessionEnd) or adding it to your project scripts.",
+      "repeatedErrors": "This error recurs across sessions. Consider adding a fix to your project configuration, updating documentation, or creating a hook that warns about this known issue.",
+      "reworkDetection": "Frequent rework may indicate unclear initial instructions or missing context in hooks. Consider adding more specific guidance in UserPromptSubmit hooks or CLAUDE.md rules.",
+      "testFixLoop": "Frequent test-fix loops may indicate that changes are being made without fully understanding the test expectations. Consider improving test documentation, adding type checks before testing, or breaking changes into smaller increments."
+    }
   },
   "telepathy": {
     "title": "Telepathy",

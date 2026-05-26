@@ -6,11 +6,11 @@ type Severity = "info" | "warning" | "critical";
 
 interface Finding {
   pattern: string;
-  patternLabel: string;
   severity: Severity;
-  description: string;
+  descriptionKey: string;
+  descriptionParams: Record<string, string | number>;
   sessionIds: string[];
-  suggestion: string;
+  suggestionKey: string;
   count: number;
 }
 
@@ -67,7 +67,7 @@ function FindingCard({ finding }: { finding: Finding }) {
       <div className="mb-2 flex flex-wrap items-center gap-3">
         <SeverityBadge severity={finding.severity} />
         <span className="rounded bg-bg px-2 py-0.5 text-xs text-text-secondary">
-          {finding.patternLabel}
+          {t(`analysis.patternLabels.${finding.pattern}`)}
         </span>
         <span className="text-xs text-text-secondary">
           {t("analysis.findingSummary", {
@@ -77,11 +77,13 @@ function FindingCard({ finding }: { finding: Finding }) {
         </span>
       </div>
 
-      <p className="mb-3 text-sm text-text-primary">{finding.description}</p>
+      <p className="mb-3 text-sm text-text-primary">
+        {t(finding.descriptionKey, finding.descriptionParams)}
+      </p>
 
       <div className="rounded border border-accent/20 bg-accent/5 p-3">
         <p className="text-xs font-medium text-accent">{t("analysis.suggestion")}</p>
-        <p className="mt-1 text-sm text-text-secondary">{finding.suggestion}</p>
+        <p className="mt-1 text-sm text-text-secondary">{t(finding.suggestionKey)}</p>
       </div>
 
       {finding.sessionIds.length > 0 && (

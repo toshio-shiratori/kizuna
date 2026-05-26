@@ -71,12 +71,11 @@ export const longSessionsRule: AnalysisRule = {
         // Require at least some chunks to be meaningful
         findings.push({
           pattern: "long-sessions",
-          patternLabel: "Long Sessions",
           severity: count > chunkThreshold * 1.5 ? "warning" : "info",
-          description: `Session has ${count} chunks (threshold: ${Math.round(chunkThreshold)}). This is significantly more than average and may indicate struggling with a task.`,
+          descriptionKey: "analysis.descriptions.longSessions.chunks",
+          descriptionParams: { chunkCount: count, threshold: Math.round(chunkThreshold) },
           sessionIds: [session.id],
-          suggestion:
-            "Long sessions often indicate difficulty with a task. Consider breaking complex tasks into smaller sub-tasks, improving initial context via hooks, or documenting common patterns in CLAUDE.md.",
+          suggestionKey: "analysis.suggestions.longSessions.chunks",
           count,
         });
       }
@@ -100,13 +99,12 @@ export const longSessionsRule: AnalysisRule = {
         if (!alreadyFlagged) {
           findings.push({
             pattern: "long-sessions",
-            patternLabel: "Long Sessions",
             severity: hours > durationThreshold * 1.5 ? "warning" : "info",
-            description: `Session lasted ${hours.toFixed(1)} hours (threshold: ${durationThreshold.toFixed(1)}h). This is significantly longer than average.`,
+            descriptionKey: "analysis.descriptions.longSessions.duration",
+            descriptionParams: { hours: hours.toFixed(1), threshold: durationThreshold.toFixed(1) },
             sessionIds: [session.id],
-            suggestion:
-              "Long-running sessions may indicate difficulty with a task. Consider providing more context in hooks or breaking work into smaller increments.",
-            count: Math.round(hours * 60), // minutes as a count metric
+            suggestionKey: "analysis.suggestions.longSessions.duration",
+            count: Math.round(hours * 60),
           });
         }
       }
