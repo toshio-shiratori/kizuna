@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, type ReactNode } from "react";
+import { useTranslation } from "react-i18next";
 import type { SearchResult, StoredChunk } from "@kizuna/core";
 
 function isCJKChar(char: string): boolean {
@@ -154,6 +155,7 @@ export function Search() {
   const [searched, setSearched] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const requestIdRef = useRef(0);
+  const { t } = useTranslation();
 
   useEffect(() => {
     if (debounceRef.current) {
@@ -199,7 +201,7 @@ export function Search() {
       })
       .catch((err: unknown) => {
         if (id !== requestIdRef.current) return;
-        setError(err instanceof Error ? err.message : "Unknown error");
+        setError(err instanceof Error ? err.message : t("common.unknownError"));
         setLoading(false);
       });
   }
@@ -217,7 +219,7 @@ export function Search() {
 
   return (
     <div className="p-6">
-      <h1 className="mb-6 text-2xl font-bold text-text-primary">Search</h1>
+      <h1 className="mb-6 text-2xl font-bold text-text-primary">{t("search.title")}</h1>
 
       <form onSubmit={handleSubmit} className="mb-6">
         <div className="flex gap-2">
@@ -225,37 +227,37 @@ export function Search() {
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search memories..."
+            placeholder={t("search.placeholder")}
             className="flex-1 rounded-lg border border-border bg-bg-surface px-4 py-2 text-text-primary placeholder-text-secondary outline-none focus:border-accent"
           />
           <button
             type="submit"
             className="rounded-lg border border-accent bg-accent/20 px-4 py-2 text-sm font-medium text-accent hover:bg-accent/30"
           >
-            Search
+            {t("search.searchButton")}
           </button>
         </div>
       </form>
 
-      {loading && <div className="py-4 text-center text-text-secondary">Searching...</div>}
+      {loading && (
+        <div className="py-4 text-center text-text-secondary">{t("search.searching")}</div>
+      )}
 
-      {error && <div className="py-4 text-center text-red-400">Search failed: {error}</div>}
+      {error && (
+        <div className="py-4 text-center text-red-400">{t("search.searchFailed", { error })}</div>
+      )}
 
       {!loading && !error && searched && results.length === 0 && (
         <div className="rounded-lg border border-border bg-bg-surface p-8 text-center">
-          <p className="text-lg text-text-secondary">No results found</p>
-          <p className="mt-2 text-sm text-text-secondary">
-            Try different keywords or a broader query.
-          </p>
+          <p className="text-lg text-text-secondary">{t("search.noResults")}</p>
+          <p className="mt-2 text-sm text-text-secondary">{t("search.noResultsHint")}</p>
         </div>
       )}
 
       {!loading && !error && !searched && (
         <div className="rounded-lg border border-border bg-bg-surface p-8 text-center">
-          <p className="text-lg text-text-secondary">Enter a query to search memories</p>
-          <p className="mt-2 text-sm text-text-secondary">
-            Search supports English and Japanese (CJK) text.
-          </p>
+          <p className="text-lg text-text-secondary">{t("search.initialPrompt")}</p>
+          <p className="mt-2 text-sm text-text-secondary">{t("search.initialHint")}</p>
         </div>
       )}
 
@@ -263,7 +265,7 @@ export function Search() {
         <div>
           <div className="mb-4 flex items-center justify-between">
             <p className="text-sm text-text-secondary">
-              {results.length} result{results.length !== 1 ? "s" : ""}
+              {t("search.resultCount", { count: results.length })}
             </p>
             <div className="flex items-center gap-2">
               <a
@@ -271,14 +273,14 @@ export function Search() {
                 className="rounded border border-border px-3 py-1 text-sm text-text-secondary hover:bg-border hover:text-text-primary"
                 download
               >
-                Export JSON
+                {t("common.exportJson")}
               </a>
               <a
                 href={`/api/export/search?q=${encodeURIComponent(submittedQuery)}&format=markdown`}
                 className="rounded border border-border px-3 py-1 text-sm text-text-secondary hover:bg-border hover:text-text-primary"
                 download
               >
-                Export MD
+                {t("common.exportMd")}
               </a>
             </div>
           </div>

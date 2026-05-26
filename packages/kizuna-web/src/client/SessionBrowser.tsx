@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from "react";
+import { useTranslation } from "react-i18next";
 import type { PaginatedResult, SessionListItem, Session, StoredChunk } from "@kizuna/core";
-import { ConfirmModal } from "./ConfirmModal";
+import { ConfirmModal } from "./ConfirmModal.js";
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString(undefined, {
@@ -39,6 +40,7 @@ function ChunkCard({
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const { t } = useTranslation();
 
   const isDirty = localImportance !== chunk.importance;
 
@@ -57,8 +59,8 @@ function ChunkCard({
       }
       onImportanceChange?.(chunk.id, localImportance);
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Unknown error";
-      alert(`Failed to update importance: ${msg}`);
+      const msg = err instanceof Error ? err.message : t("common.unknownError");
+      alert(t("sessionBrowser.failedToUpdateImportance", { error: msg }));
       setLocalImportance(chunk.importance);
     } finally {
       setSaving(false);
@@ -80,8 +82,8 @@ function ChunkCard({
       }
       onDelete?.(chunk.id);
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Unknown error";
-      alert(`Failed to delete chunk: ${msg}`);
+      const msg = err instanceof Error ? err.message : t("common.unknownError");
+      alert(t("sessionBrowser.failedToDeleteChunk", { error: msg }));
       setDeleting(false);
     }
   }, [chunk.id, onDelete]);
@@ -90,8 +92,8 @@ function ChunkCard({
     <div className="rounded-lg border border-border bg-bg p-4">
       <div className="mb-2 flex flex-wrap items-center gap-3 text-xs text-text-secondary">
         <RoleBadge role={chunk.role} />
-        <span>importance: {chunk.importance}</span>
-        <span>tokens: {chunk.tokenCount}</span>
+        <span>{t("sessionBrowser.importance", { value: chunk.importance })}</span>
+        <span>{t("sessionBrowser.tokens", { value: chunk.tokenCount })}</span>
         <span>{formatDate(chunk.createdAt)}</span>
       </div>
       <pre className="max-h-80 overflow-auto whitespace-pre-wrap break-words text-sm text-text-primary">
@@ -100,7 +102,7 @@ function ChunkCard({
       {writeMode && (
         <div className="mt-3 flex flex-wrap items-center gap-3 border-t border-border pt-3">
           <label className="flex items-center gap-2 text-xs text-text-secondary">
-            <span>importance:</span>
+            <span>{t("sessionBrowser.importanceLabel")}</span>
             <input
               type="range"
               min={0}
@@ -117,33 +119,31 @@ function ChunkCard({
             disabled={!isDirty || saving}
             className="rounded border border-accent/30 px-3 py-1 text-xs text-accent hover:bg-accent/20 disabled:cursor-not-allowed disabled:opacity-40"
           >
-            {saving ? "Saving..." : "Save"}
+            {saving ? t("sessionBrowser.saving") : t("common.save")}
           </button>
           <button
             onClick={handleDelete}
             disabled={deleting}
             className="ml-auto rounded border border-red-500/30 px-3 py-1 text-xs text-red-400 hover:bg-red-500/20 disabled:cursor-not-allowed disabled:opacity-40"
           >
-            {deleting ? "Deleting..." : "Delete"}
+            {deleting ? t("sessionBrowser.deleting") : t("common.delete")}
           </button>
         </div>
       )}
 
       <ConfirmModal
         open={confirmOpen}
-        title="Delete Chunk"
-        confirmLabel="Delete"
+        title={t("sessionBrowser.deleteChunk")}
+        confirmLabel={t("common.delete")}
         onConfirm={handleConfirmDelete}
         onCancel={() => setConfirmOpen(false)}
       >
-        <p className="mb-3 text-sm text-text-secondary">
-          Are you sure you want to delete this chunk?
-        </p>
+        <p className="mb-3 text-sm text-text-secondary">{t("sessionBrowser.deleteConfirmation")}</p>
         <div className="rounded-lg border border-border bg-bg p-3 text-sm">
           <div className="mb-2 flex flex-wrap items-center gap-3 text-xs text-text-secondary">
-            <span>ID: {chunk.id}</span>
+            <span>{t("sessionBrowser.id", { id: chunk.id })}</span>
             <RoleBadge role={chunk.role} />
-            <span>turn {chunk.turnIndex}</span>
+            <span>{t("sessionBrowser.turn", { index: chunk.turnIndex })}</span>
           </div>
           <pre className="max-h-40 overflow-auto whitespace-pre-wrap break-words text-text-primary">
             {chunk.content}
@@ -166,6 +166,7 @@ function SessionDetail({
   const [data, setData] = useState<{ session: Session; chunks: StoredChunk[] } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const { t } = useTranslation();
 
   useEffect(() => {
     setLoading(true);
@@ -180,7 +181,7 @@ function SessionDetail({
         setLoading(false);
       })
       .catch((err: unknown) => {
-        setError(err instanceof Error ? err.message : "Unknown error");
+        setError(err instanceof Error ? err.message : t("common.unknownError"));
         setLoading(false);
       });
   }, [sessionId]);
@@ -212,11 +213,19 @@ function SessionDetail({
   );
 
   if (loading) {
-    return <div className="py-4 text-center text-text-secondary">Loading chunks...</div>;
+    return (
+      <div className="py-4 text-center text-text-secondary">
+        {t("sessionBrowser.loadingChunks")}
+      </div>
+    );
   }
 
   if (error) {
-    return <div className="py-4 text-center text-red-400">Failed to load chunks: {error}</div>;
+    return (
+      <div className="py-4 text-center text-red-400">
+        {t("sessionBrowser.failedToLoadChunks", { error })}
+      </div>
+    );
   }
 
   if (!data) return null;
@@ -225,7 +234,9 @@ function SessionDetail({
     <div className="mt-4 rounded-lg border border-accent/30 bg-bg-surface p-4">
       <div className="mb-4 flex items-center justify-between">
         <div>
-          <h3 className="text-lg font-semibold text-text-primary">Session Detail</h3>
+          <h3 className="text-lg font-semibold text-text-primary">
+            {t("sessionBrowser.sessionDetail")}
+          </h3>
           <p className="text-xs text-text-secondary">
             {data.session.projectId} | {formatDate(data.session.startedAt)}
             {data.session.endedAt ? ` - ${formatDate(data.session.endedAt)}` : ""}
@@ -238,20 +249,20 @@ function SessionDetail({
             className="rounded border border-border px-3 py-1 text-sm text-text-secondary hover:bg-border hover:text-text-primary"
             download
           >
-            Export JSON
+            {t("common.exportJson")}
           </a>
           <a
             href={`/api/export/session/${encodeURIComponent(sessionId)}?format=markdown`}
             className="rounded border border-border px-3 py-1 text-sm text-text-secondary hover:bg-border hover:text-text-primary"
             download
           >
-            Export MD
+            {t("common.exportMd")}
           </a>
           <button
             onClick={onClose}
             className="rounded border border-border px-3 py-1 text-sm text-text-secondary hover:bg-border hover:text-text-primary"
           >
-            Close
+            {t("common.close")}
           </button>
         </div>
       </div>
@@ -279,6 +290,8 @@ function Pagination({
   totalPages: number;
   onPageChange: (p: number) => void;
 }) {
+  const { t } = useTranslation();
+
   if (totalPages <= 1) return null;
 
   const pages: number[] = [];
@@ -295,7 +308,7 @@ function Pagination({
         onClick={() => onPageChange(page - 1)}
         className="rounded border border-border px-3 py-1 text-sm text-text-secondary hover:bg-border hover:text-text-primary disabled:cursor-not-allowed disabled:opacity-40"
       >
-        Prev
+        {t("sessionBrowser.prev")}
       </button>
       {start > 1 && <span className="text-sm text-text-secondary">...</span>}
       {pages.map((p) => (
@@ -317,7 +330,7 @@ function Pagination({
         onClick={() => onPageChange(page + 1)}
         className="rounded border border-border px-3 py-1 text-sm text-text-secondary hover:bg-border hover:text-text-primary disabled:cursor-not-allowed disabled:opacity-40"
       >
-        Next
+        {t("sessionBrowser.next")}
       </button>
     </div>
   );
@@ -331,6 +344,7 @@ export function SessionBrowser() {
   const [selectedSession, setSelectedSession] = useState<string | null>(null);
   const [writeMode, setWriteMode] = useState(false);
   const limit = 20;
+  const { t } = useTranslation();
 
   useEffect(() => {
     fetch("/api/config")
@@ -358,17 +372,25 @@ export function SessionBrowser() {
         setLoading(false);
       })
       .catch((err: unknown) => {
-        setError(err instanceof Error ? err.message : "Unknown error");
+        setError(err instanceof Error ? err.message : t("common.unknownError"));
         setLoading(false);
       });
   }, [page]);
 
   if (loading) {
-    return <div className="p-6 text-center text-text-secondary">Loading sessions...</div>;
+    return (
+      <div className="p-6 text-center text-text-secondary">
+        {t("sessionBrowser.loadingSessions")}
+      </div>
+    );
   }
 
   if (error) {
-    return <div className="p-6 text-center text-red-400">Failed to load sessions: {error}</div>;
+    return (
+      <div className="p-6 text-center text-red-400">
+        {t("sessionBrowser.failedToLoadSessions", { error })}
+      </div>
+    );
   }
 
   if (!result) return null;
@@ -376,11 +398,11 @@ export function SessionBrowser() {
   if (result.items.length === 0) {
     return (
       <div className="p-6">
-        <h1 className="mb-6 text-2xl font-bold text-text-primary">Sessions</h1>
+        <h1 className="mb-6 text-2xl font-bold text-text-primary">{t("sessionBrowser.title")}</h1>
         <div className="rounded-lg border border-border bg-bg-surface p-8 text-center">
-          <p className="text-lg text-text-secondary">No sessions found</p>
+          <p className="text-lg text-text-secondary">{t("sessionBrowser.noSessionsFound")}</p>
           <p className="mt-2 text-sm text-text-secondary">
-            Sessions will appear here once Kizuna captures them.
+            {t("sessionBrowser.noSessionsDescription")}
           </p>
         </div>
       </div>
@@ -390,9 +412,9 @@ export function SessionBrowser() {
   return (
     <div className="p-6">
       <div className="mb-4 flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-text-primary">Sessions</h1>
+        <h1 className="text-2xl font-bold text-text-primary">{t("sessionBrowser.title")}</h1>
         <span className="text-sm text-text-secondary">
-          {result.total} session{result.total !== 1 ? "s" : ""}
+          {t("sessionBrowser.sessionCount", { count: result.total })}
         </span>
       </div>
 
@@ -400,10 +422,10 @@ export function SessionBrowser() {
         <table className="w-full border-collapse">
           <thead>
             <tr className="border-b border-border text-left text-sm text-text-secondary">
-              <th className="px-4 py-2 font-medium">Date</th>
-              <th className="px-4 py-2 font-medium">Project</th>
-              <th className="px-4 py-2 font-medium">Chunks</th>
-              <th className="px-4 py-2 font-medium">Preview</th>
+              <th className="px-4 py-2 font-medium">{t("sessionBrowser.date")}</th>
+              <th className="px-4 py-2 font-medium">{t("sessionBrowser.project")}</th>
+              <th className="px-4 py-2 font-medium">{t("sessionBrowser.chunks")}</th>
+              <th className="px-4 py-2 font-medium">{t("sessionBrowser.preview")}</th>
             </tr>
           </thead>
           <tbody>

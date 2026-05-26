@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import type { DatabaseStats } from "@kizuna/core";
 
 type Severity = "info" | "warning" | "critical";
@@ -30,18 +31,20 @@ const severityStyles: Record<Severity, string> = {
   info: "bg-blue-500/20 text-blue-300 border-blue-500/30",
 };
 
-const severityLabels: Record<Severity, string> = {
-  critical: "Critical",
-  warning: "Warning",
-  info: "Info",
-};
-
 function SeverityBadge({ severity }: { severity: Severity }) {
+  const { t } = useTranslation();
+
+  const severityKeyMap: Record<Severity, string> = {
+    critical: "analysis.severityCritical",
+    warning: "analysis.severityWarning",
+    info: "analysis.severityInfo",
+  };
+
   return (
     <span
       className={`inline-block rounded border px-2 py-0.5 text-xs font-medium ${severityStyles[severity]}`}
     >
-      {severityLabels[severity]}
+      {t(severityKeyMap[severity])}
     </span>
   );
 }
@@ -57,6 +60,7 @@ function SummaryCard({ title, value, accent }: { title: string; value: number; a
 
 function FindingCard({ finding }: { finding: Finding }) {
   const [expanded, setExpanded] = useState(false);
+  const { t } = useTranslation();
 
   return (
     <div className="rounded-lg border border-border bg-bg-surface p-4">
@@ -66,15 +70,17 @@ function FindingCard({ finding }: { finding: Finding }) {
           {finding.patternLabel}
         </span>
         <span className="text-xs text-text-secondary">
-          {finding.count}x | {finding.sessionIds.length} session
-          {finding.sessionIds.length !== 1 ? "s" : ""}
+          {t("analysis.findingSummary", {
+            occurrences: finding.count,
+            count: finding.sessionIds.length,
+          })}
         </span>
       </div>
 
       <p className="mb-3 text-sm text-text-primary">{finding.description}</p>
 
       <div className="rounded border border-accent/20 bg-accent/5 p-3">
-        <p className="text-xs font-medium text-accent">Suggestion</p>
+        <p className="text-xs font-medium text-accent">{t("analysis.suggestion")}</p>
         <p className="mt-1 text-sm text-text-secondary">{finding.suggestion}</p>
       </div>
 
@@ -84,7 +90,9 @@ function FindingCard({ finding }: { finding: Finding }) {
             onClick={() => setExpanded(!expanded)}
             className="text-xs text-text-secondary hover:text-text-primary"
           >
-            {expanded ? "Hide" : "Show"} affected sessions ({finding.sessionIds.length})
+            {expanded
+              ? t("analysis.hideAffectedSessions", { count: finding.sessionIds.length })
+              : t("analysis.showAffectedSessions", { count: finding.sessionIds.length })}
           </button>
           {expanded && (
             <div className="mt-2 space-y-1">
@@ -108,6 +116,7 @@ export function Analysis() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [projectsLoading, setProjectsLoading] = useState(true);
+  const { t } = useTranslation();
 
   useEffect(() => {
     fetch("/api/stats")
@@ -124,7 +133,7 @@ export function Analysis() {
         setProjectsLoading(false);
       })
       .catch((err: unknown) => {
-        setError(err instanceof Error ? err.message : "Unknown error");
+        setError(err instanceof Error ? err.message : t("common.unknownError"));
         setProjectsLoading(false);
       });
   }, []);
@@ -146,25 +155,27 @@ export function Analysis() {
         setLoading(false);
       })
       .catch((err: unknown) => {
-        setError(err instanceof Error ? err.message : "Unknown error");
+        setError(err instanceof Error ? err.message : t("common.unknownError"));
         setLoading(false);
       });
   }
 
   if (projectsLoading) {
     return (
-      <div className="flex items-center justify-center p-6 text-text-secondary">Loading...</div>
+      <div className="flex items-center justify-center p-6 text-text-secondary">
+        {t("common.loading")}
+      </div>
     );
   }
 
   return (
     <div className="p-6">
-      <h1 className="mb-6 text-2xl font-bold text-text-primary">Workflow Analysis</h1>
+      <h1 className="mb-6 text-2xl font-bold text-text-primary">{t("analysis.title")}</h1>
 
       <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-end">
         <div className="flex-1">
           <label htmlFor="project-select" className="mb-1 block text-sm text-text-secondary">
-            Project
+            {t("analysis.project")}
           </label>
           <select
             id="project-select"
@@ -172,7 +183,7 @@ export function Analysis() {
             onChange={(e) => setSelectedProject(e.target.value)}
             className="w-full rounded-lg border border-border bg-bg-surface px-4 py-2 text-text-primary outline-none focus:border-accent"
           >
-            {projects.length === 0 && <option value="">No projects found</option>}
+            {projects.length === 0 && <option value="">{t("analysis.noProjects")}</option>}
             {projects.map((p) => (
               <option key={p} value={p}>
                 {p}
@@ -185,26 +196,32 @@ export function Analysis() {
           disabled={!selectedProject || loading}
           className="rounded-lg border border-accent bg-accent/20 px-6 py-2 text-sm font-medium text-accent hover:bg-accent/30 disabled:cursor-not-allowed disabled:opacity-40"
         >
-          {loading ? "Analyzing..." : "Analyze"}
+          {loading ? t("analysis.analyzing") : t("analysis.analyze")}
         </button>
       </div>
 
-      {error && <div className="mb-4 text-center text-red-400">Analysis failed: {error}</div>}
+      {error && (
+        <div className="mb-4 text-center text-red-400">
+          {t("analysis.analysisFailed", { error })}
+        </div>
+      )}
 
-      {loading && <div className="py-8 text-center text-text-secondary">Running analysis...</div>}
+      {loading && (
+        <div className="py-8 text-center text-text-secondary">{t("analysis.runningAnalysis")}</div>
+      )}
 
       {!loading && report && (
         <div>
           <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
-            <SummaryCard title="Sessions Analyzed" value={report.analyzedSessions} />
-            <SummaryCard title="Total Findings" value={report.summary.totalFindings} />
+            <SummaryCard title={t("analysis.sessionsAnalyzed")} value={report.analyzedSessions} />
+            <SummaryCard title={t("analysis.totalFindings")} value={report.summary.totalFindings} />
             <SummaryCard
-              title="Critical"
+              title={t("analysis.critical")}
               value={report.summary.bySeverity.critical}
               accent="text-red-300"
             />
             <SummaryCard
-              title="Warnings"
+              title={t("analysis.warnings")}
               value={report.summary.bySeverity.warning}
               accent="text-amber-300"
             />
@@ -212,9 +229,9 @@ export function Analysis() {
 
           {report.findings.length === 0 ? (
             <div className="rounded-lg border border-border bg-bg-surface p-8 text-center">
-              <p className="text-lg text-text-secondary">No issues found</p>
+              <p className="text-lg text-text-secondary">{t("analysis.noIssues")}</p>
               <p className="mt-2 text-sm text-text-secondary">
-                Your workflow looks good! No problematic patterns were detected.
+                {t("analysis.noIssuesDescription")}
               </p>
             </div>
           ) : (
@@ -229,11 +246,8 @@ export function Analysis() {
 
       {!loading && !report && !error && (
         <div className="rounded-lg border border-border bg-bg-surface p-8 text-center">
-          <p className="text-lg text-text-secondary">Select a project and click Analyze</p>
-          <p className="mt-2 text-sm text-text-secondary">
-            The analysis engine will scan session data for workflow patterns and suggest
-            improvements.
-          </p>
+          <p className="text-lg text-text-secondary">{t("analysis.initialPrompt")}</p>
+          <p className="mt-2 text-sm text-text-secondary">{t("analysis.initialDescription")}</p>
         </div>
       )}
     </div>
