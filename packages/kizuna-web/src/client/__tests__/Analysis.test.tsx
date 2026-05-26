@@ -20,37 +20,37 @@ const mockReport = {
   analyzedSessions: 10,
   findings: [
     {
-      pattern: "large-turns",
-      patternLabel: "Large Turns",
+      pattern: "long-sessions",
       severity: "critical" as const,
-      description: "Some sessions have very large turns",
+      descriptionKey: "analysis.descriptions.longSessions.chunks",
+      descriptionParams: { chunkCount: 80, threshold: 50 },
       sessionIds: ["session-1", "session-2"],
-      suggestion: "Break large turns into smaller chunks",
+      suggestionKey: "analysis.suggestions.longSessions.chunks",
       count: 5,
     },
     {
       pattern: "repeated-errors",
-      patternLabel: "Repeated Errors",
       severity: "warning" as const,
-      description: "Repeated error patterns detected",
+      descriptionKey: "analysis.descriptions.repeatedErrors",
+      descriptionParams: { sessionCount: 3, error: "TypeError: undefined" },
       sessionIds: ["session-3"],
-      suggestion: "Fix the underlying issues",
+      suggestionKey: "analysis.suggestions.repeatedErrors",
       count: 3,
     },
     {
-      pattern: "short-sessions",
-      patternLabel: "Short Sessions",
+      pattern: "test-fix-loop",
       severity: "info" as const,
-      description: "Several very short sessions",
+      descriptionKey: "analysis.descriptions.testFixLoop",
+      descriptionParams: { cycles: 4 },
       sessionIds: [],
-      suggestion: "Consider batching related tasks",
+      suggestionKey: "analysis.suggestions.testFixLoop",
       count: 2,
     },
   ],
   summary: {
     totalFindings: 10,
     bySeverity: { critical: 5, warning: 3, info: 2 },
-    byPattern: { "large-turns": 5, "repeated-errors": 3, "short-sessions": 2 },
+    byPattern: { "long-sessions": 5, "repeated-errors": 3, "test-fix-loop": 2 },
   },
 };
 
@@ -134,9 +134,9 @@ describe("Analysis", () => {
 
     expect(await screen.findByText("Sessions Analyzed")).toBeInTheDocument();
     expect(screen.getByText("Total Findings")).toBeInTheDocument();
-    expect(screen.getByText("Large Turns")).toBeInTheDocument();
+    expect(screen.getByText("Long Sessions")).toBeInTheDocument();
     expect(screen.getByText("Repeated Errors")).toBeInTheDocument();
-    expect(screen.getByText("Short Sessions")).toBeInTheDocument();
+    expect(screen.getByText("Test-Fix Loop")).toBeInTheDocument();
   });
 
   it("shows severity badges", async () => {
@@ -158,8 +158,8 @@ describe("Analysis", () => {
     const analyzeButton = await screen.findByRole("button", { name: "Analyze" });
     fireEvent.click(analyzeButton);
 
-    expect(await screen.findByText("Break large turns into smaller chunks")).toBeInTheDocument();
-    expect(screen.getByText("Fix the underlying issues")).toBeInTheDocument();
+    expect(await screen.findByText(/Long sessions often indicate difficulty/)).toBeInTheDocument();
+    expect(screen.getByText(/This error recurs across sessions/)).toBeInTheDocument();
   });
 
   it("expands affected sessions on click", async () => {

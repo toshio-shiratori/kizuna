@@ -118,12 +118,11 @@ export const repeatedErrorsRule: AnalysisRule = {
 
       findings.push({
         pattern: "repeated-errors",
-        patternLabel: "Repeated Errors",
         severity: sessionIds.length >= 4 ? "critical" : "warning",
-        description: `The same error appeared in ${sessionIds.length} sessions: "${original}"`,
+        descriptionKey: "analysis.descriptions.repeatedErrors",
+        descriptionParams: { sessionCount: sessionIds.length, error: original },
         sessionIds,
-        suggestion:
-          "This error recurs across sessions. Consider adding a fix to your project configuration, updating documentation, or creating a hook that warns about this known issue.",
+        suggestionKey: "analysis.suggestions.repeatedErrors",
         count: sessionIds.length,
       });
     }

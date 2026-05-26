@@ -62,12 +62,11 @@ export const reworkDetectionRule: AnalysisRule = {
     return [
       {
         pattern: "rework-detection",
-        patternLabel: "Rework Detection",
         severity,
-        description: `Detected ${instances.length} rework request(s) across ${sessionIds.length} session(s). Keywords like "undo", "revert", "やり直し" were found in user messages followed by assistant corrections.`,
+        descriptionKey: "analysis.descriptions.reworkDetection",
+        descriptionParams: { instanceCount: instances.length, sessionCount: sessionIds.length },
         sessionIds,
-        suggestion:
-          "Frequent rework may indicate unclear initial instructions or missing context in hooks. Consider adding more specific guidance in UserPromptSubmit hooks or CLAUDE.md rules.",
+        suggestionKey: "analysis.suggestions.reworkDetection",
         count: instances.length,
       },
     ];

@@ -3,16 +3,16 @@ type Severity = "info" | "warning" | "critical";
 export interface Finding {
   /** Machine-readable pattern identifier */
   pattern: string;
-  /** Human-readable pattern label */
-  patternLabel: string;
   /** Severity level */
   severity: Severity;
-  /** Human-readable description of what was found */
-  description: string;
+  /** i18n key for the description template */
+  descriptionKey: string;
+  /** Interpolation params for the description template */
+  descriptionParams: Record<string, string | number>;
   /** Session IDs where this pattern was detected */
   sessionIds: string[];
-  /** Improvement suggestion */
-  suggestion: string;
+  /** i18n key for the suggestion */
+  suggestionKey: string;
   /** Number of occurrences */
   count: number;
 }
