@@ -100,7 +100,7 @@ export function Telepathy() {
         setReceiving(false);
       })
       .catch((err: unknown) => {
-        setReceiveError(err instanceof Error ? err.message : "Unknown error");
+        setReceiveError(err instanceof Error ? err.message : t("common.unknownError"));
         setReceiving(false);
       });
   }, []);

@@ -69,7 +69,7 @@ export function Dashboard() {
         setLoading(false);
       })
       .catch((err: unknown) => {
-        setError(err instanceof Error ? err.message : "Unknown error");
+        setError(err instanceof Error ? err.message : t("common.unknownError"));
         setLoading(false);
       });
   }, []);
