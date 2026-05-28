@@ -69,7 +69,7 @@ kizuna/
 │   │   └── export/            Memory export functionality
 │   │
 │   ├── kizuna-mcp/            MCP Server (stdio transport)
-│   │   └── tools/             search, save, list, delete, report_save, report_read, etc.
+│   │   └── server.ts          Tool registrations: search, save, list, delete, report_save, report_read
 │   │
 │   ├── kizuna-cli/            Command-line interface
 │   │   └── commands/          setup, search, list, prune, web, etc.
@@ -80,8 +80,8 @@ kizuna/
 │   │   │       └── rules/     rework-detection, repeated-errors,
 │   │   │                      test-fix-loop, manual-repetition, long-sessions
 │   │   └── client/            React 19 + Tailwind CSS v4 SPA
-│   │       └── pages/         Dashboard, Search, SessionBrowser,
-│   │                          Analysis, Telepathy
+│   │                          (Dashboard, Search, SessionBrowser,
+│   │                           Analysis, Telepathy)
 │   │
 │   └── plugin-*               Optional plugins (separate packages)
 │       ├── plugin-pii-sanitizer/

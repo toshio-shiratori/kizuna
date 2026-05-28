@@ -385,7 +385,7 @@ Plugins that implement `enrichContext` can declare a `tokenBudget` field to rese
 1. The inject pipeline reads the total token budget from the configuration (default: 2000 tokens).
 2. The `PluginManager` sums all active plugins' `tokenBudget` values via `getTotalReservedTokens()`.
 3. If the total reserved tokens fit within the budget, that amount is subtracted from the chunk budget. Memory chunks fill the remaining space.
-4. If the total reserved tokens exceed the budget, `scaleTokenBudgets()` caps the reserved portion at 80% of the total and logs a warning.
+4. If the total reserved tokens meet or exceed the budget, `scaleTokenBudgets()` caps the reserved portion at 80% of the total and logs a warning.
 5. After chunk formatting, the remaining token space is available for `enrichContext` output from all plugins (both those with and without a declared `tokenBudget`).
 
 ### When to Use
