@@ -62,25 +62,33 @@ Kizuna is a TypeScript monorepo managed by pnpm workspaces.
 kizuna/
 ├── packages/
 │   ├── kizuna-core/           Generic memory engine
-│   │   ├── storage/           SQLite + FTS5
+│   │   ├── storage/           SQLite + FTS5, Report queries
 │   │   ├── pipelines/         Capture, Search, Inject, Maintain
 │   │   ├── plugin/            PluginManager, types
-│   │   └── config/            Configuration loading
+│   │   ├── config/            Configuration loading
+│   │   └── export/            Memory export functionality
 │   │
 │   ├── kizuna-mcp/            MCP Server (stdio transport)
-│   │   └── tools/             search, save, list, delete, etc.
+│   │   └── server.ts          Tool registrations: search, save, list, delete, report_save, report_read
 │   │
 │   ├── kizuna-cli/            Command-line interface
 │   │   └── commands/          setup, search, list, prune, web, etc.
 │   │
 │   ├── kizuna-web/            Web UI (Hono + Vite + React)
 │   │   ├── server/            Hono HTTP server + API routes
-│   │   └── client/            React 19 + Tailwind CSS v4 frontend
+│   │   │   └── analysis/      Workflow analysis engine (rule-based)
+│   │   │       └── rules/     rework-detection, repeated-errors,
+│   │   │                      test-fix-loop, manual-repetition, long-sessions
+│   │   └── client/            React 19 + Tailwind CSS v4 SPA
+│   │                          (Dashboard, Search, SessionBrowser,
+│   │                           Analysis, Telepathy)
 │   │
 │   └── plugin-*               Optional plugins (separate packages)
 │       ├── plugin-pii-sanitizer/
 │       ├── plugin-multi-repo-sharing/
-│       └── plugin-openapi-contract/  (project-specific, separate repo)
+│       ├── plugin-openapi-awareness/    OpenAPI spec awareness for context injection
+│       ├── plugin-telepathy/            Real-time context sharing between sessions
+│       └── plugin-hybrid-search/        FTS5 + vector similarity hybrid search
 │
 ├── docs/                      This directory
 └── (config files)
@@ -151,6 +159,32 @@ When an agent explicitly searches (rather than relying on auto-injection):
 4. MCP Server returns formatted results to agent
 ```
 
+### Report Path
+
+Reports are exchanged between the Web UI workflow analysis engine and Claude Code sessions via MCP tools.
+
+```
+Web UI analysis engine → kizuna_report_save (type: "analysis", source: "webui") → reports table
+Claude Code agent      → kizuna_report_save (type: "proposal", source: "claude") → reports table
+
+Claude Code agent      → kizuna_report_read (reads unread reports, marks as read) → agent
+Web UI                 → API routes (lists/filters reports) → browser
+```
+
+### Telepathy Path
+
+The telepathy plugin enables real-time context sharing between active Claude Code sessions across repositories.
+
+```
+Session A → kizuna_telepathy_send → writes message to local DB (at most one retained)
+
+Session B → kizuna_telepathy_receive → opens referenced DBs (read-only)
+                                     → reads latest message from each
+                                     → returns aggregated messages
+```
+
+Each project's database stores at most one telepathy message. Referenced databases are opened in read-only mode, consistent with the federated search pattern (ADR-0013).
+
 ## Configuration
 
 Kizuna supports two levels of configuration:
@@ -207,6 +241,10 @@ References are directional: frontend can reference backend without backend refer
 
 This design choice (federated search vs. shared database) is documented in ADR-0013.
 
+### Reports Table
+
+The `reports` table stores structured reports exchanged between the Web UI and Claude Code. Each report has a `type` (`"analysis"` or `"proposal"`), a `source` (`"webui"` or `"claude"`), and a `status` (`"unread"` or `"read"`). This enables asynchronous communication: the Web UI's workflow analysis engine saves findings as reports, and Claude Code reads them via the `kizuna_report_read` MCP tool.
+
 ## Plugin Architecture (Summary)
 
 The plugin system exposes hook points at each pipeline stage:
@@ -221,6 +259,7 @@ Plugins can also:
 - Add custom CLI commands
 - Define schema migrations for plugin-specific tables
 - Read and write to a per-plugin key-value store
+- Declare a `tokenBudget` to reserve prompt space for `enrichContext` output
 
 Detailed plugin API is documented in `05-plugin-api.md`.
 
@@ -248,7 +287,7 @@ The CLI commands (`kizuna search`, etc.) MAY surface errors to the user, since t
 
 The following are explicitly NOT part of the initial architecture. They may be added later as plugins or future features, but should not influence current design decisions:
 
-- **Vector search in core**: Vector search is a future hybrid plugin, not part of the core
+- **Vector search in core**: Vector search is provided by the `plugin-hybrid-search` plugin, not part of the core
 - **LLM-based summarization in core**: Plugins may add this; the core uses rule-based chunking only
 - **Cloud sync**: Out of scope; users are expected to use shared filesystems if they want sharing
 - **Encryption at rest**: SQLite encryption is the user's responsibility (filesystem-level encryption recommended)
@@ -257,6 +296,5 @@ The following are explicitly NOT part of the initial architecture. They may be a
 ## Future Considerations
 
 - **MCP transport options beyond stdio**: HTTP/SSE for remote scenarios
-- **Hybrid search plugin**: Optional FTS5 + sqlite-vec with a small embedding model
 - **Cross-language plugin support**: Currently TypeScript only; future plugins might be in Python or Rust via a wrapper protocol
 - **Remote multi-repo sync**: For when referenced databases are not on the local filesystem
