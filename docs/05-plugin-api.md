@@ -64,6 +64,14 @@ export interface Plugin {
   /** Optional description shown in CLI listings */
   readonly description?: string;
 
+  /**
+   * Token budget this plugin needs for enrichContext output.
+   * The inject pipeline reserves this many tokens from the total budget
+   * so that the plugin's context block is not crowded out by memory chunks.
+   * Only relevant for plugins that implement enrichContext.
+   */
+  readonly tokenBudget?: number;
+
   // ─── Lifecycle ──────────────────────────────────────
 
   /** Called once when the plugin is loaded */
@@ -120,8 +128,14 @@ Passed to every plugin method. Provides access to scoped resources.
 
 ```typescript
 export interface PluginContext {
-  /** SQLite database handle (for direct queries) */
-  readonly db: Database;
+  /**
+   * SQLite database handle (for direct queries).
+   * The runtime value is a better-sqlite3 Database instance, but the type
+   * is declared as `unknown` to avoid forcing better-sqlite3 into plugin
+   * type dependencies. Plugins that need direct DB access should cast:
+   *   const rawDb = ctx.db as BetterSqlite3.Database;
+   */
+  readonly db: unknown;
 
   /** The plugin's configuration from .kizuna/config.json */
   readonly config: PluginConfig;
@@ -269,8 +283,13 @@ export interface Migration {
 export interface MCPToolDefinition {
   name: string;
   description: string;
-  inputSchema: JSONSchema;
+  inputSchema: Record<string, unknown>;
   handler(args: unknown, ctx: PluginContext): Promise<MCPToolResult>;
+}
+
+export interface MCPToolResult {
+  content: unknown;
+  isError?: boolean;
 }
 ```
 
@@ -281,7 +300,14 @@ export interface CLICommandDefinition {
   name: string;
   description: string;
   options?: CLIOption[];
-  handler(args: ParsedArgs, ctx: PluginContext): Promise<void>;
+  handler(args: Record<string, unknown>, ctx: PluginContext): Promise<void>;
+}
+
+export interface CLIOption {
+  name: string;
+  description: string;
+  required?: boolean;
+  defaultValue?: unknown;
 }
 ```
 
@@ -349,6 +375,24 @@ Plugins must respect the latency budgets of their hook points:
 | init / shutdown              | < 1s              |
 
 Slow plugins degrade the user experience. Plugins doing expensive operations (e.g., LLM calls) should be opt-in and clearly documented.
+
+## Token Budget Reservation
+
+Plugins that implement `enrichContext` can declare a `tokenBudget` field to reserve space in the prompt for their output. Without this, memory chunks may fill the entire token budget before the plugin's context block is added.
+
+### How It Works
+
+1. The inject pipeline reads the total token budget from the configuration (default: 2000 tokens).
+2. The `PluginManager` sums all active plugins' `tokenBudget` values via `getTotalReservedTokens()`.
+3. If the total reserved tokens fit within the budget, that amount is subtracted from the chunk budget. Memory chunks fill the remaining space.
+4. If the total reserved tokens exceed the budget, `scaleTokenBudgets()` caps the reserved portion at 80% of the total and logs a warning.
+5. After chunk formatting, the remaining token space is available for `enrichContext` output from all plugins (both those with and without a declared `tokenBudget`).
+
+### When to Use
+
+Declare `tokenBudget` when your plugin adds non-trivial context via `enrichContext` and you need to guarantee space. For example, `plugin-openapi-awareness` declares `tokenBudget: 600` to ensure matched API endpoint information is always included.
+
+Plugins that do not implement `enrichContext` (e.g., `plugin-pii-sanitizer`) should not declare `tokenBudget`.
 
 ## Example Plugin: pii-sanitizer
 
@@ -471,9 +515,37 @@ export function createMultiRepoSharing(): Plugin {
 }
 ```
 
+## Plugin: telepathy
+
+Enables real-time context sharing between active Claude Code sessions across repositories. Each project stores at most one telepathy message. Referenced databases are opened in read-only mode, consistent with the federated search pattern (ADR-0013).
+
+- **Hooks used**: None (MCP tools only)
+- **MCP tools**: `kizuna_telepathy_send` (write to local DB), `kizuna_telepathy_receive` (read from referenced DBs)
+- **Migrations**: Creates `telepathy_messages` table
+- **Factory**: `createTelepathy()` returns a `Plugin` instance
+- **ADR**: [0016-telepathy-plugin-for-active-session-sharing](adr/0016-telepathy-plugin-for-active-session-sharing.md)
+
+## Plugin: openapi-awareness
+
+Injects relevant OpenAPI endpoint information into prompts based on the user's query. Parses OpenAPI specs at init time, matches endpoints by keyword similarity (with synonym expansion), and formats matched endpoints as a context block via `enrichContext`.
+
+- **Hooks used**: `enrichContext`
+- **`tokenBudget`**: `600` (reserves 600 tokens for endpoint context)
+- **Configuration**: `specPath` or `specPaths` (paths to OpenAPI spec files), `maxResults`, `synonyms`, `disableBuiltinSynonyms`
+- **Factory**: `createOpenAPIAwareness()` returns a `Plugin` instance
+
+## Plugin: hybrid-search
+
+Combines FTS5 lexical search with vector similarity for improved recall. Uses `@xenova/transformers` to generate embeddings at capture time, stores them in a plugin-managed table, and reranks search results by blending BM25 and cosine similarity scores.
+
+- **Hooks used**: `afterCapture` (save embeddings), `beforeSearch` / `afterSearch` (reranking)
+- **Migrations**: Creates `hybrid_search_embeddings` table
+- **Configuration**: `alpha` (blend weight, default 0.5), `dimensions`, `model`, `embeddingProvider` (injectable for testing)
+- **Factory**: `createHybridSearchPlugin(options?)` returns a `Plugin` instance
+
 ## Plugin Configuration Example
 
-A project enabling both plugins:
+A project enabling multiple plugins:
 
 ```jsonc
 // .kizuna/config.json
@@ -498,6 +570,25 @@ A project enabling both plugins:
           },
         ],
         "halfLifeDays": 14,
+      },
+    },
+    {
+      "name": "@kizuna/plugin-telepathy",
+      "enabled": true,
+      "options": {
+        "references": [
+          {
+            "name": "backend-api",
+            "dbPath": "/path/to/backend-api/.kizuna/memory.db",
+          },
+        ],
+      },
+    },
+    {
+      "name": "@kizuna/plugin-openapi-awareness",
+      "enabled": true,
+      "options": {
+        "specPaths": ["./openapi.yaml"],
       },
     },
   ],
