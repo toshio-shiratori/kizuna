@@ -536,7 +536,7 @@ Injects relevant OpenAPI endpoint information into prompts based on the user's q
 
 ## Plugin: hybrid-search
 
-Combines FTS5 lexical search with vector similarity for improved recall. Uses `@xenova/transformers` to generate embeddings at capture time, stores them in a plugin-managed table, and reranks search results by blending BM25 and cosine similarity scores.
+Combines FTS5 lexical search with vector similarity for improved recall. Uses `@huggingface/transformers` to generate embeddings at capture time, stores them in a plugin-managed table, and reranks search results by blending BM25 and cosine similarity scores.
 
 - **Hooks used**: `afterCapture` (save embeddings), `beforeSearch` / `afterSearch` (reranking)
 - **Migrations**: Creates `hybrid_search_embeddings` table
