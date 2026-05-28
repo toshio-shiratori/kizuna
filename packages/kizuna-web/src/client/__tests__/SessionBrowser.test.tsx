@@ -467,10 +467,7 @@ describe("SessionBrowser - write mode", () => {
     });
   });
 
-  it("calls alert when save fails", async () => {
-    const alertMock = vi.fn();
-    vi.stubGlobal("alert", alertMock);
-
+  it("shows inline error when save fails", async () => {
     vi.stubGlobal(
       "fetch",
       mockFetchByUrl(
@@ -501,17 +498,10 @@ describe("SessionBrowser - write mode", () => {
     const saveButtons = screen.getAllByRole("button", { name: "Save" });
     fireEvent.click(saveButtons[0]!);
 
-    await waitFor(() => {
-      expect(alertMock).toHaveBeenCalledWith(
-        expect.stringContaining("Failed to update importance"),
-      );
-    });
+    expect(await screen.findByText(/Failed to update importance/)).toBeInTheDocument();
   });
 
-  it("calls alert when delete fails", async () => {
-    const alertMock = vi.fn();
-    vi.stubGlobal("alert", alertMock);
-
+  it("shows inline error when delete fails", async () => {
     vi.stubGlobal(
       "fetch",
       mockFetchByUrl(
@@ -544,8 +534,6 @@ describe("SessionBrowser - write mode", () => {
     const modalDeleteButton = allDeleteButtons.find((btn) => dialog.contains(btn));
     fireEvent.click(modalDeleteButton!);
 
-    await waitFor(() => {
-      expect(alertMock).toHaveBeenCalledWith(expect.stringContaining("Failed to delete chunk"));
-    });
+    expect(await screen.findByText(/Failed to delete chunk/)).toBeInTheDocument();
   });
 });

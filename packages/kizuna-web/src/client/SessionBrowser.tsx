@@ -40,7 +40,14 @@ function ChunkCard({
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const { t } = useTranslation();
+
+  useEffect(() => {
+    if (!error) return;
+    const timer = setTimeout(() => setError(null), 5000);
+    return () => clearTimeout(timer);
+  }, [error]);
 
   const isDirty = localImportance !== chunk.importance;
 
@@ -60,7 +67,7 @@ function ChunkCard({
       onImportanceChange?.(chunk.id, localImportance);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : t("common.unknownError");
-      alert(t("sessionBrowser.failedToUpdateImportance", { error: msg }));
+      setError(t("sessionBrowser.failedToUpdateImportance", { error: msg }));
       setLocalImportance(chunk.importance);
     } finally {
       setSaving(false);
@@ -83,7 +90,7 @@ function ChunkCard({
       onDelete?.(chunk.id);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : t("common.unknownError");
-      alert(t("sessionBrowser.failedToDeleteChunk", { error: msg }));
+      setError(t("sessionBrowser.failedToDeleteChunk", { error: msg }));
       setDeleting(false);
     }
   }, [chunk.id, onDelete]);
@@ -128,6 +135,11 @@ function ChunkCard({
           >
             {deleting ? t("sessionBrowser.deleting") : t("common.delete")}
           </button>
+        </div>
+      )}
+      {error && (
+        <div role="alert" className="mt-2 rounded border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-400">
+          {error}
         </div>
       )}
 
