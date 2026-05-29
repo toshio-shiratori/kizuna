@@ -8,11 +8,11 @@ A plugin-based local long-term memory system for [Claude Code](https://docs.anth
 
 ## What is Kizuna?
 
-When you use Claude Code across multiple repositories, each agent operates in isolation. Kizuna creates a shared, persistent memory layer so agents can learn from each other's sessions.
+When you use Claude Code across multiple repositories, each agent operates in isolation. Kizuna gives each project its own persistent memory database, and with optional plugins, agents in different repositories can search each other's memories via cross-database read-only queries — so they can learn from each other's sessions.
 
 - **Auto save** -- Session transcripts are captured automatically via hooks (zero manual effort)
 - **Always recall** -- Relevant memories are injected into every prompt automatically
-- **Cross-repo sharing** -- Agents in different repositories can share context via namespaces
+- **Cross-repo sharing** -- Agents in different repositories can search each other's memories via cross-database read-only queries (opt-in via plugin)
 - **Zero token cost on save** -- Rule-based chunking, no LLM calls for storage
 - **Local-first** -- All data stays in a local SQLite file, no external APIs
 
@@ -128,7 +128,7 @@ kizuna/
 Kizuna supports plugins that hook into the capture, search, and inject pipelines:
 
 - **pii-sanitizer** -- Automatically redacts API keys, tokens, and secrets before storage
-- **multi-repo-sharing** -- Enables memory sharing across repositories via shared namespaces
+- **multi-repo-sharing** -- Enables cross-repository memory search via cross-database read-only queries against sibling project databases
 - **hybrid-search** -- Combines FTS5 lexical search with vector similarity for better recall
 - **openapi-awareness** -- Injects relevant OpenAPI endpoint information into context
 - **telepathy** -- Real-time context sharing between active Claude Code sessions via MCP tools
@@ -149,7 +149,7 @@ When asking Claude Code to set up plugins, use a prompt like:
 > Run `kizuna plugin list` to check available plugins.
 > For each disabled plugin, run `kizuna plugin info <name>` to check required options, then enable it with `kizuna plugin enable`.
 > For openapi-awareness, find the OpenAPI spec file in this repository and pass it via `--spec`.
-> For multi-repo-sharing, use `--namespace <team-name>` to share memories across related repositories.
+> For multi-repo-sharing, enable it and then add references to related projects with `kizuna plugin config multi-repo-sharing add-reference <name> /path/to/other-project` (or set `autoDiscover: true` to auto-pick sibling projects).
 > For telepathy, add references to other projects with `kizuna plugin config telepathy add-reference <name> /path/to/project`.
 
 See [Plugin API documentation](docs/05-plugin-api.md) for writing custom plugins.
