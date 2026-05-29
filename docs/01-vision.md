@@ -21,7 +21,7 @@ Existing solutions like Engram, sui-memory, and claude-mem solve the _intra-agen
 
 ## The Vision
 
-Kizuna creates a shared, persistent memory layer that multiple Claude Code agents can read from and write to. As agents work — across sessions, across repositories, across time — they contribute to and draw from a common understanding.
+Kizuna gives each project its own persistent memory database. Through optional plugins, multiple Claude Code agents can read across each other's databases via cross-database read-only queries — each session only writes to its own. As agents work — across sessions, across repositories, across time — they contribute to and draw from a common understanding.
 
 The result is a **bond between agents** that grows stronger with use:
 
