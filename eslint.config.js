@@ -31,6 +31,15 @@ export default tseslint.config(
     },
   },
   {
+    files: ["packages/kizuna-web/e2e/**/*.ts", "packages/kizuna-web/playwright.config.ts"],
+    languageOptions: {
+      parserOptions: {
+        projectService: false,
+        project: "./packages/kizuna-web/tsconfig.e2e.json",
+      },
+    },
+  },
+  {
     ignores: ["**/dist/", "**/node_modules/", "templates/"],
   },
 );
