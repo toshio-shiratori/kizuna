@@ -34,6 +34,11 @@ Thumbs.db
 coverage/
 *.lcov
 
+# Playwright
+playwright-report/
+test-results/
+playwright/.cache/
+
 # Kizuna runtime data
 .kizuna/
 *.db

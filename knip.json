@@ -8,6 +8,8 @@
     "packages/plugin-hybrid-search": {
       "ignoreDependencies": ["@huggingface/transformers"]
     },
-    "packages/kizuna-web": {}
+    "packages/kizuna-web": {
+      "entry": ["e2e/setup/start-test-server.ts"]
+    }
   }
 }
