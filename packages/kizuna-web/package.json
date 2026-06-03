@@ -35,7 +35,7 @@
     "tsc:e2e": "tsc -p tsconfig.e2e.json --noEmit"
   },
   "dependencies": {
-    "@hono/node-server": "^1.19.14",
+    "@hono/node-server": "^2.0.4",
     "@kizuna/core": "workspace:*",
     "@kizuna/plugin-multi-repo-sharing": "workspace:*",
     "@kizuna/plugin-telepathy": "workspace:*",
