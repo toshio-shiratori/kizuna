@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
 import type { DatabaseStats } from "@kizuna/core";
 
 type Severity = "info" | "warning" | "critical";
@@ -23,6 +24,53 @@ interface AnalysisReport {
     bySeverity: { critical: number; warning: number; info: number };
     byPattern: Record<string, number>;
   };
+}
+
+function buildReportMarkdown(report: AnalysisReport, t: TFunction): string {
+  const lines: string[] = [];
+
+  lines.push(`# ${t("analysis.title")}: ${report.project}`);
+  lines.push("");
+  lines.push(`## ${t("analysis.reportSummaryHeading")}`);
+  lines.push("");
+  lines.push("| | |");
+  lines.push("| --- | --- |");
+  lines.push(`| ${t("analysis.reportSessionsAnalyzed")} | ${report.analyzedSessions} |`);
+  lines.push(`| ${t("analysis.reportTotalFindings")} | ${report.summary.totalFindings} |`);
+  lines.push(`| ${t("analysis.severityCritical")} | ${report.summary.bySeverity.critical} |`);
+  lines.push(`| ${t("analysis.severityWarning")} | ${report.summary.bySeverity.warning} |`);
+  lines.push(`| ${t("analysis.severityInfo")} | ${report.summary.bySeverity.info} |`);
+  lines.push("");
+  lines.push(`## ${t("analysis.reportFindingsHeading")}`);
+  lines.push("");
+
+  if (report.findings.length === 0) {
+    lines.push(t("analysis.noIssues"));
+  } else {
+    for (const finding of report.findings) {
+      const patternLabel = t(`analysis.patternLabels.${finding.pattern}`);
+      const severityLabel = t(`analysis.severity${capitalize(finding.severity)}`);
+      lines.push(`### ${patternLabel} (${severityLabel})`);
+      lines.push("");
+      lines.push(t(finding.descriptionKey, finding.descriptionParams));
+      lines.push("");
+      lines.push(`**${t("analysis.suggestion")}**: ${t(finding.suggestionKey)}`);
+      if (finding.sessionIds.length > 0) {
+        lines.push("");
+        lines.push(`**${t("analysis.reportAffectedSessions")}**:`);
+        for (const id of finding.sessionIds) {
+          lines.push(`- ${id}`);
+        }
+      }
+      lines.push("");
+    }
+  }
+
+  return lines.join("\n");
+}
+
+function capitalize(s: string): string {
+  return s.charAt(0).toUpperCase() + s.slice(1);
 }
 
 const severityStyles: Record<Severity, string> = {
@@ -118,7 +166,23 @@ export function Analysis() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [projectsLoading, setProjectsLoading] = useState(true);
+  const [writeMode, setWriteMode] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [saveResult, setSaveResult] = useState<{ ok: boolean; text: string } | null>(null);
   const { t } = useTranslation();
+
+  useEffect(() => {
+    fetch("/api/config")
+      .then(async (res) => {
+        if (!res.ok) return;
+        const cfg = (await res.json()) as { write: boolean };
+        setWriteMode(cfg.write);
+      })
+      .catch(() => {
+        /* ignore - default to read-only */
+      });
+  }, []);
 
   useEffect(() => {
     fetch("/api/stats")
@@ -146,6 +210,8 @@ export function Analysis() {
     setLoading(true);
     setError(null);
     setReport(null);
+    setSaveResult(null);
+    setSaved(false);
 
     fetch(`/api/analysis?project=${encodeURIComponent(selectedProject)}`)
       .then(async (res) => {
@@ -159,6 +225,42 @@ export function Analysis() {
       .catch((err: unknown) => {
         setError(err instanceof Error ? err.message : t("common.unknownError"));
         setLoading(false);
+      });
+  }
+
+  function handleSaveReport() {
+    if (!report || !writeMode || saving || saved) return;
+
+    setSaving(true);
+    setSaveResult(null);
+
+    const title = t("analysis.reportTitle", {
+      project: report.project,
+      findings: report.summary.totalFindings,
+    });
+    const content = buildReportMarkdown(report, t);
+
+    fetch("/api/reports", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ type: "analysis", source: "webui", title, content }),
+    })
+      .then(async (res) => {
+        if (!res.ok) {
+          const body = (await res.json()) as { error?: string };
+          throw new Error(body.error ?? `HTTP ${res.status}`);
+        }
+        return res.json();
+      })
+      .then(() => {
+        setSaveResult({ ok: true, text: t("analysis.saveSuccess") });
+        setSaved(true);
+        setSaving(false);
+      })
+      .catch((err: unknown) => {
+        const message = err instanceof Error ? err.message : t("common.unknownError");
+        setSaveResult({ ok: false, text: t("analysis.saveFailed", { error: message }) });
+        setSaving(false);
       });
   }
 
@@ -214,6 +316,26 @@ export function Analysis() {
 
       {!loading && report && (
         <div>
+          <div className="mb-4 flex flex-wrap items-center gap-3">
+            <button
+              onClick={handleSaveReport}
+              disabled={!writeMode || saving || saved}
+              title={!writeMode ? t("analysis.saveDisabledReadonly") : undefined}
+              className="rounded-lg border border-accent bg-accent/20 px-6 py-2 text-sm font-medium text-accent hover:bg-accent/30 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              {saving ? t("analysis.saving") : t("analysis.saveReport")}
+            </button>
+            {saveResult && (
+              <span className={`text-sm ${saveResult.ok ? "text-green-400" : "text-red-400"}`}>
+                {saveResult.text}
+              </span>
+            )}
+            {!writeMode && !saveResult && (
+              <span className="text-sm text-text-secondary">
+                {t("analysis.saveDisabledReadonly")}
+              </span>
+            )}
+          </div>
           <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
             <SummaryCard title={t("analysis.sessionsAnalyzed")} value={report.analyzedSessions} />
             <SummaryCard title={t("analysis.totalFindings")} value={report.summary.totalFindings} />

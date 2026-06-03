@@ -206,6 +206,9 @@ export function createApiRoutes(db: Database, options?: ApiRouteOptions): Hono {
   // ─── Reports ────────────────────────────────────────────
 
   api.post("/reports", async (c) => {
+    if (!options?.write) {
+      return c.json({ error: "Write mode is not enabled" }, 403);
+    }
     let body: Record<string, unknown>;
     try {
       body = (await c.req.json()) as Record<string, unknown>;

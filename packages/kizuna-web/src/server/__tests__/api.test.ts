@@ -758,9 +758,46 @@ describe("API routes", () => {
   });
 
   describe("POST /reports", () => {
-    it("creates a report and returns 201", async () => {
+    it("returns 403 when write mode is not enabled", async () => {
+      const app = new Hono();
+      app.route("/api", createApiRoutes(db, { projectDir: "/tmp/test", write: false }));
+
+      const res = await app.request("/api/reports", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type: "analysis",
+          source: "webui",
+          title: "Test Analysis",
+          content: "Analysis content",
+        }),
+      });
+      expect(res.status).toBe(403);
+
+      const body = (await res.json()) as { error: string };
+      expect(body.error).toBe("Write mode is not enabled");
+    });
+
+    it("returns 403 when options are not provided", async () => {
       const app = new Hono();
       app.route("/api", createApiRoutes(db));
+
+      const res = await app.request("/api/reports", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type: "analysis",
+          source: "webui",
+          title: "Test Analysis",
+          content: "Analysis content",
+        }),
+      });
+      expect(res.status).toBe(403);
+    });
+
+    it("creates a report and returns 201 when write mode is enabled", async () => {
+      const app = new Hono();
+      app.route("/api", createApiRoutes(db, { projectDir: "/tmp/test", write: true }));
 
       const res = await app.request("/api/reports", {
         method: "POST",
@@ -785,7 +822,7 @@ describe("API routes", () => {
 
     it("returns 400 for missing fields", async () => {
       const app = new Hono();
-      app.route("/api", createApiRoutes(db));
+      app.route("/api", createApiRoutes(db, { projectDir: "/tmp/test", write: true }));
 
       const res = await app.request("/api/reports", {
         method: "POST",
