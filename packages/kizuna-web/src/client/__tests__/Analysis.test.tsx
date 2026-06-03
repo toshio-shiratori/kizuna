@@ -54,36 +54,79 @@ const mockReport = {
   },
 };
 
-function stubFetch(
-  statsResponse?: unknown,
-  analysisResponse?: unknown,
-  statsOk = true,
-  analysisOk = true,
-) {
-  vi.stubGlobal(
-    "fetch",
-    vi.fn((input: RequestInfo) => {
-      const url = typeof input === "string" ? input : input.url;
+interface StubOptions {
+  statsResponse?: unknown;
+  analysisResponse?: unknown;
+  statsOk?: boolean;
+  analysisOk?: boolean;
+  write?: boolean;
+  reportsOk?: boolean;
+  reportsError?: string;
+}
 
-      if (url.startsWith("/api/stats")) {
-        return Promise.resolve({
-          ok: statsOk,
-          status: statsOk ? 200 : 500,
-          json: () => Promise.resolve(statsResponse ?? mockStats),
-        } as Response);
-      }
+function stubFetch(options: StubOptions = {}) {
+  const {
+    statsResponse,
+    analysisResponse,
+    statsOk = true,
+    analysisOk = true,
+    write = false,
+    reportsOk = true,
+    reportsError = "Write mode is not enabled",
+  } = options;
 
-      if (url.startsWith("/api/analysis")) {
-        return Promise.resolve({
-          ok: analysisOk,
-          status: analysisOk ? 200 : 500,
-          json: () => Promise.resolve(analysisResponse ?? mockReport),
-        } as Response);
-      }
+  const reportsHandler = vi.fn((init?: RequestInit): Promise<Response> => {
+    if (reportsOk) {
+      return Promise.resolve({
+        ok: true,
+        status: 201,
+        json: () => Promise.resolve({ id: 1, status: "unread", init }),
+      } as Response);
+    }
+    return Promise.resolve({
+      ok: false,
+      status: 403,
+      json: () => Promise.resolve({ error: reportsError }),
+    } as Response);
+  });
 
-      return Promise.reject(new Error(`Unmocked: ${url}`));
-    }),
-  );
+  const fetchMock = vi.fn((input: RequestInfo, init?: RequestInit) => {
+    const url = typeof input === "string" ? input : input.url;
+
+    if (url.startsWith("/api/config")) {
+      return Promise.resolve({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve({ write }),
+      } as Response);
+    }
+
+    if (url.startsWith("/api/stats")) {
+      return Promise.resolve({
+        ok: statsOk,
+        status: statsOk ? 200 : 500,
+        json: () => Promise.resolve(statsResponse ?? mockStats),
+      } as Response);
+    }
+
+    if (url.startsWith("/api/analysis")) {
+      return Promise.resolve({
+        ok: analysisOk,
+        status: analysisOk ? 200 : 500,
+        json: () => Promise.resolve(analysisResponse ?? mockReport),
+      } as Response);
+    }
+
+    if (url.startsWith("/api/reports")) {
+      return reportsHandler(init);
+    }
+
+    return Promise.reject(new Error(`Unmocked: ${url}`));
+  });
+
+  vi.stubGlobal("fetch", fetchMock);
+
+  return { fetchMock, reportsHandler };
 }
 
 afterEach(() => {
@@ -176,7 +219,7 @@ describe("Analysis", () => {
   });
 
   it("shows error when stats fetch fails", async () => {
-    stubFetch(undefined, undefined, false);
+    stubFetch({ statsOk: false });
 
     render(<Analysis />);
 
@@ -186,7 +229,7 @@ describe("Analysis", () => {
   });
 
   it("shows error when analysis fetch fails", async () => {
-    stubFetch(mockStats, undefined, true, false);
+    stubFetch({ analysisOk: false });
 
     render(<Analysis />);
 
@@ -198,8 +241,10 @@ describe("Analysis", () => {
 
   it("shows 'No projects found' when there are no projects", async () => {
     stubFetch({
-      ...mockStats,
-      projectDistribution: [],
+      statsResponse: {
+        ...mockStats,
+        projectDistribution: [],
+      },
     });
 
     render(<Analysis />);
@@ -217,7 +262,7 @@ describe("Analysis", () => {
         byPattern: {},
       },
     };
-    stubFetch(mockStats, emptyReport);
+    stubFetch({ analysisResponse: emptyReport });
 
     render(<Analysis />);
 
@@ -225,5 +270,75 @@ describe("Analysis", () => {
     fireEvent.click(analyzeButton);
 
     expect(await screen.findByText("No issues found")).toBeInTheDocument();
+  });
+
+  describe("save report", () => {
+    it("disables save button in read-only mode", async () => {
+      stubFetch({ write: false });
+
+      render(<Analysis />);
+
+      const analyzeButton = await screen.findByRole("button", { name: "Analyze" });
+      fireEvent.click(analyzeButton);
+
+      const saveButton = await screen.findByRole("button", { name: "Save as Report" });
+      expect(saveButton).toBeDisabled();
+      expect(screen.getByText("Saving is disabled in read-only mode")).toBeInTheDocument();
+    });
+
+    it("enables save button in write mode", async () => {
+      stubFetch({ write: true });
+
+      render(<Analysis />);
+
+      const analyzeButton = await screen.findByRole("button", { name: "Analyze" });
+      fireEvent.click(analyzeButton);
+
+      const saveButton = await screen.findByRole("button", { name: "Save as Report" });
+      expect(saveButton).toBeEnabled();
+    });
+
+    it("posts the report and shows success feedback", async () => {
+      const { reportsHandler } = stubFetch({ write: true });
+
+      render(<Analysis />);
+
+      const analyzeButton = await screen.findByRole("button", { name: "Analyze" });
+      fireEvent.click(analyzeButton);
+
+      const saveButton = await screen.findByRole("button", { name: "Save as Report" });
+      fireEvent.click(saveButton);
+
+      expect(await screen.findByText("Saved as report")).toBeInTheDocument();
+
+      expect(reportsHandler).toHaveBeenCalledTimes(1);
+      const init = reportsHandler.mock.calls[0]![0]!;
+      expect(init.method).toBe("POST");
+      const payload = JSON.parse(init.body as string) as {
+        type: string;
+        source: string;
+        title: string;
+        content: string;
+      };
+      expect(payload.type).toBe("analysis");
+      expect(payload.source).toBe("webui");
+      expect(payload.title).toBe("Workflow Analysis: project-alpha (10 findings)");
+      expect(payload.content).toContain("Long Sessions");
+      expect(payload.content).toContain("Long sessions often indicate difficulty");
+    });
+
+    it("shows failure feedback when save returns an error", async () => {
+      stubFetch({ write: true, reportsOk: false, reportsError: "Write mode is not enabled" });
+
+      render(<Analysis />);
+
+      const analyzeButton = await screen.findByRole("button", { name: "Analyze" });
+      fireEvent.click(analyzeButton);
+
+      const saveButton = await screen.findByRole("button", { name: "Save as Report" });
+      fireEvent.click(saveButton);
+
+      expect(await screen.findByText(/Save failed/)).toBeInTheDocument();
+    });
   });
 });
