@@ -168,6 +168,7 @@ export function Analysis() {
   const [projectsLoading, setProjectsLoading] = useState(true);
   const [writeMode, setWriteMode] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
   const [saveResult, setSaveResult] = useState<{ ok: boolean; text: string } | null>(null);
   const { t } = useTranslation();
 
@@ -210,6 +211,7 @@ export function Analysis() {
     setError(null);
     setReport(null);
     setSaveResult(null);
+    setSaved(false);
 
     fetch(`/api/analysis?project=${encodeURIComponent(selectedProject)}`)
       .then(async (res) => {
@@ -227,7 +229,7 @@ export function Analysis() {
   }
 
   function handleSaveReport() {
-    if (!report || !writeMode) return;
+    if (!report || !writeMode || saving || saved) return;
 
     setSaving(true);
     setSaveResult(null);
@@ -252,6 +254,7 @@ export function Analysis() {
       })
       .then(() => {
         setSaveResult({ ok: true, text: t("analysis.saveSuccess") });
+        setSaved(true);
         setSaving(false);
       })
       .catch((err: unknown) => {
@@ -316,7 +319,7 @@ export function Analysis() {
           <div className="mb-4 flex flex-wrap items-center gap-3">
             <button
               onClick={handleSaveReport}
-              disabled={!writeMode || saving}
+              disabled={!writeMode || saving || saved}
               title={!writeMode ? t("analysis.saveDisabledReadonly") : undefined}
               className="rounded-lg border border-accent bg-accent/20 px-6 py-2 text-sm font-medium text-accent hover:bg-accent/30 disabled:cursor-not-allowed disabled:opacity-40"
             >

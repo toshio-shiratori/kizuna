@@ -327,6 +327,25 @@ describe("Analysis", () => {
       expect(payload.content).toContain("Long sessions often indicate difficulty");
     });
 
+    it("disables the save button after a successful save to prevent duplicates", async () => {
+      const { reportsHandler } = stubFetch({ write: true });
+
+      render(<Analysis />);
+
+      const analyzeButton = await screen.findByRole("button", { name: "Analyze" });
+      fireEvent.click(analyzeButton);
+
+      const saveButton = await screen.findByRole("button", { name: "Save as Report" });
+      fireEvent.click(saveButton);
+
+      expect(await screen.findByText("Saved as report")).toBeInTheDocument();
+      expect(saveButton).toBeDisabled();
+
+      // A second click must not trigger another POST.
+      fireEvent.click(saveButton);
+      expect(reportsHandler).toHaveBeenCalledTimes(1);
+    });
+
     it("shows failure feedback when save returns an error", async () => {
       stubFetch({ write: true, reportsOk: false, reportsError: "Write mode is not enabled" });
 
