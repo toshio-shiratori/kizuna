@@ -37,7 +37,7 @@
   "devDependencies": {
     "@kizuna/core": "workspace:*",
     "@types/better-sqlite3": "^7.6.13",
-    "better-sqlite3": "^11.10.0",
+    "better-sqlite3": "^12.10.0",
     "typescript": "^5.9.3",
     "vitest": "^3.2.4"
   },
