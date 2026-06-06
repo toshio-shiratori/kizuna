@@ -3,8 +3,7 @@
     "dashboard": "Dashboard",
     "sessions": "Sessions",
     "search": "Search",
-    "analysis": "Analysis",
-    "telepathy": "Telepathy"
+    "analysis": "Analysis"
   },
   "common": {
     "loading": "Loading...",
@@ -135,23 +134,6 @@
       "reworkDetection": "Frequent rework may indicate unclear initial instructions or missing context in hooks. Consider adding more specific guidance in UserPromptSubmit hooks or CLAUDE.md rules.",
       "testFixLoop": "Frequent test-fix loops may indicate that changes are being made without fully understanding the test expectations. Consider improving test documentation, adding type checks before testing, or breaking changes into smaller increments."
     }
-  },
-  "telepathy": {
-    "title": "Telepathy",
-    "sendMessage": "Send Message",
-    "sendDescription": "Write a message to share with other projects. The message is stored locally and other projects read it via their references.",
-    "loadFromReport": "Load from report",
-    "selectReport": "Select a report...",
-    "messagePlaceholder": "Enter message to share...",
-    "sending": "Sending...",
-    "discoverableProjects": "Discoverable projects ({{count}})",
-    "receivedMessages": "Received Messages",
-    "failedToLoad": "Failed to load: {{error}}",
-    "noMessages": "No messages from other projects",
-    "sendTelepathyMessage": "Send Telepathy Message",
-    "sendConfirmation": "Send this message ({{length}} chars) via telepathy? Other projects will be able to read it.",
-    "sendSuccess": "Sent ({{length}} chars)",
-    "sendFailed": "Send failed"
   },
   "language": {
     "label": "Language"

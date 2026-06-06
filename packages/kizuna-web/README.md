@@ -31,7 +31,6 @@ Write mode (`--write`) enables chunk editing and deletion through the UI. Withou
 - **Full-text search** -- FTS5 search with highlighting
 - **Workflow analysis** -- Rule-based pattern detection (backtracking, repeated errors, test-fix loops, long sessions) with improvement suggestions
 - **Reports** -- Intra-project analysis reports readable by Claude Code via MCP
-- **Telepathy** -- Share reports with other projects via telepathy
 - **Chunk editor** -- Edit importance, delete chunks (write mode only)
 - **Export** -- JSON / Markdown download per session or search results
 

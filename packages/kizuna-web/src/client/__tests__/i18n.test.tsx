@@ -61,22 +61,6 @@ function stubFetchForAllPages() {
         } as Response);
       }
 
-      if (url.startsWith("/api/telepathy/references")) {
-        return Promise.resolve({
-          ok: true,
-          status: 200,
-          json: () => Promise.resolve({ references: [] }),
-        } as Response);
-      }
-
-      if (url.startsWith("/api/telepathy/receive")) {
-        return Promise.resolve({
-          ok: true,
-          status: 200,
-          json: () => Promise.resolve({ messages: [] }),
-        } as Response);
-      }
-
       if (url.startsWith("/api/search")) {
         return Promise.resolve({
           ok: true,
@@ -178,7 +162,6 @@ describe("i18n", () => {
       expect(nav).toHaveTextContent("セッション");
       expect(nav).toHaveTextContent("検索");
       expect(nav).toHaveTextContent("分析");
-      expect(nav).toHaveTextContent("テレパシー");
     });
 
     it("updates aria-label when language changes", async () => {

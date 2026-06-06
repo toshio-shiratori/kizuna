@@ -65,22 +65,6 @@ function stubFetchForAllPages() {
         } as Response);
       }
 
-      if (url.startsWith("/api/telepathy/references")) {
-        return Promise.resolve({
-          ok: true,
-          status: 200,
-          json: () => Promise.resolve({ references: [] }),
-        } as Response);
-      }
-
-      if (url.startsWith("/api/telepathy/receive")) {
-        return Promise.resolve({
-          ok: true,
-          status: 200,
-          json: () => Promise.resolve({ messages: [] }),
-        } as Response);
-      }
-
       if (url.startsWith("/api/search")) {
         return Promise.resolve({
           ok: true,
@@ -108,7 +92,6 @@ describe("App", () => {
     expect(screen.getByText("Sessions")).toBeInTheDocument();
     expect(screen.getByText("Search")).toBeInTheDocument();
     expect(screen.getByText("Analysis")).toBeInTheDocument();
-    expect(screen.getByText("Telepathy")).toBeInTheDocument();
   });
 
   it("defaults to dashboard page", async () => {
@@ -139,13 +122,6 @@ describe("App", () => {
     render(<App />);
 
     expect(await screen.findByText("Workflow Analysis")).toBeInTheDocument();
-  });
-
-  it("navigates to telepathy page via hash", async () => {
-    window.location.hash = "#telepathy";
-    render(<App />);
-
-    expect(await screen.findByText("Send Message")).toBeInTheDocument();
   });
 
   it("responds to hashchange events", async () => {

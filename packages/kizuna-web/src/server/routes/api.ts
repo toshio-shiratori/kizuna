@@ -1,23 +1,12 @@
 import { Hono } from "hono";
 import { searchMemory, exportMemory } from "@kizuna/core";
 import type { Database, ExportFormat } from "@kizuna/core";
-import { discoverReferences } from "@kizuna/plugin-multi-repo-sharing";
-import { hasTelepathyTable, sendMessage, receiveMessages } from "@kizuna/plugin-telepathy";
-import type { RepoReference } from "@kizuna/plugin-telepathy";
 import { runAnalysis } from "../analysis/index.js";
 
 export interface ApiRouteOptions {
-  projectDir: string;
   write: boolean;
   sessionExportLimit?: number;
 }
-
-const webLogger = {
-  debug() {},
-  info() {},
-  warn: console.warn,
-  error: console.error,
-};
 
 export function createApiRoutes(db: Database, options?: ApiRouteOptions): Hono {
   const api = new Hono();
@@ -293,63 +282,6 @@ export function createApiRoutes(db: Database, options?: ApiRouteOptions): Hono {
     }
 
     return c.json({ ok: true });
-  });
-
-  // ─── Telepathy ─────────────────────────────────────────
-
-  api.get("/telepathy/references", (c) => {
-    if (!options?.projectDir) {
-      return c.json({ references: [] });
-    }
-    const references = discoverReferences(options.projectDir);
-    return c.json({ references });
-  });
-
-  api.post("/telepathy/send", async (c) => {
-    if (!options?.write) {
-      return c.json({ error: "Write mode is not enabled" }, 403);
-    }
-
-    if (!hasTelepathyTable(db.getConnection())) {
-      return c.json({ error: "Telepathy plugin is not enabled" }, 503);
-    }
-
-    let body: Record<string, unknown>;
-    try {
-      body = (await c.req.json()) as Record<string, unknown>;
-    } catch {
-      return c.json({ error: "Invalid JSON body" }, 400);
-    }
-
-    const { message } = body;
-    if (!message || typeof message !== "string") {
-      return c.json({ error: "message is required and must be a string" }, 400);
-    }
-
-    const MAX_MESSAGE_LENGTH = 100_000;
-    if (message.length > MAX_MESSAGE_LENGTH) {
-      return c.json(
-        { error: `Message too long: ${message.length} chars (max ${MAX_MESSAGE_LENGTH})` },
-        400,
-      );
-    }
-
-    sendMessage(db.getConnection(), message);
-    return c.json({ ok: true, length: message.length });
-  });
-
-  api.get("/telepathy/receive", (c) => {
-    if (!options?.projectDir) {
-      return c.json({ messages: [], note: "Project directory not configured" });
-    }
-
-    const references: RepoReference[] = discoverReferences(options.projectDir);
-    if (references.length === 0) {
-      return c.json({ messages: [], note: "No referenced projects found" });
-    }
-
-    const messages = receiveMessages(references, webLogger);
-    return c.json({ messages });
   });
 
   return api;

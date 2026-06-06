@@ -331,7 +331,7 @@ describe("API routes", () => {
 
     it("returns write: false when write option is false", async () => {
       const app = new Hono();
-      app.route("/api", createApiRoutes(db, { projectDir: "/tmp/test", write: false }));
+      app.route("/api", createApiRoutes(db, { write: false }));
 
       const res = await app.request("/api/config");
       expect(res.status).toBe(200);
@@ -342,7 +342,7 @@ describe("API routes", () => {
 
     it("returns write: true when write option is true", async () => {
       const app = new Hono();
-      app.route("/api", createApiRoutes(db, { projectDir: "/tmp/test", write: true }));
+      app.route("/api", createApiRoutes(db, { write: true }));
 
       const res = await app.request("/api/config");
       expect(res.status).toBe(200);
@@ -355,7 +355,7 @@ describe("API routes", () => {
   describe("PATCH /chunks/:id", () => {
     it("returns 403 when write mode is not enabled", async () => {
       const app = new Hono();
-      app.route("/api", createApiRoutes(db, { projectDir: "/tmp/test", write: false }));
+      app.route("/api", createApiRoutes(db, { write: false }));
 
       const res = await app.request("/api/chunks/1", {
         method: "PATCH",
@@ -382,7 +382,7 @@ describe("API routes", () => {
 
     it("returns 400 for invalid chunk ID", async () => {
       const app = new Hono();
-      app.route("/api", createApiRoutes(db, { projectDir: "/tmp/test", write: true }));
+      app.route("/api", createApiRoutes(db, { write: true }));
 
       const res = await app.request("/api/chunks/abc", {
         method: "PATCH",
@@ -414,7 +414,7 @@ describe("API routes", () => {
       });
 
       const app = new Hono();
-      app.route("/api", createApiRoutes(db, { projectDir: "/tmp/test", write: true }));
+      app.route("/api", createApiRoutes(db, { write: true }));
 
       // Non-integer
       const res1 = await app.request(`/api/chunks/${chunk.id}`, {
@@ -451,7 +451,7 @@ describe("API routes", () => {
 
     it("returns 404 for non-existent chunk", async () => {
       const app = new Hono();
-      app.route("/api", createApiRoutes(db, { projectDir: "/tmp/test", write: true }));
+      app.route("/api", createApiRoutes(db, { write: true }));
 
       const res = await app.request("/api/chunks/99999", {
         method: "PATCH",
@@ -483,7 +483,7 @@ describe("API routes", () => {
       });
 
       const app = new Hono();
-      app.route("/api", createApiRoutes(db, { projectDir: "/tmp/test", write: true }));
+      app.route("/api", createApiRoutes(db, { write: true }));
 
       const res = await app.request(`/api/chunks/${chunk.id}`, {
         method: "PATCH",
@@ -506,7 +506,7 @@ describe("API routes", () => {
   describe("DELETE /chunks/:id", () => {
     it("returns 403 when write mode is not enabled", async () => {
       const app = new Hono();
-      app.route("/api", createApiRoutes(db, { projectDir: "/tmp/test", write: false }));
+      app.route("/api", createApiRoutes(db, { write: false }));
 
       const res = await app.request("/api/chunks/1", { method: "DELETE" });
       expect(res.status).toBe(403);
@@ -525,7 +525,7 @@ describe("API routes", () => {
 
     it("returns 400 for invalid chunk ID", async () => {
       const app = new Hono();
-      app.route("/api", createApiRoutes(db, { projectDir: "/tmp/test", write: true }));
+      app.route("/api", createApiRoutes(db, { write: true }));
 
       const res = await app.request("/api/chunks/abc", { method: "DELETE" });
       expect(res.status).toBe(400);
@@ -536,7 +536,7 @@ describe("API routes", () => {
 
     it("returns 404 for non-existent chunk", async () => {
       const app = new Hono();
-      app.route("/api", createApiRoutes(db, { projectDir: "/tmp/test", write: true }));
+      app.route("/api", createApiRoutes(db, { write: true }));
 
       const res = await app.request("/api/chunks/99999", { method: "DELETE" });
       expect(res.status).toBe(404);
@@ -564,7 +564,7 @@ describe("API routes", () => {
       });
 
       const app = new Hono();
-      app.route("/api", createApiRoutes(db, { projectDir: "/tmp/test", write: true }));
+      app.route("/api", createApiRoutes(db, { write: true }));
 
       const res = await app.request(`/api/chunks/${chunk.id}`, { method: "DELETE" });
       expect(res.status).toBe(200);
@@ -760,7 +760,7 @@ describe("API routes", () => {
   describe("POST /reports", () => {
     it("returns 403 when write mode is not enabled", async () => {
       const app = new Hono();
-      app.route("/api", createApiRoutes(db, { projectDir: "/tmp/test", write: false }));
+      app.route("/api", createApiRoutes(db, { write: false }));
 
       const res = await app.request("/api/reports", {
         method: "POST",
@@ -797,7 +797,7 @@ describe("API routes", () => {
 
     it("creates a report and returns 201 when write mode is enabled", async () => {
       const app = new Hono();
-      app.route("/api", createApiRoutes(db, { projectDir: "/tmp/test", write: true }));
+      app.route("/api", createApiRoutes(db, { write: true }));
 
       const res = await app.request("/api/reports", {
         method: "POST",
@@ -822,7 +822,7 @@ describe("API routes", () => {
 
     it("returns 400 for missing fields", async () => {
       const app = new Hono();
-      app.route("/api", createApiRoutes(db, { projectDir: "/tmp/test", write: true }));
+      app.route("/api", createApiRoutes(db, { write: true }));
 
       const res = await app.request("/api/reports", {
         method: "POST",
@@ -1119,10 +1119,7 @@ describe("API routes", () => {
       seedSession();
 
       const app = new Hono();
-      app.route(
-        "/api",
-        createApiRoutes(db, { projectDir: "", write: false, sessionExportLimit: 1 }),
-      );
+      app.route("/api", createApiRoutes(db, { write: false, sessionExportLimit: 1 }));
 
       const res = await app.request("/api/export/session/session-export-1?format=json");
       expect(res.status).toBe(200);
@@ -1142,10 +1139,7 @@ describe("API routes", () => {
       seedSession();
 
       const app = new Hono();
-      app.route(
-        "/api",
-        createApiRoutes(db, { projectDir: "", write: false, sessionExportLimit: 1 }),
-      );
+      app.route("/api", createApiRoutes(db, { write: false, sessionExportLimit: 1 }));
 
       const res = await app.request("/api/export/session/session-export-1?format=markdown");
       expect(res.status).toBe(200);
@@ -1340,208 +1334,6 @@ describe("API routes", () => {
       const parsed = JSON.parse(text) as { meta: { chunkCount: number }; chunks: unknown[] };
       expect(parsed.meta.chunkCount).toBe(0);
       expect(parsed.chunks).toEqual([]);
-    });
-  });
-
-  describe("GET /telepathy/references", () => {
-    it("returns empty references when projectDir is not configured", async () => {
-      const app = new Hono();
-      app.route("/api", createApiRoutes(db));
-
-      const res = await app.request("/api/telepathy/references");
-      expect(res.status).toBe(200);
-
-      const body = (await res.json()) as { references: unknown[] };
-      expect(body.references).toEqual([]);
-    });
-
-    it("returns references when projectDir is configured", async () => {
-      const app = new Hono();
-      // Use a non-existent path (discoverReferences returns [] for missing dirs)
-      app.route(
-        "/api",
-        createApiRoutes(db, { projectDir: "/tmp/nonexistent-test-dir", write: false }),
-      );
-
-      const res = await app.request("/api/telepathy/references");
-      expect(res.status).toBe(200);
-
-      const body = (await res.json()) as { references: unknown[] };
-      expect(body.references).toEqual([]);
-    });
-  });
-
-  describe("POST /telepathy/send", () => {
-    it("returns 403 when write mode is not enabled", async () => {
-      const app = new Hono();
-      app.route("/api", createApiRoutes(db, { projectDir: "/tmp/test", write: false }));
-
-      const res = await app.request("/api/telepathy/send", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: "test" }),
-      });
-      expect(res.status).toBe(403);
-
-      const body = (await res.json()) as { error: string };
-      expect(body.error).toBe("Write mode is not enabled");
-    });
-
-    it("returns 503 when telepathy table does not exist", async () => {
-      const app = new Hono();
-      app.route("/api", createApiRoutes(db, { projectDir: "/tmp/test", write: true }));
-
-      const res = await app.request("/api/telepathy/send", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: "test" }),
-      });
-      expect(res.status).toBe(503);
-
-      const body = (await res.json()) as { error: string };
-      expect(body.error).toBe("Telepathy plugin is not enabled");
-    });
-
-    it("returns 400 when message is missing", async () => {
-      // Create the telepathy table
-      db.getConnection().exec(`
-        CREATE TABLE telepathy_messages (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          message TEXT NOT NULL,
-          created_at TEXT NOT NULL DEFAULT (datetime('now'))
-        )
-      `);
-
-      const app = new Hono();
-      app.route("/api", createApiRoutes(db, { projectDir: "/tmp/test", write: true }));
-
-      const res = await app.request("/api/telepathy/send", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({}),
-      });
-      expect(res.status).toBe(400);
-
-      const body = (await res.json()) as { error: string };
-      expect(body.error).toBe("message is required and must be a string");
-    });
-
-    it("returns 400 when message exceeds max length", async () => {
-      db.getConnection().exec(`
-        CREATE TABLE telepathy_messages (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          message TEXT NOT NULL,
-          created_at TEXT NOT NULL DEFAULT (datetime('now'))
-        )
-      `);
-
-      const app = new Hono();
-      app.route("/api", createApiRoutes(db, { projectDir: "/tmp/test", write: true }));
-
-      const longMessage = "x".repeat(100_001);
-      const res = await app.request("/api/telepathy/send", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: longMessage }),
-      });
-      expect(res.status).toBe(400);
-
-      const body = (await res.json()) as { error: string };
-      expect(body.error).toContain("Message too long");
-    });
-
-    it("sends a message successfully", async () => {
-      // Create the telepathy table
-      db.getConnection().exec(`
-        CREATE TABLE telepathy_messages (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          message TEXT NOT NULL,
-          created_at TEXT NOT NULL DEFAULT (datetime('now'))
-        )
-      `);
-
-      const app = new Hono();
-      app.route("/api", createApiRoutes(db, { projectDir: "/tmp/test", write: true }));
-
-      const res = await app.request("/api/telepathy/send", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: "Hello from web UI" }),
-      });
-      expect(res.status).toBe(200);
-
-      const body = (await res.json()) as { ok: boolean; length: number };
-      expect(body.ok).toBe(true);
-      expect(body.length).toBe("Hello from web UI".length);
-
-      // Verify in DB
-      const row = db
-        .getConnection()
-        .prepare("SELECT message FROM telepathy_messages LIMIT 1")
-        .get() as {
-        message: string;
-      };
-      expect(row.message).toBe("Hello from web UI");
-    });
-
-    it("overwrites previous message on second send", async () => {
-      db.getConnection().exec(`
-        CREATE TABLE telepathy_messages (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          message TEXT NOT NULL,
-          created_at TEXT NOT NULL DEFAULT (datetime('now'))
-        )
-      `);
-
-      const app = new Hono();
-      app.route("/api", createApiRoutes(db, { projectDir: "/tmp/test", write: true }));
-
-      await app.request("/api/telepathy/send", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: "First message" }),
-      });
-
-      await app.request("/api/telepathy/send", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: "Second message" }),
-      });
-
-      const rows = db.getConnection().prepare("SELECT message FROM telepathy_messages").all() as {
-        message: string;
-      }[];
-      expect(rows).toHaveLength(1);
-      expect(rows[0]!.message).toBe("Second message");
-    });
-  });
-
-  describe("GET /telepathy/receive", () => {
-    it("returns empty when projectDir is not configured", async () => {
-      const app = new Hono();
-      app.route("/api", createApiRoutes(db));
-
-      const res = await app.request("/api/telepathy/receive");
-      expect(res.status).toBe(200);
-
-      const body = (await res.json()) as { messages: unknown[]; note?: string };
-      expect(body.messages).toEqual([]);
-      expect(body.note).toBe("Project directory not configured");
-    });
-
-    it("returns empty when no references are found", async () => {
-      const app = new Hono();
-      app.route(
-        "/api",
-        createApiRoutes(db, { projectDir: "/tmp/nonexistent-test-dir", write: false }),
-      );
-
-      const res = await app.request("/api/telepathy/receive");
-      expect(res.status).toBe(200);
-
-      const body = (await res.json()) as { messages: unknown[]; note?: string };
-      expect(body.messages).toEqual([]);
-      expect(body.note).toBe("No referenced projects found");
     });
   });
 });
