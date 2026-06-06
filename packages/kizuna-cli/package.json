@@ -28,7 +28,7 @@
   },
   "dependencies": {
     "@kizuna/core": "workspace:*",
-    "commander": "^13.1.0"
+    "commander": "^15.0.0"
   },
   "devDependencies": {
     "@kizuna/web": "workspace:*",

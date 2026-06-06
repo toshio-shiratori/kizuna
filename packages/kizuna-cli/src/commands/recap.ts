@@ -30,7 +30,7 @@ export function registerRecap(program: Command): void {
     .action(
       (opts: {
         project?: string;
-        limit: string | boolean;
+        limit: string | boolean | undefined;
         sessions: number;
         session?: string;
         date?: string;
@@ -86,9 +86,11 @@ function isValidDate(dateStr: string): boolean {
   return parsed.getFullYear() === y && parsed.getMonth() === m - 1 && parsed.getDate() === d;
 }
 
-function resolveLimit(limitOpt: string | boolean, defaultLimit: number): number | null {
+function resolveLimit(limitOpt: string | boolean | undefined, defaultLimit: number): number | null {
   if (limitOpt === false) return null;
-  if (limitOpt === true) return defaultLimit;
+  // commander 13 defaults an unspecified negatable+value option to `true`;
+  // commander 15 leaves it `undefined`. Treat both as "use the default limit".
+  if (limitOpt === true || limitOpt === undefined) return defaultLimit;
   const parsed = parseInt(limitOpt as string, 10);
   if (Number.isNaN(parsed) || parsed <= 0) {
     throw new InvalidArgumentError("--limit must be a positive integer.");
