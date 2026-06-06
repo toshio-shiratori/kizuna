@@ -12,6 +12,10 @@ export default defineConfig({
       },
       {
         plugins: [react()],
+        // @vitejs/plugin-react 6's Babel transform does not run under Vitest,
+        // so JSX falls back to esbuild's classic runtime (which needs React in
+        // scope). Force esbuild's automatic runtime so tests need no React import.
+        esbuild: { jsx: "automatic", jsxImportSource: "react" },
         test: {
           name: "client",
           environment: "jsdom",
