@@ -37,7 +37,7 @@
   "devDependencies": {
     "@kizuna/core": "workspace:*",
     "typescript": "^6.0.3",
-    "vitest": "^3.2.4"
+    "vitest": "^4.1.8"
   },
   "engines": {
     "node": ">=24.0.0"
