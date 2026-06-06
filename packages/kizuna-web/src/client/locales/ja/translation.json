@@ -3,8 +3,7 @@
     "dashboard": "ダッシュボード",
     "sessions": "セッション",
     "search": "検索",
-    "analysis": "分析",
-    "telepathy": "テレパシー"
+    "analysis": "分析"
   },
   "common": {
     "loading": "読み込み中...",
@@ -132,23 +131,6 @@
       "reworkDetection": "頻繁なやり直しは、初期指示が不明確であるか、フックのコンテキストが不足している可能性を示唆します。UserPromptSubmit フックまたは CLAUDE.md のルールに、より具体的なガイダンスを追加することを検討してください。",
       "testFixLoop": "頻繁なテスト修正ループは、テストの期待を十分に理解せずに変更している可能性を示唆します。テストドキュメントの改善、テスト前の型チェック追加、変更をより小さな単位に分割するなどを検討してください。"
     }
-  },
-  "telepathy": {
-    "title": "テレパシー",
-    "sendMessage": "メッセージ送信",
-    "sendDescription": "他のプロジェクトと共有するメッセージを入力してください。メッセージはローカルに保存され、他のプロジェクトがリファレンス経由で読み取ります。",
-    "loadFromReport": "レポートから読み込み",
-    "selectReport": "レポートを選択...",
-    "messagePlaceholder": "共有するメッセージを入力...",
-    "sending": "送信中...",
-    "discoverableProjects": "検出可能なプロジェクト ({{count}})",
-    "receivedMessages": "受信メッセージ",
-    "failedToLoad": "読み込みに失敗しました: {{error}}",
-    "noMessages": "他のプロジェクトからのメッセージはありません",
-    "sendTelepathyMessage": "テレパシーメッセージを送信",
-    "sendConfirmation": "このメッセージ ({{length}} 文字) をテレパシーで送信しますか？他のプロジェクトが読み取れるようになります。",
-    "sendSuccess": "送信完了 ({{length}} 文字)",
-    "sendFailed": "送信に失敗しました"
   },
   "language": {
     "label": "言語"

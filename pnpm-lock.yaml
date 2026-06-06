@@ -101,12 +101,6 @@ importers:
       '@kizuna/core':
         specifier: workspace:*
         version: link:../kizuna-core
-      '@kizuna/plugin-multi-repo-sharing':
-        specifier: workspace:*
-        version: link:../plugin-multi-repo-sharing
-      '@kizuna/plugin-telepathy':
-        specifier: workspace:*
-        version: link:../plugin-telepathy
       hono:
         specifier: ^4.12.23
         version: 4.12.23

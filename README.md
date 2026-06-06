@@ -91,7 +91,7 @@ kizuna web
 # Open http://localhost:4100
 ```
 
-Features: dashboard, session browser, full-text search, workflow analysis, reports, telepathy, export. Use `--write` to enable chunk editing. See [packages/kizuna-web](packages/kizuna-web/) for details.
+Features: dashboard, session browser, full-text search, workflow analysis, reports, export. Use `--write` to enable chunk editing. See [packages/kizuna-web](packages/kizuna-web/) for details.
 
 ### Search Memories
 

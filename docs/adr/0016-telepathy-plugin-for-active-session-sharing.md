@@ -1,6 +1,6 @@
 # 0016. Telepathy plugin for active session context sharing
 
-**Status**: Accepted
+**Status**: Accepted (Web UI integration superseded by #247; plugin and MCP tools remain in effect)
 
 **Date**: 2026-05-23
 
@@ -83,6 +83,8 @@ Automatic synchronization of active session state would generate excessive noise
 The use case is ephemeral context transfer — a clipboard, not a mailbox. Retaining history adds complexity (pagination, cleanup) without clear benefit. If the context is important enough to persist, it will naturally be captured by Kizuna's normal session-end memory system.
 
 ### Why manual refresh only (no polling)
+
+> **Note (#247)**: The Web UI telepathy page described in this section was removed in #247. Telepathy is now used exclusively via the plugin and MCP tools (`kizuna_telepathy_send` / `kizuna_telepathy_receive`); FE↔BE handoff happens through MCP, so a Web UI view was no longer needed. The rationale below is retained as the historical record of the original Web UI design decision.
 
 The Web UI's telepathy receive section uses manual refresh exclusively. Automatic polling was considered and rejected because:
 

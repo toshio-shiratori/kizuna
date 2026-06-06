@@ -1,4 +1,4 @@
-import { dirname, resolve } from "node:path";
+import { resolve } from "node:path";
 import { readFileSync } from "node:fs";
 import { Hono } from "hono";
 import { serve } from "@hono/node-server";
@@ -19,11 +19,9 @@ export interface AppOptions {
 
 export function createApp(clientDir: string, options: AppOptions): { app: Hono; db: Database } {
   const db = new Database(options.dbPath, { readonly: !options.write });
-  // Derive project directory from dbPath (e.g. <project>/.kizuna/memory.db)
-  const projectDir = dirname(dirname(resolve(options.dbPath)));
   const app = new Hono();
 
-  app.route("/api", createApiRoutes(db, { projectDir, write: options.write }));
+  app.route("/api", createApiRoutes(db, { write: options.write }));
 
   app.use(
     "/*",
