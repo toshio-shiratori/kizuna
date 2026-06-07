@@ -3,7 +3,8 @@
   "ignore": ["templates/**"],
   "workspaces": {
     "packages/kizuna-cli": {
-      "ignoreDependencies": ["tsx"]
+      "ignoreDependencies": ["tsx"],
+      "ignoreBinaries": ["which"]
     },
     "packages/plugin-hybrid-search": {
       "ignoreDependencies": ["@huggingface/transformers"]
