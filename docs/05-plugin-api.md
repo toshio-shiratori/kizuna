@@ -2,14 +2,33 @@
 
 This document defines the plugin API for Kizuna. Plugins extend Kizuna's behavior at well-defined hook points without modifying the core.
 
+> For a step-by-step guide to building and publishing a plugin (including
+> third-party plugins), see [08-plugin-development.md](./08-plugin-development.md).
+> This document is the reference specification for the types and contracts.
+
 ## Plugin Discovery
 
-Plugins are discovered in two ways:
+Plugins are discovered **only** through explicit declaration in the project's
+`.kizuna/plugins.json` file. There is no convention-based auto-discovery or npm
+registry scanning — a plugin loads when, and only when, it is listed here with
+`enabled: true`. See [ADR-0017](./adr/0017-explicit-config-plugin-discovery.md)
+for the rationale.
 
-1. **Configuration-declared**: Listed in the project's `.kizuna/config.json` under the `plugins` array
-2. **Auto-discovered**: Installed npm packages whose names match `@kizuna/plugin-*` or are in a configured plugin search path
+```jsonc
+// .kizuna/plugins.json
+{
+  "plugins": {
+    "@kizuna/plugin-pii-sanitizer": { "enabled": true, "options": {} },
+  },
+}
+```
 
-Configuration-declared plugins take precedence over auto-discovered ones.
+Each key is the npm package name; the value declares whether the plugin is
+enabled and supplies its `options`. The loader imports each enabled package
+(resolving it from the CLI's `node_modules` first, then the project's), so the
+package must be installed. Manage these entries with the `kizuna plugin`
+commands (`enable`, `disable`, `config`) rather than editing the file by hand
+(see [ADR-0014](./adr/0014-cli-plugin-config-command.md)).
 
 ## Plugin Package Structure
 
@@ -38,18 +57,25 @@ The `package.json` should declare `kizuna-core` as a peer dependency:
 
 ## Plugin Interface
 
-Every plugin exports a default object conforming to the `Plugin` interface:
+Every plugin provides a **named export** conforming to the `Plugin` interface
+(Kizuna uses named exports only — no default exports). The loader resolves, in
+order: (1) any named export matching `createXxxPlugin` (a factory called with
+the plugin's `options`), then (2) any named export that is a `Plugin` object.
 
 ```typescript
 import type { Plugin } from "@kizuna/core";
 
-export default {
+export const myPlugin: Plugin = {
   name: "@your-scope/plugin-name",
   version: "1.0.0",
 
   // ... lifecycle, hooks, tools, etc.
-} satisfies Plugin;
+};
 ```
+
+For plugins that need initialization or closure state, export a
+`createXxxPlugin` factory instead — see [08-plugin-development.md](./08-plugin-development.md)
+for both styles.
 
 ### The `Plugin` Interface
 
@@ -137,7 +163,7 @@ export interface PluginContext {
    */
   readonly db: unknown;
 
-  /** The plugin's configuration from .kizuna/config.json */
+  /** The plugin's configuration (the entry from .kizuna/plugins.json) */
   readonly config: PluginConfig;
 
   /** The active project's configuration */
@@ -313,7 +339,7 @@ export interface CLIOption {
 
 ## Hook Execution Order
 
-When multiple plugins implement the same hook, they execute in the order plugins are listed in the project configuration.
+When multiple plugins implement the same hook, they execute in the order their entries appear in `.kizuna/plugins.json`.
 
 ### Capture Pipeline
 
@@ -407,7 +433,7 @@ const PATTERNS = [
   { name: "github_token", regex: /ghp_[A-Za-z0-9]{36}/g },
 ];
 
-export default {
+export const piiSanitizer: Plugin = {
   name: "@kizuna/plugin-pii-sanitizer",
   version: "1.0.0",
   description: "Redacts API keys and tokens before storage",
@@ -440,7 +466,7 @@ export default {
 
     return chunk;
   },
-} satisfies Plugin;
+};
 ```
 
 ## Example Plugin: multi-repo-sharing
@@ -545,22 +571,18 @@ Combines FTS5 lexical search with vector similarity for improved recall. Uses `@
 
 ## Plugin Configuration Example
 
-A project enabling multiple plugins:
+A project enabling multiple plugins. Plugins are keyed by npm package name;
+entry order determines hook execution order.
 
 ```jsonc
-// .kizuna/config.json
+// .kizuna/plugins.json
 {
-  "project": {
-    "id": "my-frontend-app",
-  },
-  "plugins": [
-    {
-      "name": "@kizuna/plugin-pii-sanitizer",
+  "plugins": {
+    "@kizuna/plugin-pii-sanitizer": {
       "enabled": true,
       "options": {},
     },
-    {
-      "name": "@kizuna/plugin-multi-repo-sharing",
+    "@kizuna/plugin-multi-repo-sharing": {
       "enabled": true,
       "options": {
         "references": [
@@ -572,8 +594,7 @@ A project enabling multiple plugins:
         "halfLifeDays": 14,
       },
     },
-    {
-      "name": "@kizuna/plugin-telepathy",
+    "@kizuna/plugin-telepathy": {
       "enabled": true,
       "options": {
         "references": [
@@ -584,14 +605,13 @@ A project enabling multiple plugins:
         ],
       },
     },
-    {
-      "name": "@kizuna/plugin-openapi-awareness",
+    "@kizuna/plugin-openapi-awareness": {
       "enabled": true,
       "options": {
         "specPaths": ["./openapi.yaml"],
       },
     },
-  ],
+  },
 }
 ```
 
@@ -607,18 +627,49 @@ Plugins declare their compatible core version via `peerDependencies`. The CLI wa
 
 ## Testing Plugins
 
-The `@kizuna/core` package exports test utilities:
+`@kizuna/core` exports the plugin types but no test harness. Plugins test their
+hooks directly by constructing a minimal `PluginContext` (a plain object
+implementing `db`, `config`, `projectConfig`, `logger`, and `storage`) and
+invoking the hook:
 
 ```typescript
-import { createTestContext, runPluginHook } from "@kizuna/core/testing";
+import { describe, it, expect } from "vitest";
+import type { PluginContext, Logger, PluginStorage } from "@kizuna/core";
+import { myPlugin } from "./index.js";
 
-const ctx = createTestContext({ projectId: "test", options: {} });
-const result = await runPluginHook(myPlugin, "beforeCapture", testChunk, ctx);
+function makeContext(options: Record<string, unknown> = {}): PluginContext {
+  const logger: Logger = { debug() {}, info() {}, warn() {}, error() {} };
+  const storage: PluginStorage = {
+    async get() {
+      return null;
+    },
+    async set() {},
+    async delete() {},
+    async list() {
+      return [];
+    },
+  };
+  return {
+    db: {},
+    config: { enabled: true, options },
+    projectConfig: { id: "test-project" },
+    logger,
+    storage,
+  };
+}
 
-expect(result.metadata["my-plugin"]).toBeDefined();
+it("passes chunks through beforeCapture", async () => {
+  const ctx = makeContext();
+  const result = await myPlugin.beforeCapture!(testChunk, ctx);
+  expect(result).not.toBeNull();
+});
 ```
 
-Plugins should include unit tests using these utilities and integration tests against a real SQLite database.
+See `plugin-pii-sanitizer/src/index.test.ts` for a complete example, and
+[08-plugin-development.md](./08-plugin-development.md) (Step 6) for the full
+walkthrough. Plugins should include unit tests over their hooks and, for plugins
+that touch the database (migrations, KV storage), integration tests against a
+real SQLite file.
 
 ## What Plugins Cannot Do
 

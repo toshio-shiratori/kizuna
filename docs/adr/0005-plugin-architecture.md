@@ -1,6 +1,6 @@
 # 0005. Adopt a plugin architecture for extensibility
 
-**Status**: Accepted
+**Status**: Accepted (discovery clarified by ADR-0017)
 
 **Date**: 2026-05-02
 
