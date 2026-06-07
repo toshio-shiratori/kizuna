@@ -198,7 +198,7 @@ Add the plugin system so that project-specific or use-case-specific functionalit
 #### 3.1 Plugin loader ✅
 
 - Implement `PluginManager` class in `kizuna-core/src/plugin/`
-- Implement plugin discovery (config-declared and auto-discovered)
+- Implement plugin discovery (config-declared via `.kizuna/plugins.json`; convention-based auto-discovery was intentionally not built — see ADR-0017)
 - Implement plugin lifecycle (init, shutdown)
 - Implement migration runner for plugin migrations
 - Implement per-plugin KV storage (`plugin_kv` table from schema doc)
