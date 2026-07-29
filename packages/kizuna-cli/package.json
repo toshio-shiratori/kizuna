@@ -32,9 +32,9 @@
   },
   "devDependencies": {
     "@kizuna/web": "workspace:*",
-    "tsx": "^4.22.4",
+    "tsx": "^4.23.1",
     "typescript": "^6.0.3",
-    "vitest": "^4.1.8"
+    "vitest": "^4.1.10"
   },
   "engines": {
     "node": ">=24.0.0"
