@@ -3,14 +3,10 @@
   "ignore": ["templates/**"],
   "workspaces": {
     "packages/kizuna-cli": {
-      "ignoreDependencies": ["tsx"],
-      "ignoreBinaries": ["which"]
+      "ignoreDependencies": ["tsx"]
     },
     "packages/plugin-hybrid-search": {
       "ignoreDependencies": ["@huggingface/transformers"]
-    },
-    "packages/kizuna-web": {
-      "entry": ["e2e/setup/start-test-server.ts"]
     }
   }
 }
