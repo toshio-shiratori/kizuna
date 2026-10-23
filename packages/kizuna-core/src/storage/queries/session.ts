@@ -42,8 +42,7 @@ export function upsertSession(db: BetterSqlite3.Database, session: Session): voi
 
 export function getLatestSession(db: BetterSqlite3.Database): Session | null {
   const row = db.prepare("SELECT * FROM sessions ORDER BY started_at DESC LIMIT 1").get() as
-    | SessionRow
-    | undefined;
+    SessionRow | undefined;
   return row ? sessionRowToSession(row) : null;
 }
 

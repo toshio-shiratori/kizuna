@@ -188,8 +188,7 @@ function resolveProjectReference(cwd: string, projectName: string): ResolvedProj
   for (const [, entry] of Object.entries(pluginsJson.plugins)) {
     if (!entry.enabled) continue;
     const options = entry.options as
-      | { references?: Array<{ name: string; dbPath: string }> }
-      | undefined;
+      { references?: Array<{ name: string; dbPath: string }> } | undefined;
     if (!options?.references) continue;
 
     const ref = options.references.find((r) => r.name === projectName);
