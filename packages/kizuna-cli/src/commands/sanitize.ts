@@ -127,8 +127,7 @@ export function registerSanitize(program: Command): void {
 
       // 3. Compile patterns (including custom patterns from config)
       const customPatterns = pluginEntry.options?.customPatterns as
-        | ReadonlyArray<{ name: string; pattern: string; flags?: string }>
-        | undefined;
+        ReadonlyArray<{ name: string; pattern: string; flags?: string }> | undefined;
       const patterns = compilePatterns(customPatterns);
 
       // 4. Query chunks

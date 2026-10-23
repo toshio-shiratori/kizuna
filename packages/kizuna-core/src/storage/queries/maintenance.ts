@@ -22,8 +22,7 @@ export function insertMaintenanceRun(
 
 export function getLastMaintenanceRun(db: BetterSqlite3.Database): MaintenanceRun | null {
   const row = db.prepare("SELECT * FROM maintenance_runs ORDER BY ran_at DESC LIMIT 1").get() as
-    | MaintenanceRow
-    | undefined;
+    MaintenanceRow | undefined;
   return row ? maintenanceRowToRun(row) : null;
 }
 
